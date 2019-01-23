@@ -1,3 +1,4 @@
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
 #pragma once
 
 #define CDC_INTERFACE_CLASS 0x02
@@ -14,6 +15,10 @@
 #define CDC_GET_LINE_ENCODING 0x21
 #define CDC_SET_CONTROL_LINE_STATE 0x22
 #define CDC_SEND_BREAK 0x23
+
+// Ignore warnings in this file about inefficient alignment
+#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diagnostic ignored "-Wpacked"
 
 typedef struct {
     uint8_t bLength;
@@ -43,3 +48,6 @@ typedef struct {
   uint8_t parity_type;
   uint8_t data_bits;
 } __attribute__((packed)) CDC_LineEncoding;
+
+// Stop ignoring warnings about inefficient alignment
+#pragma GCC diagnostic pop
