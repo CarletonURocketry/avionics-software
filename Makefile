@@ -133,10 +133,10 @@ MATH_LIB = -Lsamd21/lib/libarm_cortexM0l_math.a
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
 LDSCRIPT = samd21/samd21j18a_flash.ld
+SPECS = samd21/nosys.specs
 
-LDFLAGS += -T$(LDSCRIPT) -mthumb -Wl,--gc-sections -mcpu=cortex-m0plus --entry=Reset_Handler
-LDFLAGS += --specs=v6-m/nano.specs $(MATH_LIB)
-#LDFLAGS += -L"v6-m" v6-m/libnosys.a
+LDFLAGS += -T$(LDSCRIPT) $(ARCHFLAGS) -Wl,--gc-sections --entry=Reset_Handler
+LDFLAGS += --specs=$(SPECS) $(MATH_LIB)
 
 
 #---------------- Programming Options (openocd/dgb) ----------------
