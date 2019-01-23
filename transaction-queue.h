@@ -3,8 +3,8 @@
  * @desc A circular queue for transaction descriptors
  * @author Samuel Dewan
  * @date 2019-01-03
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-01-19
  */
 
 #ifndef transaction_queue_h
@@ -95,13 +95,14 @@ static inline struct transaction_t *transaction_queue_get(
 static inline struct transaction_t *transaction_queue_get_free(
                                             struct transaction_queue_t *queue)
 {
-    uint8_t i = queue->head + 1;
+    uint8_t n = (queue->head + 1) % queue->length;
+    uint8_t i = n;
     do {
         if (!queue->buffer[i].valid) {
             return queue->buffer + i;
         }
         i = (i + 1) % queue->length;
-    } while (i != queue->head + 1);
+    } while (i != n);
 
     return NULL;
 }
@@ -117,7 +118,8 @@ static inline struct transaction_t *transaction_queue_get_free(
 static inline struct transaction_t *transaction_queue_next(
                                             struct transaction_queue_t *queue)
 {
-    uint8_t i = queue->head + 1;
+    uint8_t n = (queue->head + 1) % queue->length;
+    uint8_t i = n;
     do {
         if (queue->buffer[i].valid && !queue->buffer[i].active
                                    && !queue->buffer[i].done) {
@@ -125,7 +127,7 @@ static inline struct transaction_t *transaction_queue_next(
             return queue->buffer + i;
         }
         i = (i + 1) % queue->length;
-    } while (i != queue->head + 1);
+    } while (i != n);
     
     return NULL;
 }
