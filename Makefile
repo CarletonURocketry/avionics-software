@@ -84,6 +84,8 @@ CDEFS = -DF_CPU=$(F_CPU)UL
 # Place -I options here
 CINCS = 
 
+#---------------- Architecture Options ----------------
+ARCHFLAGS += -mcpu=cortex-m0plus -mthumb 
 
 #---------------- Compiler Options ----------------
 #  -g*: 			generate debugging information
@@ -93,8 +95,8 @@ CINCS =
 #  -Wa,...:     tell GCC to pass this to the assembler.
 #    -adhlns...: create assembler listing
 CFLAGS += $(CDEFS) $(CINCS)
-CFLAGS += -O$(OPT)
-CFLAGS += -mcpu=cortex-m0plus -mthumb -g3
+CFLAGS += -O$(OPT) -g3
+CFLAGS += $(ARCHFLAGS)
 CFLAGS += -funsigned-char -funsigned-bitfields
 CFLAGS += -fno-strict-aliasing -ffunction-sections -fdata-sections -mlong-calls
 CFLAGS += --param max-inline-insns-single=500
