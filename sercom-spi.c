@@ -236,8 +236,9 @@ static inline void sercom_spi_end_transaction (
     sercom_spi_service(spi_inst);
 }
 
-static inline void sercom_spi_start_reception (struct sercom_spi_desc_t *spi_inst,
-                                               struct transaction_t *t)
+static inline void sercom_spi_start_reception (
+                                            struct sercom_spi_desc_t *spi_inst,
+                                            struct transaction_t *t)
 {
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
@@ -257,6 +258,19 @@ static inline void sercom_spi_start_reception (struct sercom_spi_desc_t *spi_ins
     }
     
     s->rx_started = 1;
+    
+    if (spi_inst->tx_use_dma) {
+        // Start DMA transaction to write dummy bytes
+        dma_start_static_to_static(
+                            spi_inst->tx_dma_chan, &spi_dummy_byte,
+                            s->in_length,
+                            (uint8_t*)&spi_inst->sercom->SPI.DATA,
+                            sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
+                            SERCOM_DMA_TX_PRIORITY);
+    } else {
+        // Re-enable the data register empty interupt
+        spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
+    }
 }
 
 static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
@@ -266,7 +280,7 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
     
-    // TX
+    // Data Register Empty
     if (sercom->SPI.INTENSET.bit.DRE && sercom->SPI.INTFLAG.bit.DRE) {
         if (s->bytes_out < s->out_length) {
             // Send next byte
@@ -274,19 +288,23 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
             s->bytes_out++;
         } else if (!s->in_length) {
             // Transaction is complete
-            sercom_spi_end_transaction(spi_inst, t);
-        }  else if ((spi_inst->rx_use_dma && (s->bytes_in < s->in_length)) ||
+            sercom->SPI.INTENSET.bit.TXC = 0b1;
+        }  else if ((s->bytes_in < s->in_length) ||
                     (s->bytes_in < (s->in_length - 1))) {
             if (!s->rx_started) {
-                // Need to enable receiver
-                sercom_spi_start_reception(spi_inst, t);
-            }
-            // Send dummy byte
-            sercom->SPI.DATA.reg = spi_dummy_byte;
-            // If DMA is being used for reception, the bytes in count must be
-            // inceremented here
-            if (spi_inst->rx_use_dma) {
-                s->bytes_in++;
+                /* Let the transmition end and start reception in the TXC ISR */
+                // Disable DRE ISR so that we don't get stuck in it infinitely
+                sercom->SPI.INTENCLR.bit.DRE = 0b1;
+                // Enable TXC ISR
+                sercom->SPI.INTENSET.bit.TXC = 0b1;
+            } else {
+                // Send dummy byte
+                sercom->SPI.DATA.reg = spi_dummy_byte;
+                // If DMA is being used for reception, the bytes in count must
+                // be inceremented here
+                if (spi_inst->rx_use_dma) {
+                    s->bytes_in++;
+                }
             }
         } else {
             // No more bytes to be sent, disable data register empty interupt
@@ -294,8 +312,21 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
         }
     }
     
-    // RX
-    if (sercom->USART.INTFLAG.bit.RXC) {
+    // Transmit Complete
+    if (sercom->SPI.INTENSET.bit.TXC && sercom->SPI.INTFLAG.bit.TXC) {
+        sercom->SPI.INTENCLR.bit.TXC = 0b1;
+        if (s->in_length) {
+            // Need to enable receiver
+            sercom_spi_start_reception(spi_inst, t);
+        } else {
+            // Transaction is complete
+            sercom_spi_end_transaction(spi_inst, t);
+        }
+    }
+    
+    // Receive Complete
+    if (sercom->SPI.INTENSET.bit.RXC && sercom->USART.INTFLAG.bit.RXC) {
+        // Get the recieved byte
         s->in_buffer[s->bytes_in] = sercom->SPI.DATA.reg;
         s->bytes_in++;
         
@@ -321,18 +352,7 @@ static void sercom_spi_dma_callback (uint8_t chan, void *state)
     if (spi_inst->tx_use_dma && chan == spi_inst->tx_dma_chan &&
                                 !s->rx_started) {
         // TX stage is complete
-        if (s->in_length) {
-            // Start RX stage
-            sercom_spi_start_reception(spi_inst, t);
-            // Start DMA transaction to write dummy bytes
-            dma_start_static_to_static(spi_inst->tx_dma_chan, &spi_dummy_byte,
-                            s->in_length, (uint8_t*)&spi_inst->sercom->SPI.DATA,
-                            sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
-        } else {
-            // Transaction is complete
-            sercom_spi_end_transaction(spi_inst, t);
-        }
+        spi_inst->sercom->SPI.INTENSET.bit.TXC = 0b1;
     } else if (spi_inst->rx_use_dma && chan == spi_inst->rx_dma_chan) {
         // Transaction is complete
         sercom_spi_end_transaction(spi_inst, t);
