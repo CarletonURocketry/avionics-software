@@ -99,7 +99,8 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
         dmacDescriptors_g[chan].DESCADDR.reg = 0x0;
         
         // Enable interupt on block completion
-        dmacDescriptors_g[chan].BTCTRL.bit.BLOCKACT = DMAC_BTCTRL_BLOCKACT_INT_Val;
+        dmacDescriptors_g[chan].BTCTRL.bit.BLOCKACT =
+                                                DMAC_BTCTRL_BLOCKACT_INT_Val;
     }   else {
         // Select block transfer count
         dmacDescriptors_g[chan].BTCNT.reg = (buffer->capacity - buffer->head);
@@ -113,7 +114,8 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
             dmacDescriptors_g[chan].DESCADDR.reg = 0x0;
         } else {
             // Set next descriptor address
-            dmacDescriptors_g[chan].DESCADDR.reg = (uint32_t)(&tran->second_descriptor);
+            dmacDescriptors_g[chan].DESCADDR.reg =
+                                        (uint32_t)(&tran->second_descriptor);
             
             /* Configure second descriptor */
             // Ensure that the step size setting does not apply to source

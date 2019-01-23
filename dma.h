@@ -110,9 +110,9 @@ extern void dma_start_static_to_static(uint8_t chan, const uint8_t *source,
  */
 inline static uint8_t dma_chan_is_active(uint8_t chan)
 {
-    //return (DMAC->PENDCH.reg & (1<<chan)) || (DMAC->BUSYCH.reg & (1<<chan));
     DMAC->CHID.bit.ID = chan;
-    return DMAC->CHINTENSET.bit.TCMPL || (DMAC->ACTIVE.bit.ID == chan && DMAC->ACTIVE.bit.ABUSY);
+    return DMAC->CHINTENSET.bit.TCMPL ||
+           (DMAC->ACTIVE.bit.ID == chan && DMAC->ACTIVE.bit.ABUSY);
 }
 
 
@@ -130,7 +130,12 @@ extern void crc_calc_crc32_async(void);
 
 extern void crc_calc_crc32_dma(void);
 
-extern uint32_t crc_get_async_result(void);
+extern uint32_t crc_get_async_result_32(void);
+
+static inline uint16_t crc_get_async_result_16(void)
+{
+    return (uint16_t)crc_get_async_result_32();
+}
 
 extern void crc_service(void);
 
