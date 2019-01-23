@@ -13,8 +13,7 @@
 #
 # make clean = Clean out built project files.
 #
-# make program = Download the hex file to the device, using avrdude.
-#                Please customize the avrdude settings below first!
+# make program = Download the hex file to the device, using openocd and GDB.
 #
 # make debug = Start openocd with a gdb debuging frontend
 #
@@ -27,12 +26,12 @@
 #----------------------------------------------------------------------------
 
 # MCU name
-PTYPE=__SAMD21J18A__
-
+PTYPE = __SAMD21J18A__
+MCU_NAME = samd21
 
 # Processor frequency.
-#     This will define a symbol, F_CPU, in all source code files equal to the
-#     processor frequency. You can then use this symbol in your source code to
+#     This will define a symbol, F_CPU, in all source code files equal to the 
+#     processor frequency. You can then use this symbol in your source code to 
 #     calculate timings. Do NOT tack on a 'UL' at the end, this will be done
 #     automatically to create a 32-bit value in your source code.
 F_CPU = 48000000
@@ -57,9 +56,9 @@ OBJDIR = obj
 ASRC = $(wildcard *.S)
 
 
-# Optimization level, can be [0, 1, 2, 3, s].
+# Optimization level, can be [0, 1, 2, 3, s]. 
 #     0 = turn off optimization. s = optimize for size.
-#     (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
+#     (Note: 3 is not always the best optimization level.)
 OPT = 2
 
 
@@ -87,11 +86,11 @@ CINCS =
 
 
 #---------------- Compiler Options ----------------
-#  -g*:          generate debugging information
+#  -g*: 			generate debugging information
 #  -O*:          optimization level
-#  -f...:        tuning, see GCC manual and avr-libc documentation
-#  -Wall...:     warning level
-#  -Wa,...:      tell GCC to pass this to the assembler.
+#  -f...:        	tuning, see GCC manual
+#  -Wall...:    warning level
+#  -Wa,...:     tell GCC to pass this to the assembler.
 #    -adhlns...: create assembler listing
 CFLAGS += $(CDEFS) $(CINCS)
 CFLAGS += -O$(OPT)
@@ -118,35 +117,12 @@ CFLAGS += $(CSTANDARD)
 #             for use in COFF files, additional information about filenames
 #             and function names needs to be present in the assembler source
 #             files -- see avr-libc docs [FIXME: not yet described there]
-#  -listing-cont-lines: Sets the maximum number of continuation lines of hex
+#  -listing-cont-lines: Sets the maximum number of continuation lines of hex 
 #       dump that will be displayed for a given single line of source input.
 ASFLAGS = -Wa,-adhlns=$(addprefix $(OBJDIR)/,$(<:.S=.lst)),-gstabs,--listing-cont-lines=100
 
 
 #---------------- Library Options ----------------
-# Minimalistic printf version
-PRINTF_LIB_MIN = -Wl,-u,vfprintf -lprintf_min
-
-# Floating point printf version (requires MATH_LIB = -lm below)
-PRINTF_LIB_FLOAT = -Wl,-u,vfprintf -lprintf_flt
-
-# If this is left blank, then it will use the Standard printf version.
-#PRINTF_LIB =
-PRINTF_LIB = $(PRINTF_LIB_MIN)
-#PRINTF_LIB = $(PRINTF_LIB_FLOAT)
-
-
-# Minimalistic scanf version
-SCANF_LIB_MIN = -Wl,-u,vfscanf -lscanf_min
-
-# Floating point + %[ scanf version (requires MATH_LIB = -lm below)
-SCANF_LIB_FLOAT = -Wl,-u,vfscanf -lscanf_flt
-
-# If this is left blank, then it will use the Standard scanf version.
-#SCANF_LIB =
-SCANF_LIB = $(SCANF_LIB_MIN)
-#SCANF_LIB = $(SCANF_LIB_FLOAT)
-
 MATH_LIB = -Lsamd21/lib/libarm_cortexM0l_math.a
 
 
@@ -173,7 +149,7 @@ GDB_PORT = 3333
 #GDB_PORT = 2331
 
 # Debugging host used to communicate between GDB / openocd, normally
-#     just set to localhost unless doing some sort of crazy debugging when
+#     just set to localhost unless doing some sort of crazy debugging when 
 #     openocd is running on a different computer.
 DEBUG_HOST = localhost
 
@@ -233,7 +209,7 @@ $(OBJDIR):
 	@mkdir -p $@
 
 # Display compiler version information.
-gccversion :
+gccversion : 
 	@$(CC) --version
 
 # Display information about build.
@@ -242,7 +218,7 @@ info:
 	@echo OBJS=$(OBJS)
 
 
-# Program the device.
+# Program the device.  
 program: | upload reset
 
 # Upload to target withh GDB
