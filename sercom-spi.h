@@ -39,7 +39,7 @@ struct sercom_spi_transaction_t {
     uint32_t baudrate;
     
     /** The mask for the chip select pin of the peripheral. */
-    uint8_t cs_pin_mask;
+    uint32_t cs_pin_mask;
     /** The group index of the chip select pin for the peripheral. */
     uint8_t cs_pin_group:2;
     
