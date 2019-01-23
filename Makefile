@@ -165,19 +165,19 @@ DEBUG_HOST = localhost
 # CORTEX_TOOLCHAIN_BIN must be specified as an environment variable or argument
 # to make
 
-SHELL = sh
-CC = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
-LD = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
-AS = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-as
-OBJCOPY = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objcopy
-OBJDUMP = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objdump
-SIZE = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-size
-NM = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-nm
-GDB = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb
-OPENOCD = /usr/local/bin/openocd
-TELNET = /usr/bin/nc
-REMOVE = rm -f
-COPY = cp
+SHELL ?= sh
+CC ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
+LD ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
+AS ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-as
+OBJCOPY ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objcopy
+OBJDUMP ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objdump
+SIZE ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-size
+NM ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-nm
+GDB ?= $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb
+OPENOCD ?= /usr/local/bin/openocd
+TELNET ?= /usr/bin/nc
+REMOVE ?= rm -f
+COPY ?= cp
 
 
 # Define Messages
