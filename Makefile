@@ -43,7 +43,8 @@ OPENOCD_CONFIG = openocd.cfg
 TARGET = main
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(wildcard *.c)
+SRC = $(wildcard *.c) $(MCU_NAME)/startup_$(MCU_NAME).c
+SRC += $(wildcard usb/*.c) $(wildcard usb/samd/*.c)
 
 OBJDIR = obj
 # List Assembler source files here.
@@ -66,8 +67,8 @@ OPT = 2
 #     Each directory must be seperated by a space.
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
-EXTRAINCDIRS =
-
+EXTRAINCDIRS = $(MCU_NAME)/include $(MCU_NAME)/source
+EXTRAINCDIRS += usb
 
 # Compiler flag to set the C Standard level.
 #     c89   = "ANSI" C
@@ -82,7 +83,7 @@ CDEFS = -DF_CPU=$(F_CPU)UL
 
 
 # Place -I options here
-CINCS = -I samd21/include -I samd21/source
+CINCS = 
 
 
 #---------------- Compiler Options ----------------
