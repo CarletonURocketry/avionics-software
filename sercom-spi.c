@@ -42,7 +42,8 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
     PM->APBCMASK.reg |= sercom_get_pm_apb_mask(instance_num);
     
     /* Select the core clock for the SERCOM instance */
-    GCLK->CLKCTRL.reg = (GCLK_CLKCTRL_CLKEN | core_clock_mask |
+    GCLK->CLKCTRL.reg = (GCLK_CLKCTRL_CLKEN |
+                         core_clock_mask |
                          sercom_get_clk_id_mask(instance_num));
     // Wait for synchronization
     while (GCLK->STATUS.bit.SYNCBUSY);
@@ -187,11 +188,11 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
         /* Enable SERCOM instance */
         spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b1;
         
-        /* Assert CS line */
-        PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
-        
         /* Wait for SERCOM instance to be enabled */
         while (spi_inst->sercom->SPI.SYNCBUSY.bit.ENABLE);
+        
+        /* Assert CS line */
+        PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
         
         /* Begin transmition */
         if (spi_inst->tx_use_dma && s->out_length) {
@@ -210,8 +211,9 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
     }
 }
 
-static inline void sercom_spi_end_transaction (struct sercom_spi_desc_t *spi_inst,
-                                               struct transaction_t *t)
+static inline void sercom_spi_end_transaction (
+                                            struct sercom_spi_desc_t *spi_inst,
+                                            struct transaction_t *t)
 {
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
@@ -221,14 +223,14 @@ static inline void sercom_spi_end_transaction (struct sercom_spi_desc_t *spi_ins
     
     // Disable DRE and RXC interutps
     spi_inst->sercom->SPI.INTENCLR.reg = (SERCOM_SPI_INTENCLR_DRE |
-                                SERCOM_SPI_INTENCLR_RXC);
+                                          SERCOM_SPI_INTENCLR_RXC);
+    
+    // Deassert the CS pin
+    PORT->Group[s->cs_pin_group].OUTSET.reg = s->cs_pin_mask;
     
     // Disable Reciever and SERCOM
     spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b0;
     spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b0;
-    
-    // Deassert the CS pin
-    PORT->Group[s->cs_pin_group].OUTSET.reg = s->cs_pin_mask;
     
     // Run the SPI service to start the next transaction if there is one
     sercom_spi_service(spi_inst);
