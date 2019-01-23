@@ -1,4 +1,5 @@
-#include "usb.h"
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
+#include "usb/usb.h"
 
 USB_SetupPacket usb_setup;
 __attribute__((__aligned__(4))) uint8_t ep0_buf_in[USB_EP0_SIZE];
@@ -8,7 +9,7 @@ volatile uint8_t usb_configuration;
 uint16_t usb_ep0_in_size;
 const uint8_t* usb_ep0_in_ptr;
 
-void usb_ep0_in_multi(void) {
+static void usb_ep0_in_multi(void) {
 	uint16_t tsize = usb_ep0_in_size;
 
 	if (tsize > USB_EP0_SIZE) {
@@ -139,7 +140,7 @@ void usb_handle_msft_compatible(const USB_MicrosoftCompatibleDescriptor* msft_co
 	}
 }
 
-void* usb_string_to_descriptor(char* str) {
+void* usb_string_to_descriptor(const char* str) {
 	USB_StringDescriptor* desc = (((USB_StringDescriptor*)ep0_buf_in));
 	uint16_t len = strlen(str);
 	const uint16_t maxlen = (USB_EP0_SIZE - 2)/2;

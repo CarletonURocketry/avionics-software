@@ -1,3 +1,4 @@
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
 #pragma once
 
 #define USB_EP_size_to_gc(x)  ((x <= 8   )?0:\

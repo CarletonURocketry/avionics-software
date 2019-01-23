@@ -1,4 +1,9 @@
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
 #pragma once
+
+// Ignore warnings in this file about inefficient alignment
+#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diagnostic ignored "-Wpacked"
 
 #include <stdint.h>
 
@@ -205,3 +210,7 @@ typedef struct {
 	uint8_t reserved[7];
 	USB_MicrosoftCompatibleDescriptor_Interface interfaces[];
 } __attribute__((packed)) USB_MicrosoftCompatibleDescriptor;
+
+
+// Stop ignoring warnings about inefficient alignment
+#pragma GCC diagnostic pop

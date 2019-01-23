@@ -1,3 +1,4 @@
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
 #pragma once
 
 #include <stdbool.h>
@@ -7,6 +8,10 @@
 #include "usb_standard.h"
 
 #define USB_EP0_SIZE 64
+
+#define USB_EP_CDC_NOTIFICATION 0x81
+#define USB_EP_CDC_IN           0x82
+#define USB_EP_CDC_OUT          0x02
 
 extern USB_SetupPacket usb_setup;
 extern uint8_t ep0_buf_in[USB_EP0_SIZE];
@@ -118,7 +123,7 @@ USB_Speed usb_get_speed(void);
 void usb_handle_msft_compatible(const USB_MicrosoftCompatibleDescriptor* msft_compatible);
 
 /// Convert a C string to a string descriptor in the ep0 IN buffer
-void* usb_string_to_descriptor(char* str);
+void* usb_string_to_descriptor(const char* str);
 
 /// Internal common methods called by the hardware API
 void usb_handle_setup(void);

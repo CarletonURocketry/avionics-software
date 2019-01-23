@@ -1,6 +1,7 @@
-#include "usb.h"
-#include "samd/usb_samd.h"
-#include "samd/usb_samd_internal.h"
+// From Kevin Mehall's USB stack: https://github.com/kevinmehall/usb
+#include "../usb.h"
+#include "usb_samd.h"
+#include "usb_samd_internal.h"
 
 #define NVM_USB_PAD_TRANSN_POS  45
 #define NVM_USB_PAD_TRANSN_SIZE 5
@@ -204,11 +205,11 @@ inline void usb_ep0_stall(void) {
 }
 
 void usb_set_speed(USB_Speed speed) {
-	if (USB_SPEED_FULL == speed) {
-		USB->DEVICE.CTRLB.bit.SPDCONF = USB_DEVICE_CTRLB_SPDCONF_0_Val;
-	} else if(USB_SPEED_LOW == speed) {
-		USB->DEVICE.CTRLB.bit.SPDCONF = USB_DEVICE_CTRLB_SPDCONF_1_Val;
-	}
+    if (USB_SPEED_FULL == speed) {
+        USB->DEVICE.CTRLB.bit.SPDCONF = USB_DEVICE_CTRLB_SPDCONF_FS_Val;
+    } else if(USB_SPEED_LOW == speed) {
+        USB->DEVICE.CTRLB.bit.SPDCONF = USB_DEVICE_CTRLB_SPDCONF_LS_Val;
+    }
 }
 USB_Speed usb_get_speed() {
 	if (USB->DEVICE.STATUS.bit.SPEED == 0) {
@@ -254,7 +255,7 @@ void USB_Handler() {
 	usb_cb_completion();
 }
 
-void* samd_serial_number_string_descriptor() {
+void* samd_serial_number_string_descriptor(void) {
 	char buf[27];
 
 	const unsigned char* id = (unsigned char*) 0x0080A00C;
