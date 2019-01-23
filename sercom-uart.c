@@ -29,7 +29,7 @@ static void sercom_uart_dma_callback (uint8_t chan, void *state);
 void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
                        uint32_t baudrate, uint32_t core_freq,
                        uint32_t core_clock_mask, int8_t dma_channel,
-                       uint8_t console)
+                       uint8_t echo)
 {
     uint8_t instance_num = sercom_get_inst_num(sercom);
     
@@ -84,7 +84,7 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     /* Setup Descriptor */
     descriptor->sercom = sercom;
     descriptor->sercom_instnum = instance_num;
-    descriptor->console = console;
+    descriptor->echo = echo;
     
     // Configure buffers
     init_circular_buffer(&descriptor->out_buffer,
@@ -275,7 +275,7 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
             // Should add byte to input buffer
             full = circular_buffer_try_push(&uart->in_buffer, data);
 
-            if (uart->console) {
+            if (uart->echo) {
                 if (!full && isprint(data)) {
                     // Echo
                     sercom_uart_put_char(uart, (char)data);
@@ -284,7 +284,7 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
                     sercom_uart_put_char(uart, '\n');
                 }
             }
-        } else if (uart->console && data == 127) {
+        } else if (uart->echo && data == 127) {
             // Backspace
             uint8_t empty = circular_buffer_unpush(&uart->in_buffer);
 
