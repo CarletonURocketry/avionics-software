@@ -161,17 +161,21 @@ DEBUG_HOST = localhost
 
 
 # Define programs and commands.
+
+# CORTEX_TOOLCHAIN_BIN must be specified as an environment variable or argument
+# to make
+
 SHELL = sh
-CC = ../arm-none-eabi/bin/arm-none-eabi-gcc
-LD = ../arm-none-eabi/bin/arm-none-eabi-gcc
-AS = ../arm-none-eabi/bin/arm-none-eabi-as
-OBJCOPY = ../arm-none-eabi/bin/arm-none-eabi-objcopy
-OBJDUMP = ../arm-none-eabi/bin/arm-none-eabi-objdump
-SIZE = ../arm-none-eabi/bin/arm-none-eabi-size
-NM = ../arm-none-eabi/bin/arm-none-eabi-nm
+CC = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
+LD = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
+AS = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-as
+OBJCOPY = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objcopy
+OBJDUMP = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objdump
+SIZE = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-size
+NM = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-nm
+GDB = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb
 OPENOCD = /usr/local/bin/openocd
-GDB = ../arm-none-eabi/bin/arm-none-eabi-gdb
-TELNET = /bin/nc
+TELNET = /usr/bin/nc
 REMOVE = rm -f
 COPY = cp
 
