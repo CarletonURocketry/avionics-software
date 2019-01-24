@@ -231,6 +231,7 @@ int main(void)
     // Main Loop
     for (;;) {
         main_loop();
+        __WFI();
     }
     
 	return 0; // never reached
