@@ -9,13 +9,17 @@
 
 #include "debug-commands.h"
 
+#include "global.h"
+
 
 #define DEBUG_VERSION_NAME  "version"
 #define DEBUG_VERSION_HELP  "Get software version information."
+
 static void debug_version (uint8_t argc, char **argv,
                            struct console_desc_t *console)
 {
-    return;
+    console_send_str(console, VERSION_STRING);
+    console_send_str(console, BUILD_STRING);
 }
 
 
