@@ -13,6 +13,12 @@
 #include "sercom-uart.h"
 #include "sercom-spi.h"
 
+#include "usb/usb.h"
+
+#include "console.h"
+#include "cli.h"
+#include "debug-commands.h"
+
 //MARK: Constants
 
 // MARK: Function prototypes
@@ -22,6 +28,7 @@ static void main_loop(void);
 volatile uint32_t millis;
 
 static uint32_t lastLed_g;
+static uint8_t stat_transaction_id;
 
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
@@ -128,8 +135,11 @@ static void init_main_clock(void)
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY); // Wait for synchronization
 }
 
-static struct sercom_uart_desc_t console_g;
+static struct sercom_uart_desc_t uart_console_g;
 static struct sercom_spi_desc_t spi_g;
+
+static struct console_desc_t console_g;
+static struct cli_desc_t cli_g;
 
 int main(void)
 {
@@ -163,8 +173,8 @@ int main(void)
     
     PORT->Group[DEBUG_LED_GROUP_NUM].DIRSET.reg = DEBUG_LED_MASK;
     //PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[30].bit.DRVSTR = 0b1;
-    /* PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[15].bit.DRVSTR = 0b1; */
-
+    PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[15].bit.DRVSTR = 0b1;
+    
     // Init DMA
     init_dmac();
     
@@ -174,36 +184,50 @@ int main(void)
     PORT->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
     PORT->Group[0].PMUX[11].bit.PMUXO = 0x2;
     PORT->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
-
-    init_sercom_uart(&console_g, SERCOM3, 115200UL, F_CPU,
-                        GCLK_CLKCTRL_GEN_GCLK0, 0, 1);
-    sercom_uart_put_string(&console_g, "\x1B[2J\x1B[HHello Console!\n");
-    sercom_uart_put_string_blocking(&console_g, "!@#$%^&*()_+-=~`[]\{}|;':\",./"
-        "<>?\tqwertyuiopasdfghjklzxcvbnm\tQWERTYUIOPASDFGHJKLZXCVBNM 1234567890"
-        "\n");
-
+    
+    init_sercom_uart(&uart_console_g, SERCOM3, 115200UL, F_CPU,
+                     GCLK_CLKCTRL_GEN_GCLK0, -1, 1);
+//    sercom_uart_put_string(&uart_console_g, "\x1B[2J\x1B[HHello Console!\n");
+//    sercom_uart_put_string_blocking(&uart_console_g, "!@#$%^&*()_+-=~`[]\{}|;'"
+//        ":\",./<>?\tqwertyuiopasdfghjklzxcvbnm\tQWERTYUIOPASDFGHJKLZXCVBNM "
+//        "1234567890\n");
+    
     // SPI Test
-    PORT->Group[1].PMUX[6].bit.PMUXE = 0x2;
+    PORT->Group[1].PMUX[6].bit.PMUXE = 0x2;     // MOSI (Pad 0)
     PORT->Group[1].PINCFG[12].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[6].bit.PMUXO = 0x2;
+    PORT->Group[1].PMUX[6].bit.PMUXO = 0x2;     // SCK (Pad 1)
     PORT->Group[1].PINCFG[13].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[7].bit.PMUXE = 0x2;
+    PORT->Group[1].PMUX[7].bit.PMUXE = 0x2;     // MISO (Pad 2)
     PORT->Group[1].PINCFG[14].bit.PMUXEN = 0b1;
     
     // Setup IO Expander CS pin
     PORT->Group[0].DIRSET.reg = PORT_PA28;
     PORT->Group[0].OUTSET.reg = PORT_PA28;
-
-    init_sercom_spi(&spi_g, SERCOM4, F_CPU, GCLK_CLKCTRL_GEN_GCLK0, -1, -1);
+    
+    //__BKPT(0);
+    
+    init_sercom_spi(&spi_g, SERCOM4, F_CPU, GCLK_CLKCTRL_GEN_GCLK0, 1, 2);
 
     uint8_t message_io_dir[] ={0b01000000, 0x00, 0x0};
-    uint8_t message_port[] ={0b01000000, 0x12, 0x1};
-    uint8_t id;
+    sercom_spi_start(&spi_g, &stat_transaction_id, 8000000UL, 0, PORT_PA28,
+                     message_io_dir, 3, NULL, 0);
+    while (!sercom_spi_transaction_done(&spi_g, stat_transaction_id));
+    sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
+    
+    // USB test
+    PORT->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
+    PORT->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
+    PORT->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
+    PORT->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
+    
+    usb_init();
+    usb_set_speed(USB_SPEED_FULL);
+    usb_attach();
 
-    sercom_spi_start(&spi_g, &id, 1000000UL, 0, PORT_PA28, message_io_dir, 3, NULL, 0);
-    while (!sercom_spi_transaction_done(&spi_g, id));
-    sercom_spi_start(&spi_g, &id, 1000000UL, 0, PORT_PA28, message_port, 3, NULL, 0);
-
+    init_console(&console_g, NULL, '\r');
+    init_cli(&cli_g, &console_g, "> ", debug_commands_funcs,
+             debug_commands_num_funcs);
+    
     // Main Loop
     for (;;) {
         main_loop();
@@ -212,10 +236,12 @@ int main(void)
 	return 0; // never reached
 }
 
-static uint32_t period = 1000;
+#define STAT_PERIOD 1500
 
 static void main_loop ()
 {
+    static uint32_t period = 1000;
+    
     if (PORT->Group[0].IN.reg & PORT_PA15) {
         period = 1000;
     } else {
@@ -226,6 +252,21 @@ static void main_loop ()
         lastLed_g = millis;
         PORT->Group[DEBUG_LED_GROUP_NUM].OUTTGL.reg = DEBUG_LED_MASK;
     }
+    
+    static uint32_t last_stat;
+    static uint8_t stat_buffer[] ={0b01000000, 0x12, 0b11000000};
+    
+    if (sercom_spi_transaction_done(&spi_g, stat_transaction_id) &&
+        ((millis - last_stat) >= STAT_PERIOD)) {
+        last_stat = millis;
+        sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
+        
+        stat_buffer[2] ^= 0xE0;
+        sercom_spi_start(&spi_g, &stat_transaction_id, 8000000UL, 0, PORT_PA28,
+                         stat_buffer, 3, NULL, 0);
+    }
+    
+    console_service(&console_g);
 }
 
 
