@@ -9,9 +9,6 @@
 
 #include "sercom-tools.h"
 
-#include "interupts.h"
-
-
 uint8_t sercom_calc_async_baud (const uint32_t baudrate, const uint32_t clock,
                                 volatile uint16_t *baud, uint8_t *sampr)
 {
@@ -74,35 +71,35 @@ int8_t sercom_get_inst_num (Sercom *const inst)
 
 struct sercom_handler_t sercom_handlers[SERCOM_INST_NUM];
 
-void sercom0_handler (void)
+void SERCOM0_Handler (void)
 {
     sercom_handlers[0].handler(SERCOM0, 0, sercom_handlers[0].state);
 }
 
-void sercom1_handler (void)
+void SERCOM1_Handler (void)
 {
     sercom_handlers[1].handler(SERCOM1, 1, sercom_handlers[1].state);
 }
 
-void sercom2_handler (void)
+void SERCOM2_Handler (void)
 {
     sercom_handlers[2].handler(SERCOM2, 2, sercom_handlers[2].state);
 }
 
-void sercom3_handler (void)
+void SERCOM3_Handler (void)
 {
     sercom_handlers[3].handler(SERCOM3, 3, sercom_handlers[3].state);
 }
 
 #ifdef ID_SERCOM4
-void sercom4_handler (void)
+void SERCOM4_Handler (void)
 {
     sercom_handlers[4].handler(SERCOM4, 4, sercom_handlers[4].state);
 }
 #endif
 
 #ifdef ID_SERCOM5
-void sercom5_handler (void)
+void SERCOM5_Handler (void)
 {
     sercom_handlers[5].handler(SERCOM5, 5, sercom_handlers[5].state);
 }

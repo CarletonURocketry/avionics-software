@@ -9,8 +9,6 @@
 
 #include "dma.h"
 
-#include "interupts.h"
-
 
 static DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
 static DmacDescriptor dmacWriteBack_g[DMAC_CH_NUM];
@@ -280,7 +278,7 @@ void dma_start_static_to_static(uint8_t chan, const uint8_t *source,
     DMAC->CHCTRLA.bit.ENABLE = 0b1;
 }
 
-void dmac_handler (void)
+void DMAC_Handler (void)
 {
     // Save the currently selected channel in case an interupt happens during
     // channel configuration

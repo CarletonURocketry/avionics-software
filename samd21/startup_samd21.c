@@ -33,8 +33,6 @@
 
 #include "samd21.h"
 
-#include "interupts.h"
-
 /* Initialize segments */
 extern uint32_t _sfixed;
 extern uint32_t _efixed;
@@ -57,10 +55,10 @@ void Dummy_Handler(void);
 
 /* Cortex-M0+ core handlers */
 void NMI_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void HardFault_Handler       ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void HardFault_Handler       ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void SVC_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void PendSV_Handler          ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void SysTick_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void SysTick_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 
 /* Peripherals handlers */
 void PM_Handler              ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
@@ -69,21 +67,21 @@ void WDT_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler
 void RTC_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void EIC_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void NVMCTRL_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void DMAC_Handler            ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void DMAC_Handler            ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 #ifdef ID_USB
 void USB_Handler             ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 #endif
 void EVSYS_Handler           ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void SERCOM0_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void SERCOM1_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void SERCOM2_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//void SERCOM3_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//#ifdef ID_SERCOM4
-//void SERCOM4_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//#endif
-//#ifdef ID_SERCOM5
-//void SERCOM5_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
-//#endif
+void SERCOM0_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void SERCOM1_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void SERCOM2_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+void SERCOM3_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+#ifdef ID_SERCOM4
+void SERCOM4_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+#endif
+#ifdef ID_SERCOM5
+void SERCOM5_Handler         ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
+#endif
 void TCC0_Handler            ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void TCC1_Handler            ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
 void TCC2_Handler            ( void ) __attribute__ ((weak, alias("Dummy_Handler")));
@@ -124,7 +122,7 @@ const DeviceVectors exception_table = {
     
     .pfnReset_Handler       = (void*) Reset_Handler,
     .pfnNMI_Handler         = (void*) NMI_Handler,
-    .pfnHardFault_Handler   = (void*) hardfault_handler,
+    .pfnHardFault_Handler   = (void*) HardFault_Handler,
     .pvReservedM12          = (void*) (0UL), /* Reserved */
     .pvReservedM11          = (void*) (0UL), /* Reserved */
     .pvReservedM10          = (void*) (0UL), /* Reserved */
@@ -136,7 +134,7 @@ const DeviceVectors exception_table = {
     .pvReservedM4           = (void*) (0UL), /* Reserved */
     .pvReservedM3           = (void*) (0UL), /* Reserved */
     .pfnPendSV_Handler      = (void*) PendSV_Handler,
-    .pfnSysTick_Handler     = (void*) systick_handler,
+    .pfnSysTick_Handler     = (void*) SysTick_Handler,
     
     /* Configurable interrupts */
     .pfnPM_Handler          = (void*) PM_Handler,             /*  0 Power Manager */
@@ -145,24 +143,24 @@ const DeviceVectors exception_table = {
     .pfnRTC_Handler         = (void*) RTC_Handler,            /*  3 Real-Time Counter */
     .pfnEIC_Handler         = (void*) EIC_Handler,            /*  4 External Interrupt Controller */
     .pfnNVMCTRL_Handler     = (void*) NVMCTRL_Handler,        /*  5 Non-Volatile Memory Controller */
-    .pfnDMAC_Handler        = (void*) dmac_handler,           /*  6 Direct Memory Access Controller */
+    .pfnDMAC_Handler        = (void*) DMAC_Handler,           /*  6 Direct Memory Access Controller */
 #ifdef ID_USB
     .pfnUSB_Handler         = (void*) USB_Handler,            /*  7 Universal Serial Bus */
 #else
     .pvReserved7            = (void*) (0UL),                  /*  7 Reserved */
 #endif
     .pfnEVSYS_Handler       = (void*) EVSYS_Handler,          /*  8 Event System Interface */
-    .pfnSERCOM0_Handler     = (void*) sercom0_handler,        /*  9 Serial Communication Interface 0 */
-    .pfnSERCOM1_Handler     = (void*) sercom1_handler,        /* 10 Serial Communication Interface 1 */
-    .pfnSERCOM2_Handler     = (void*) sercom2_handler,        /* 11 Serial Communication Interface 2 */
-    .pfnSERCOM3_Handler     = (void*) sercom3_handler,   /* 12 Serial Communication Interface 3 */
+    .pfnSERCOM0_Handler     = (void*) SERCOM0_Handler,        /*  9 Serial Communication Interface 0 */
+    .pfnSERCOM1_Handler     = (void*) SERCOM1_Handler,        /* 10 Serial Communication Interface 1 */
+    .pfnSERCOM2_Handler     = (void*) SERCOM2_Handler,        /* 11 Serial Communication Interface 2 */
+    .pfnSERCOM3_Handler     = (void*) SERCOM3_Handler,   /* 12 Serial Communication Interface 3 */
 #ifdef ID_SERCOM4
-    .pfnSERCOM4_Handler     = (void*) sercom4_handler,        /* 13 Serial Communication Interface 4 */
+    .pfnSERCOM4_Handler     = (void*) SERCOM4_Handler,        /* 13 Serial Communication Interface 4 */
 #else
     .pvReserved13           = (void*) (0UL),                  /* 13 Reserved */
 #endif
 #ifdef ID_SERCOM5
-    .pfnSERCOM5_Handler     = (void*) sercom5_handler,        /* 14 Serial Communication Interface 5 */
+    .pfnSERCOM5_Handler     = (void*) SERCOM5_Handler,        /* 14 Serial Communication Interface 5 */
 #else
     .pvReserved14           = (void*) (0UL),                  /* 14 Reserved */
 #endif
