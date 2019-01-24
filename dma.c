@@ -312,6 +312,9 @@ void DMAC_Handler (void)
             // Clear interupt
             DMAC->CHINTENCLR.bit.TCMPL = 0b1;
             
+            // Disable channel
+            DMAC->CHCTRLA.bit.ENABLE = 0b0;
+            
             if (c->callback != NULL) {
                 c->callback(DMAC->CHID.bit.ID, c->state);
             }
