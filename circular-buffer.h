@@ -227,8 +227,7 @@ static inline uint8_t circular_buffer_unpush(struct circular_buffer_t *buffer)
 static inline uint8_t circular_buffer_has_char(struct circular_buffer_t *buffer,
                                                char c)
 {
-    for (uint16_t i = buffer->head;
-         ((i + 1) % buffer->capacity) != buffer->tail;
+    for (uint16_t i = buffer->head; i != buffer->tail;
          i = ((i + 1) % buffer->capacity)) {
         if (buffer->buffer[i] == c) {
             return 1;
