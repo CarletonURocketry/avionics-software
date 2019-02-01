@@ -41,9 +41,10 @@ OPENOCD_CONFIG = openocd.cfg
 # Target file name (without extension).
 TARGET = main
 
+SRCDIR = src
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(wildcard *.c) $(MCU_NAME)/startup_$(MCU_NAME).c
-SRC += $(wildcard usb/*.c) $(wildcard usb/samd/*.c)
+SRC = $(wildcard $(SRCDIR)/*.c) $(SRCDIR)/$(MCU_NAME)/startup_$(MCU_NAME).c
+SRC += $(wildcard $(SRCDIR)/usb/*.c) $(wildcard $(SRCDIR)/usb/samd/*.c)
 
 OBJDIR = obj
 # List Assembler source files here.
@@ -53,8 +54,7 @@ OBJDIR = obj
 #     Even though the DOS/Win* filesystem matches both .s and .S the same,
 #     it will preserve the spelling of the filenames, and gcc itself does
 #     care about how the name is spelled on its command-line.
-ASRC = $(wildcard *.S)
-
+ASRC = $(wildcard $(SRCDIR)/*.S)
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
 #     0 = turn off optimization. s = optimize for size.
@@ -66,8 +66,8 @@ OPT = 2
 #     Each directory must be seperated by a space.
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
-EXTRAINCDIRS = $(MCU_NAME)/include $(MCU_NAME)/source
-EXTRAINCDIRS += usb
+EXTRAINCDIRS = $(SRCDIR) $(SRCDIR)/$(MCU_NAME)/include $(SRCDIR)/$(MCU_NAME)/source
+EXTRAINCDIRS += $(SRCDIR)/usb
 
 # Compiler flag to set the C Standard level.
 #     c89   = "ANSI" C
@@ -132,8 +132,8 @@ MATH_LIB = -Lsamd21/lib/libarm_cortexM0l_math.a
 #  -Wl,...:     tell GCC to pass this to linker.
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
-LDSCRIPT = samd21/samd21j18a_flash.ld
-SPECS = samd21/nosys.specs
+LDSCRIPT = src/samd21/samd21j18a_flash.ld
+SPECS = src/samd21/nosys.specs
 
 LDFLAGS += -T$(LDSCRIPT) $(ARCHFLAGS) -Wl,--gc-sections --entry=Reset_Handler
 LDFLAGS += --specs=$(SPECS) $(MATH_LIB)
@@ -192,20 +192,23 @@ MSG_RESET = Resetting Target:
 MSG_DEBUGGING = Starting Debugger:
 
 
-
 # Define all object files.
-#OBJ = $(addprefix $(OBJDIR)/,$(SRC:.c=.o)) $(addprefix $(OBJDIR)/,$(ASRC:.S=.o))
 OBJ = $(addprefix $(OBJDIR)/,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SRC)))) $(addprefix $(OBJDIR)/,$(ASRC:.S=.o))
 
+# Define all dependancy files.
+DEP = $(OBJ:%.o=%.d)
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
 ALL_CFLAGS = -D$(PTYPE) -I. $(CFLAGS)
 ALL_ASFLAGS = -D$(PTYPE) -I. -x assembler-with-cpp $(ASFLAGS)
 
+# Define compilers
+COMPILE.c = $(CC) $(ALL_CFLAGS) -c
+COMPILE.cpp = $(CC) $(ALL_CFLAGS) -c
 
 # Default target.
-all: begin gccversion clean build program end
+all: gccversion clean build program
 
 build: clean $(OBJDIR) elf
 
@@ -222,7 +225,6 @@ gccversion :
 info:
 	@echo CFLAGS=$(CFLAGS)
 	@echo OBJS=$(OBJS)
-
 
 # Program the device.  
 program: | upload reset
@@ -252,58 +254,44 @@ debug: $(OBJDIR)/$(TARGET).elf
 .PRECIOUS : $(OBJ)
 $(OBJDIR)/%.elf: $(OBJ)
 	@echo
+	$(shell mkdir -p $(@D) >/dev/null)
+	@echo
 	@echo $(MSG_LINKING) $@
 	$(LD) $^ --output $@ $(LDFLAGS)
 
-
 # Compile: create object files from C source files.
-$(OBJDIR)/%.o : %.c
+$(OBJDIR)/%.o : %.c $(DEPS)
+	@echo
+	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
-	$(CC) -c $(ALL_CFLAGS) "$(abspath $<)" -o $@
+	$(COMPILE.c) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
 	$(CC) -MM $(ALL_CFLAGS) $< > $(OBJDIR)/$*.d
-
-
-# Compile: create assembler files from C source files.
-$(OBJDIR)/%.s : %.c
-	$(CC) -S $(ALL_CFLAGS) $< -o $@
-
 
 # Assemble: create object files from assembler source files.
 $(OBJDIR)/%.o:    %.s
 	$(AS) $< -o $@
 
-
 # Compile: create object files from C++ source files.
-$(OBJDIR)/%.o : %.cpp
+$(OBJDIR)/%.o : %.cpp $(DEPS)
+	@echo
+	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
-	$(CC) -c $(ALL_CFLAGS) "$(abspath $<)" -o $@
+	$(COMPILE.cpp) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
+	$(CC) -MM $(ALL_CFLAGS) $< > $(OBJDIR)/$*.d
 
-
-# Compile: create assembler files from C++ source files.
-$(OBJDIR)/%.s : %.cpp
-	$(CC) -S $(ALL_CFLAGS) $< -o $@
-
-# Create preprocessed source for use in sending a bug report.
-$(OBJDIR)/%.i : %.cpp
-	$(CC) -E -mmcu=$(MCU) -I. $(CFLAGS) $< -o $@
 
 # Target: clean project.
-clean: begin clean_list end
+clean: clean_list
 
 clean_list :
 	@echo
 	@echo $(MSG_CLEANING)
-	$(REMOVE) $(OBJDIR)/$(TARGET).elf
-	$(REMOVE) $(OBJDIR)/$(TARGET).map
+	$(REMOVE) $(OBJDIR)/$(SRCDIR)/$(TARGET).elf
+	$(REMOVE) $(OBJDIR)/$(SRCDIR)/$(TARGET).map
 	$(REMOVE) $(OBJ)
-	$(REMOVE) $(LST)
-#$(REMOVE) $(OBJDIR)/$(SRC:.c=.s)
-	$(REMOVE) $(OBJDIR)/$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SRC)))
-	$(REMOVE) $(OBJDIR)/$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SRC)))
 
 
 # Listing of phony targets.
-.PHONY : all begin finish end gccversion \
-build elf clean clean_list program debug upload reset
+.PHONY : all gccversion build elf clean clean_list program debug upload reset
