@@ -108,7 +108,7 @@ CFLAGS += -Wswitch -Wtrigraphs -Wunused -Wuninitialized -Wunknown-pragmas -Wfloa
 CFLAGS += -Wwrite-strings -Wsign-compare -Waggregate-return -Wmissing-declarations -Wformat -Wmissing-format-attribute
 CFLAGS += -Wno-deprecated-declarations -Wpacked -Wredundant-decls -Wnested-externs -Wlong-long -Wunreachable-code -Wcast-align
 
-CFLAGS += -Wa,-adhlns=$(addprefix $(OBJDIR)/,$(<:.c=.lst))
+CFLAGS += -Wa,-adhlns=$(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.lst,$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 CFLAGS += $(CSTANDARD)
 
@@ -121,7 +121,7 @@ CFLAGS += $(CSTANDARD)
 #             files -- see avr-libc docs [FIXME: not yet described there]
 #  -listing-cont-lines: Sets the maximum number of continuation lines of hex 
 #       dump that will be displayed for a given single line of source input.
-ASFLAGS = -Wa,-adhlns=$(addprefix $(OBJDIR)/,$(<:.S=.lst)),-gstabs,--listing-cont-lines=100
+ASFLAGS = -Wa,-adhlns=$(patsubst $(SRCDIR)/%.S,$(OBJDIR)/%.lst,$<),-gstabs,--listing-cont-lines=100
 
 
 #---------------- Library Options ----------------
@@ -193,10 +193,13 @@ MSG_DEBUGGING = Starting Debugger:
 
 
 # Define all object files.
-OBJ = $(addprefix $(OBJDIR)/,$(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SRC)))) $(addprefix $(OBJDIR)/,$(ASRC:.S=.o))
+OBJ = $(patsubst $(SRCDIR)/%.S,$(OBJDIR)/%.o,$(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRC))))
 
 # Define all dependancy files.
 DEP = $(OBJ:%.o=%.d)
+
+# Define all list files.
+LST = $(OBJ:%.o=%.lst)
 
 # Combine all necessary flags and optional flags.
 # Add target processor to flags.
@@ -210,7 +213,7 @@ COMPILE.cpp = $(CC) $(ALL_CFLAGS) -c
 # Default target.
 all: gccversion clean build program
 
-build: clean $(OBJDIR) elf
+build:  $(OBJDIR) elf
 
 elf: $(OBJDIR)/$(TARGET).elf
 
@@ -224,7 +227,8 @@ gccversion :
 # Display information about build.
 info:
 	@echo CFLAGS=$(CFLAGS)
-	@echo OBJS=$(OBJS)
+	@echo SRC=$(SRC)
+	@echo OBJ=$(OBJ)
 
 # Program the device.  
 program: | upload reset
@@ -253,45 +257,39 @@ debug: $(OBJDIR)/$(TARGET).elf
 .SECONDARY : $(OBJDIR)/$(TARGET).elf
 .PRECIOUS : $(OBJ)
 $(OBJDIR)/%.elf: $(OBJ)
-	@echo
 	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_LINKING) $@
 	$(LD) $^ --output $@ $(LDFLAGS)
 
 # Compile: create object files from C source files.
-$(OBJDIR)/%.o : %.c $(DEPS)
-	@echo
+$(OBJDIR)/%.o : $(SRCDIR)/%.c
 	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
 	$(COMPILE.c) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
-	$(CC) -MM $(ALL_CFLAGS) $< > $(OBJDIR)/$*.d
 
 # Assemble: create object files from assembler source files.
-$(OBJDIR)/%.o:    %.s
+$(OBJDIR)/%.o:    $(SRCDIR)/%.s
 	$(AS) $< -o $@
 
 # Compile: create object files from C++ source files.
-$(OBJDIR)/%.o : %.cpp $(DEPS)
-	@echo
+$(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
 	$(COMPILE.cpp) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
-	$(CC) -MM $(ALL_CFLAGS) $< > $(OBJDIR)/$*.d
 
+$(OBJDIR)/.depend:  $(SRC)
+	$(COMPILE.c) -MM $^  | \
+	sed -E 's#^(.*\.o: *)$(SRCDIR)/(.*/)?(.*\.(c|cpp|S))#$(OBJDIR)/\2\1$(SRCDIR)/\2\3#' > $@
+
+include $(OBJDIR)/.depend
 
 # Target: clean project.
-clean: clean_list
-
-clean_list :
-	@echo
+clean:
 	@echo $(MSG_CLEANING)
-	$(REMOVE) $(OBJDIR)/$(SRCDIR)/$(TARGET).elf
-	$(REMOVE) $(OBJDIR)/$(SRCDIR)/$(TARGET).map
-	$(REMOVE) $(OBJ)
-
+	$(REMOVE) -rf $(OBJDIR)/*
 
 # Listing of phony targets.
 .PHONY : all gccversion build elf clean clean_list program debug upload reset
