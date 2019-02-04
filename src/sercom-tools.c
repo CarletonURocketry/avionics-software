@@ -71,35 +71,35 @@ int8_t sercom_get_inst_num (Sercom *const inst)
 
 struct sercom_handler_t sercom_handlers[SERCOM_INST_NUM];
 
-void SERCOM0_Handler (void)
+RAMFUNC void SERCOM0_Handler (void)
 {
     sercom_handlers[0].handler(SERCOM0, 0, sercom_handlers[0].state);
 }
 
-void SERCOM1_Handler (void)
+RAMFUNC void SERCOM1_Handler (void)
 {
     sercom_handlers[1].handler(SERCOM1, 1, sercom_handlers[1].state);
 }
 
-void SERCOM2_Handler (void)
+RAMFUNC void SERCOM2_Handler (void)
 {
     sercom_handlers[2].handler(SERCOM2, 2, sercom_handlers[2].state);
 }
 
-void SERCOM3_Handler (void)
+RAMFUNC void SERCOM3_Handler (void)
 {
     sercom_handlers[3].handler(SERCOM3, 3, sercom_handlers[3].state);
 }
 
 #ifdef ID_SERCOM4
-void SERCOM4_Handler (void)
+RAMFUNC void SERCOM4_Handler (void)
 {
     sercom_handlers[4].handler(SERCOM4, 4, sercom_handlers[4].state);
 }
 #endif
 
 #ifdef ID_SERCOM5
-void SERCOM5_Handler (void)
+RAMFUNC void SERCOM5_Handler (void)
 {
     sercom_handlers[5].handler(SERCOM5, 5, sercom_handlers[5].state);
 }

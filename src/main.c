@@ -274,7 +274,7 @@ static void main_loop ()
 
 
 /* Interupt Service Routines */
-void SysTick_Handler(void)
+RAMFUNC void SysTick_Handler(void)
 {
     millis++;
 }
