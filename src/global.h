@@ -12,12 +12,13 @@
 
 #define DONT_USE_CMSIS_INIT
 #include "samd21/include/samd21j18a.h"
+#include "samd21/include/compiler.h"
 
 #include <stddef.h> // NULL
 
 
 #define VERSION_STRING "CU InSpace 2019 Avionics Software\n"
-#define BUILD_STRING "Built "__DATE__" at "__TIME__" with gcc "__VERSION__"\n"
+#define BUILD_STRING "Built "__DATE__" at "__TIME__" with arm-none-eabi-gcc "__VERSION__"\n"
 
 
 #define DEBUG_LED_GROUP_NUM 1
