@@ -13,7 +13,10 @@
 #include "sercom-uart.h"
 #include "sercom-spi.h"
 
+
+#ifdef ID_USB
 #include "usb/usb.h"
+#endif
 
 #include "console.h"
 #include "cli.h"
@@ -215,16 +218,20 @@ int main(void)
     sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
     
     // USB test
+#ifdef ID_USB
     PORT->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
     PORT->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
     PORT->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
     PORT->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
-    
+
     usb_init();
     usb_set_speed(USB_SPEED_FULL);
     usb_attach();
 
     init_console(&console_g, NULL, '\r');
+#else
+    init_console(&console_g, &uart_console_g, '\r');
+#endif
     init_cli(&cli_g, &console_g, "> ", debug_commands_funcs,
              debug_commands_num_funcs);
     
