@@ -132,12 +132,17 @@ void usb_serial_service(void)
 
 
 
-void usb_serial_put_string(const char *str)
+uint16_t usb_serial_put_string(const char *str)
 {
-    for (const char *i = str; *i != '\0'; i++) {
-        circular_buffer_push(&tx_circ_buff_g, (uint8_t)*i);
+    uint16_t i = 0;
+    for (; str[i] != '\0'; i++) {
+        if (circular_buffer_is_full(&tx_circ_buff_g)) {
+            break;
+        }
         
-        if (*i == '\n') {
+        circular_buffer_push(&tx_circ_buff_g, (uint8_t)str[i]);
+        
+        if (str[i] == '\n') {
             // Add carriage return as some terminal emulators seem to think that
             // they are typewriters.
             circular_buffer_push(&tx_circ_buff_g, (uint8_t)'\r');
@@ -147,6 +152,8 @@ void usb_serial_put_string(const char *str)
     // Make sure that we start transmition right away if there is no transmition
     // already in progress.
     usb_serial_service();
+    
+    return i;
 }
 
 void usb_serial_put_string_blocking(const char *str)

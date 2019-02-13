@@ -68,9 +68,11 @@ extern void init_sercom_uart(struct sercom_uart_desc_t *descriptor,
  *
  *  @param uart The UART to which the string should be written.
  *  @param str The string to be written.
+ *
+ *  @return The number of characters which could be added to the queue.
  */
-extern void sercom_uart_put_string(struct sercom_uart_desc_t *uart,
-                                   const char *str);
+extern uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart,
+                                       const char *str);
 
 /**
  *  Queue a string to be written to the UART. If there is not enough space

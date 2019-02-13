@@ -46,15 +46,16 @@ void console_send_str (struct console_desc_t *console, const char *str)
     }
 }
 
-void console_send_str_async (struct console_desc_t *console, const char *str)
+uint16_t console_send_str_async (struct console_desc_t *console,
+                                 const char *str)
 {
     if (console->uart) {
         // SERCOM UART
-        sercom_uart_put_string(console->uart, str);
+        return sercom_uart_put_string(console->uart, str);
     } else {
 #ifdef ID_USB
         // USB
-        usb_serial_put_string(str);
+        return usb_serial_put_string(str);
 #endif
     }
 }

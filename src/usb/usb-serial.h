@@ -43,8 +43,11 @@ void usb_serial_disable(void);
  *  Queue a string to be written to the serial interface.
  *
  *  @param str The string to be written.
+ *
+ *  @return The number of characters which could be queued for
+ *          transmition.
  */
-extern void usb_serial_put_string(const char *str);
+extern uint16_t usb_serial_put_string(const char *str);
 
 /**
  *  Queue a string to be written to the serial interface. If there is not enough

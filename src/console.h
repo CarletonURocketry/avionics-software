@@ -54,15 +54,17 @@ extern void console_send_str (struct console_desc_t *console, const char *str);
 
 /**
  *  Send a string on a console. This function copies the string into the output
- *  buffer and then returns immediately. It does not check that there is enough
- *  free space in the buffer for the string. If there is not enough space, the
- *  output may be corupted.
+ *  buffer and then returns immediately. If there is not enough space, the whole
+ *  string may not be coppied. The number of bytes which could be coppied to the
+ *  buffer is returned.
  *
  *  @param console The console on which the string should be sent
  *  @param str The string to be sent
+ *
+ *  @return The number of characters which could be queued for transmition.
  */
-extern void console_send_str_async (struct console_desc_t *console,
-                                    const char *str);
+extern uint16_t console_send_str_async (struct console_desc_t *console,
+                                        const char *str);
 
 /**
  *  Set the function which should be called when a full line has been recieved.

@@ -109,12 +109,17 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     sercom->USART.CTRLA.bit.ENABLE = 0b1;
 }
 
-void sercom_uart_put_string(struct sercom_uart_desc_t *uart, const char *str)
+uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart, const char *str)
 {
-    for (const char *i = str; *i != '\0'; i++) {
-        circular_buffer_push(&uart->out_buffer, (uint8_t)*i);
+    uint16_t i = 0;
+    for (; str[i] != '\0'; i++) {
+        if (circular_buffer_is_full(&uart->out_buffer)) {
+            break;
+        }
         
-        if (*i == '\n') {
+        circular_buffer_push(&uart->out_buffer, (uint8_t)str[i]);
+        
+        if (str[i] == '\n') {
             // Add carriage return as some terminal emulators seem to think that
             // they are typewriters.
             circular_buffer_push(&uart->out_buffer, (uint8_t)'\r');
@@ -124,6 +129,8 @@ void sercom_uart_put_string(struct sercom_uart_desc_t *uart, const char *str)
     // Make sure that we start transmition right away if there is no transmition
     // already in progress.
     sercom_uart_service(uart);
+    
+    return i;
 }
 
 void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
