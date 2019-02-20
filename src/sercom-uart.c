@@ -119,7 +119,7 @@ uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart, const char *str
         
         circular_buffer_push(&uart->out_buffer, (uint8_t)str[i]);
         
-        if (str[i] == '\n') {
+        if (uart->echo && (str[i] == '\n')) {
             // Add carriage return as some terminal emulators seem to think that
             // they are typewriters.
             circular_buffer_push(&uart->out_buffer, (uint8_t)'\r');
@@ -154,7 +154,7 @@ void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
             circular_buffer_push(&uart->out_buffer, (uint8_t)*i);
         }
         
-        if (*i == '\n' && !carriage_return) {
+        if (uart->echo && (*i == '\n') && !carriage_return) {
             // Add carriage return after newlines
             carriage_return = 1;
         } else {
