@@ -172,7 +172,7 @@ void sercom_uart_put_char (struct sercom_uart_desc_t *uart, char c)
 {
     circular_buffer_push(&uart->out_buffer, (uint8_t)c);
     
-    if (c == '\n') {
+    if (uart->echo && (c == '\n')) {
         // Add carriage return as some terminal emulators seem to think that
         // they are typewriters (backwards compatability has gone too far).
         circular_buffer_push(&uart->out_buffer, (uint8_t)'\r');
