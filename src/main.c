@@ -8,14 +8,17 @@
  */
 
 #include "global.h"
+#include "config.h"
 
 #include "dma.h"
 #include "sercom-uart.h"
 #include "sercom-spi.h"
-
+#include "sercom-i2c.h"
 
 #ifdef ID_USB
 #include "usb/usb.h"
+#else
+#undef ENABLE_USB
 #endif
 
 #include "console.h"
@@ -34,6 +37,26 @@ volatile uint8_t inhibit_sleep_g;
 static uint32_t lastLed_g;
 static uint8_t stat_transaction_id;
 
+// MARK: Hardware Resources from Config File
+#ifdef SPI_SERCOM_INST
+struct sercom_spi_desc_t spi_g;
+#endif
+#ifdef I2C_SERCOM_INST
+struct sercom_i2c_desc_t i2c_g;
+#endif
+
+#ifdef UART0_SERCOM_INST
+struct sercom_uart_desc_t uart0_g;
+#endif
+#ifdef UART1_SERCOM_INST
+struct sercom_uart_desc_t uart1_g;
+#endif
+#ifdef UART2_SERCOM_INST
+struct sercom_uart_desc_t uart2_g;
+#endif
+#ifdef UART3_SERCOM_INST
+struct sercom_uart_desc_t uart3_g;
+#endif
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
 // 4 -> 16 packets
@@ -139,11 +162,54 @@ static void init_main_clock(void)
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY); // Wait for synchronization
 }
 
-static struct sercom_uart_desc_t uart_console_g;
-static struct sercom_spi_desc_t spi_g;
 
-static struct console_desc_t console_g;
-static struct cli_desc_t cli_g;
+struct console_desc_t console_g;
+struct cli_desc_t cli_g;
+
+
+static inline void init_io (void)
+{
+    // Debug LED
+    PORT->Group[DEBUG_LED_GROUP_NUM].DIRSET.reg = DEBUG_LED_MASK;
+    //PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[30].bit.DRVSTR = 0b1;
+    PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[15].bit.DRVSTR = 0b1;
+    
+    // SPI
+    PORT->Group[1].PMUX[6].bit.PMUXE = 0x2;     // MOSI (Pad 0)
+    PORT->Group[1].PINCFG[12].bit.PMUXEN = 0b1;
+    PORT->Group[1].PMUX[6].bit.PMUXO = 0x2;     // SCK (Pad 1)
+    PORT->Group[1].PINCFG[13].bit.PMUXEN = 0b1;
+    PORT->Group[1].PMUX[7].bit.PMUXE = 0x2;     // MISO (Pad 2)
+    PORT->Group[1].PINCFG[14].bit.PMUXEN = 0b1;
+    
+    // I2C
+    PORT->Group[1].PMUX[8].bit.PMUXE = 0x2;     // SDA (Pad 0)
+    PORT->Group[1].PINCFG[16].bit.PMUXEN = 0b1;
+    PORT->Group[1].PMUX[8].bit.PMUXO = 0x2;     // SCL (Pad 1)
+    PORT->Group[1].PINCFG[17].bit.PMUXEN = 0b1;
+    
+    // UART 0
+    
+    // UART 1
+    
+    // UART 2
+    
+    // UART 3
+    PORT->Group[0].PMUX[11].bit.PMUXE = 0x2;
+    PORT->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
+    PORT->Group[0].PMUX[11].bit.PMUXO = 0x2;
+    PORT->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
+    
+    // USB
+    PORT->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
+    PORT->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
+    PORT->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
+    PORT->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
+    
+    // IO Expander CS pin
+    PORT->Group[0].DIRSET.reg = PORT_PA28;
+    PORT->Group[0].OUTSET.reg = PORT_PA28;
+}
 
 int main(void)
 {
@@ -168,18 +234,10 @@ int main(void)
     MTB->FLOW.reg = (((uint32_t) mtb - REG_MTB_BASE) + TRACE_BUFFER_SIZE_BYTES) & 0xFFFFFFF8;
     MTB->MASTER.reg = 0x80000000 + (TRACE_BUFFER_MAGNITUDE_PACKETS - 1);
     
-    
-    
-    // Setup PORT pins
-//    PORT->Group[0].PINCFG[15].bit.PULLEN = 0b1;
-//    PORT->Group[0].PINCFG[15].bit.INEN = 0b1;
-//    PORT->Group[0].OUTSET.reg = PORT_PA15;
-    
-    PORT->Group[DEBUG_LED_GROUP_NUM].DIRSET.reg = DEBUG_LED_MASK;
-    //PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[30].bit.DRVSTR = 0b1;
-    PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[15].bit.DRVSTR = 0b1;
+    init_io();
     
     // Init DMA
+#ifdef ENABLE_DMA
     init_dmac();
 #endif
 
@@ -252,13 +310,32 @@ int main(void)
     usb_init();
     usb_set_speed(USB_SPEED_FULL);
     usb_attach();
-
-    init_console(&console_g, NULL, '\r');
-#else
-    init_console(&console_g, &uart_console_g, '\r');
 #endif
+    
+    // Console
+#ifdef ENABLE_CONSOLE
+#ifdef CONSOLE_UART
+    init_console(&console_g, &CONSOLE_UART, '\r');
+#elif defined ENABLE_USB
+    init_console(&console_g, NULL, '\r');
+#endif
+#endif
+    
+    // Debug CLI
+#ifdef ENABLE_DEBUG_CLI
     init_cli(&cli_g, &console_g, "> ", debug_commands_funcs,
              debug_commands_num_funcs);
+#endif
+    
+    
+    
+    // SPI Test
+    uint8_t message_io_dir[] = {0b01000000, 0x00, 0x0};
+    sercom_spi_start(&spi_g, &stat_transaction_id, 8000000UL, 0, PORT_PA28,
+                     message_io_dir, 3, NULL, 0);
+    while (!sercom_spi_transaction_done(&spi_g, stat_transaction_id));
+    sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
+    
     
     // Main Loop
     for (;;) {
@@ -300,8 +377,14 @@ static void main_loop ()
         sercom_spi_start(&spi_g, &stat_transaction_id, 8000000UL, 0, PORT_PA28,
                          stat_buffer, 3, NULL, 0);
     }
-    
+        
+#ifdef ENABLE_CONSOLE
     console_service(&console_g);
+#endif
+    
+#ifdef I2C_SERCOM_INST
+    //sercom_i2c_service(&i2c_g);
+#endif
 }
 
 
