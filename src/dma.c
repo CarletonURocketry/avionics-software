@@ -49,7 +49,7 @@ void init_dmac(void)
 int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
                                         uint8_t chan,
                                         struct circular_buffer_t *buffer,
-                                        uint8_t *dest, uint8_t trigger,
+                                        volatile uint8_t *dest, uint8_t trigger,
                                         uint8_t priority)
 {
     if (buffer->head == buffer->tail) {
@@ -151,8 +151,8 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
 }
 
 void dma_start_buffer_to_static(uint8_t chan, const uint8_t *buffer,
-                                uint16_t length, uint8_t *dest, uint8_t trigger,
-                                uint8_t priority)
+                                uint16_t length, volatile uint8_t *dest,
+                                uint8_t trigger, uint8_t priority)
 {
     /* Select DMA channel to configure */
     DMAC->CHID.reg = chan;
@@ -194,8 +194,72 @@ void dma_start_buffer_to_static(uint8_t chan, const uint8_t *buffer,
     DMAC->CHCTRLA.bit.ENABLE = 0b1;
 }
 
+void dma_start_double_buffer_to_static(uint8_t chan,
+                                       const uint8_t *buffer1, uint16_t length1,
+                                       const uint8_t *buffer2, uint16_t length2,
+                                       DmacDescriptor *descriptor,
+                                       volatile uint8_t *dest, uint8_t trigger,
+                                       uint8_t priority)
+{
+    /* Select DMA channel to configure */
+    DMAC->CHID.reg = chan;
+    
+    /* Reset DMA channel */
+    DMAC->CHCTRLA.bit.SWRST = 0b1;
+    // Wait for reset to complete
+    while (DMAC->CHCTRLA.bit.SWRST);
+    
+    /* Configure DMA Channel */
+    // Require one trigger per beat, select trigger source and select priority
+    DMAC->CHCTRLB.reg = (DMAC_CHCTRLB_TRIGACT_BEAT |
+                         DMAC_CHCTRLB_TRIGSRC(trigger) |
+                         DMAC_CHCTRLB_LVL(priority));
+    // Enable transfer complete interupt
+    DMAC->CHINTENSET.bit.TCMPL = 0b1;
+    
+    /* Configure first transfer descriptor */
+    // Ensure that the step size setting does not apply to source address,
+    // enable incrementing of source address, set beatsize to one byte and mark
+    // descriptor as valid
+    dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_DST |
+                                          DMAC_BTCTRL_SRCINC |
+                                          DMAC_BTCTRL_BEATSIZE_BYTE |
+                                          DMAC_BTCTRL_VALID);
+
+    // Set source and destination addresses
+    dmacDescriptors_g[chan].SRCADDR.reg = (uint32_t)buffer1 + length1;
+    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)dest;
+    
+    // Select block transfer count
+    dmacDescriptors_g[chan].BTCNT.reg = length1;
+    
+    // Set next descriptor address
+    dmacDescriptors_g[chan].DESCADDR.reg = (uint32_t)descriptor;
+    
+    /* Configure second transfer descriptor */
+    // Ensure that the step size setting does not apply to source address,
+    // enable incrementing of source address, set beatsize to one byte and mark
+    // descriptor as valid
+    descriptor->BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_DST | DMAC_BTCTRL_SRCINC |
+                              DMAC_BTCTRL_BEATSIZE_BYTE | DMAC_BTCTRL_VALID |
+                              DMAC_BTCTRL_BLOCKACT_INT);
+    
+    // Set source and destination addresses
+    descriptor->SRCADDR.reg = (uint32_t)buffer2 + length2;
+    descriptor->DSTADDR.reg = (uint32_t)dest;
+    
+    // Select block transfer count
+    descriptor->BTCNT.reg = length2;
+    
+    // Set next descriptor address
+    descriptor->DESCADDR.reg = 0;
+    
+    /* Enable channel */
+    DMAC->CHCTRLA.bit.ENABLE = 0b1;
+}
+
 void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer, uint16_t length,
-                                const uint8_t *source, uint8_t trigger,
+                                const volatile uint8_t *source, uint8_t trigger,
                                 uint8_t priority)
 {
     /* Select DMA channel to configure */
@@ -238,9 +302,9 @@ void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer, uint16_t length,
     DMAC->CHCTRLA.bit.ENABLE = 0b1;
 }
 
-void dma_start_static_to_static(uint8_t chan, const uint8_t *source,
-                                uint16_t length, uint8_t *dest, uint8_t trigger,
-                                uint8_t priority)
+void dma_start_static_to_static(uint8_t chan, const volatile uint8_t *source,
+                                uint16_t length, volatile uint8_t *dest,
+                                uint8_t trigger, uint8_t priority)
 {
     /* Select DMA channel to configure */
     DMAC->CHID.reg = chan;
@@ -276,6 +340,14 @@ void dma_start_static_to_static(uint8_t chan, const uint8_t *source,
     
     /* Enable channel */
     DMAC->CHCTRLA.bit.ENABLE = 0b1;
+}
+
+void dma_abort_transaction(uint8_t chan)
+{
+    // Disable DMA channel, if transaction is in progress it will be aborted
+    // gracefully.
+    DMAC->CHID.bit.ID = chan;
+    DMAC->CHCTRLA.bit.ENABLE = 0;
 }
 
 void DMAC_Handler (void)

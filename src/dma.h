@@ -55,8 +55,8 @@ extern int8_t dma_start_circular_buffer_to_static(
                                             struct dma_circ_transfer_t *tran,
                                             uint8_t chan,
                                             struct circular_buffer_t *buffer,
-                                            uint8_t *dest, uint8_t trigger,
-                                            uint8_t priority);
+                                            volatile uint8_t *dest,
+                                            uint8_t trigger, uint8_t priority);
 
 /**
  *  Transfer a buffer of data to a static address (peripheral).
@@ -69,8 +69,31 @@ extern int8_t dma_start_circular_buffer_to_static(
  *  @param priority The priority level of the transfer.
  */
 extern void dma_start_buffer_to_static(uint8_t chan, const uint8_t *buffer,
-                                       uint16_t length, uint8_t *dest,
+                                       uint16_t length, volatile uint8_t *dest,
                                        uint8_t trigger, uint8_t priority);
+
+/**
+ *  Transfer two buffers of data to a static address (peripheral).
+ *
+ *  @param chan The DMA channel to be used.
+ *  @param buffer1 The data to be transfered.
+ *  @param length1 The number of bytes which should be transfered.
+ *  @param buffer2 The data to be transfered.
+ *  @param length2 The number of bytes which should be transfered.
+ *  @param descriptor Memory to be used for second DMA descriptor.
+ *  @param dest The address of the destination register.
+ *  @param trigger The trigger which should be used to control the transfer.
+ *  @param priority The priority level of the transfer.
+ */
+extern void dma_start_double_buffer_to_static(uint8_t chan,
+                                              const uint8_t *buffer1,
+                                              uint16_t length1,
+                                              const uint8_t *buffer2,
+                                              uint16_t length2,
+                                              DmacDescriptor *descriptor,
+                                              volatile uint8_t *dest,
+                                              uint8_t trigger,
+                                              uint8_t priority);
 
 /**
  *  Transfer data from a static address to a buffer.
@@ -83,7 +106,8 @@ extern void dma_start_buffer_to_static(uint8_t chan, const uint8_t *buffer,
  *  @param priority The priority level of the transfer.
  */
 extern void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer,
-                                       uint16_t length, const uint8_t *source,
+                                       uint16_t length,
+                                       const volatile uint8_t *source,
                                        uint8_t trigger, uint8_t priority);
 
 /**
@@ -96,9 +120,17 @@ extern void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer,
  *  @param trigger The trigger which should be used to control the transfer.
  *  @param priority The priority level of the transfer.
  */
-extern void dma_start_static_to_static(uint8_t chan, const uint8_t *source,
-                                       uint16_t length, uint8_t *dest,
+extern void dma_start_static_to_static(uint8_t chan,
+                                       const volatile uint8_t *source,
+                                       uint16_t length, volatile uint8_t *dest,
                                        uint8_t trigger, uint8_t priority);
+
+/**
+ *  Cancel an ongoing DMA transaction.
+ *
+ *  @param chan The DMA for which the transaction should be cancled.
+ */
+extern void dma_abort_transaction(uint8_t chan);
 
 
 /**
