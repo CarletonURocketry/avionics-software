@@ -30,5 +30,26 @@
  */
 extern volatile uint32_t millis;
 
+/**
+ *  Variable which can be incremented by any thread to prevent the main loop
+ *  from entering sleep.
+ */
+extern volatile uint8_t inhibit_sleep_g;
+
+/**
+ *  Prevents the main loop from entering sleep
+ */
+static inline void inhibit_sleep (void)
+{
+    inhibit_sleep_g++;
+}
+
+/**
+ *  Allows the main loop to enter sleep
+ */
+static inline void allow_sleep (void)
+{
+    inhibit_sleep_g--;
+}
 
 #endif /* global_h */
