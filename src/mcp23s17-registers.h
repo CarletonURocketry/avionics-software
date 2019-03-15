@@ -122,12 +122,12 @@ union MCP23S17_INTCON_Reg {
 union MCP23S17_IOCON_Reg {
     struct {
         uint8_t :1;         /*!< bit:      0  Reserved                        */
-        uint8_t INTPOL:1;   /*!< bit:      1  Interupt pin polarity           */
-        uint8_t ODR:1;      /*!< bit:      2  Interupt pin open drain         */
+        uint8_t INTPOL:1;   /*!< bit:      1  Interrupt pin polarity          */
+        uint8_t ODR:1;      /*!< bit:      2  Interrupt pin open drain        */
         uint8_t HAEN:1;     /*!< bit:      3  Hardware address enable         */
         uint8_t DISSLW:1;   /*!< bit:      4  SDA output slew rate control    */
         uint8_t SEQOP:1;    /*!< bit:      5  Address pointer increment       */
-        uint8_t MIRROR:1;   /*!< bit:      6  Interupt pin mirror             */
+        uint8_t MIRROR:1;   /*!< bit:      6  Interrupt pin mirror            */
         uint8_t BANK:1;     /*!< bit:      7  Register addressing mode        */
     } bit;
     uint8_t reg;
@@ -223,65 +223,48 @@ union MCP23S17_OLAT_Reg {
     uint8_t reg;
 };
 
-
+// Ignoring warnings about inefficient alignment for this struct
+#pragma GCC diagnostic ignored "-Wpacked"
 
 /** Register file for MCP23S17 IO Expander. */
 struct mcp23s17_register_map {
-    /* Data direction for PortA, 1 is input, 0 is output */
-    union MCP23S17_IODIR_Reg IODIRA;
-    /* Data direction for PortB, 1 is input, 0 is output */
-    union MCP23S17_IODIR_Reg IODIRB;
+    /** Data direction, 1 is input, 0 is output */
+    union MCP23S17_IODIR_Reg IODIR[2];
     
-    /* Input polarity for PortA, 1 is inverted, 0 is not inverted */
-    union MCP23S17_IPOL_Reg IPOLA;
-    /* Input polarity for PortB, 1 is inverted, 0 is not inverted */
-    union MCP23S17_IPOL_Reg IPOLB;
+    /** Input polarity, 1 is inverted, 0 is not inverted */
+    union MCP23S17_IPOL_Reg IPOL[2];
     
-    /* Interupt enable for PortA, 1 is enabled, 0 is disabled */
-    union MCP23S17_GPINTEN_Reg GPINTENA;
-    /* Interupt enable for PortB, 1 is enabled, 0 is disabled */
-    union MCP23S17_GPINTEN_Reg GPINTENB;
+    /** Interrupt enable, 1 is enabled, 0 is disabled */
+    union MCP23S17_GPINTEN_Reg GPINTEN[2];
     
-    /* Interupt edge select for PortA, 1 is falling edge, 0 is rising edge */
-    union MCP23S17_DEFVAL_Reg DEFVALA;
-    /* Interupt edge select for PortB, 1 is falling edge, 0 is rising edge */
-    union MCP23S17_DEFVAL_Reg DEFVALB;
+    /** Interrupt edge select, 1 is falling edge, 0 is rising edge */
+    union MCP23S17_DEFVAL_Reg DEFVAL[2];
     
-    /* Interupt mode for PortA, 1 is edge detection, 0 is pin change */
-    union MCP23S17_INTCON_Reg INTCONA;
-    /* Interupt mode for PortB, 1 is edge detection, 0 is pin change */
-    union MCP23S17_INTCON_Reg INTCONB;
+    /** Interrupt mode, 1 is edge detection, 0 is pin change */
+    union MCP23S17_INTCON_Reg INTCON[2];
     
-    /* Allias of IOCON,  */
+    /** Allias of IOCON,  */
     uint8_t IOCON_ALT;
-    /* Device configuration register */
+    /** Device configuration register */
     union MCP23S17_IOCON_Reg IOCON;
     
-    /* Pull-up configuration for PortA, 1 is enabled, 0 is disabled */
-    union MCP23S17_GPPU_Reg GPPUA;
-    /* Pull-up configuration for PortB, 1 is enabled, 0 is disabled */
-    union MCP23S17_GPPU_Reg GPPUB;
+    /** Pull-up configuration, 1 is enabled, 0 is disabled */
+    union MCP23S17_GPPU_Reg GPPU[2];
     
-    /* Interupt flags for PortA, 1 is interupt pending */
-    union MCP23S17_INTF_Reg INTFA;
-    /* Interupt flags for PortB, 1 is interupt pending */
-    union MCP23S17_INTF_Reg INTFB;
+    /** Interrupt flags, 1 is interrupt pending */
+    union MCP23S17_INTF_Reg INTF[2];
     
-    /* Pin values at last interupt for PortA */
-    union MCP23S17_INTCAP_Reg INTCAPA;
-    /* Pin values at last interupt for PortB */
-    union MCP23S17_INTCAP_Reg INTCAPB;
+    /** Pin values at last interrupt */
+    union MCP23S17_INTCAP_Reg INTCAP[2];
     
-    /* Pin values for PortA (writes to this register go to OLATA) */
-    union MCP23S17_GPIO_Reg GPIOA;
-    /* Pin values for PortB (writes to this register go to OLATB) */
-    union MCP23S17_GPIO_Reg GPIOB;
+    /** Pin values (writes to these registers go to OLATA/B) */
+    union MCP23S17_GPIO_Reg GPIO[2];
     
-    /* Output latches for PortA */
-    union MCP23S17_OLAT_Reg OLATA;
-    /* Output latches for PortB */
-    union MCP23S17_OLAT_Reg OLATB;
-};
+    /** Output latches */
+    union MCP23S17_OLAT_Reg OLAT[2];
+} __attribute__((packed));
 
+// Stop ignoring warnings about inefficient alignment
+#pragma GCC diagnostic pop
 
 #endif /* mcp23s17_registers_h */
