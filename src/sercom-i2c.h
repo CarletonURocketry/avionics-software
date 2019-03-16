@@ -176,6 +176,10 @@ struct sercom_i2c_desc_t {
     /** Flag used to indicate that the next transaction is staled waiting for
         the bus to become free */
     uint8_t wait_for_idle:1;
+    
+    /** Flag used to unsure that the service function is not executed in an
+     interrupt while it is already being run in the main thread */
+    uint8_t service_lock:1;
 };
 
 

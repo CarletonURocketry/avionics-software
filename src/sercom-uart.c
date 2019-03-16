@@ -234,6 +234,14 @@ uint8_t sercom_uart_out_buffer_empty (struct sercom_uart_desc_t *uart)
 
 void sercom_uart_service (struct sercom_uart_desc_t *uart)
 {
+    /* Acquire service function lock */
+    if (uart->service_lock) {
+        // Could not accuire lock, service is already being run
+        return;
+    } else {
+        uart->service_lock = 1;
+    }
+    
     if (circular_buffer_is_empty(&uart->out_buffer)) {
         // No data to be sent
         return;
@@ -251,6 +259,8 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
         // Start data register empty interupts.
         uart->sercom->USART.INTENSET.bit.DRE = 0b1;
     }
+    
+    uart->service_lock = 0;
 }
 
 
