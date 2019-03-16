@@ -75,6 +75,9 @@ struct sercom_spi_desc_t {
     uint8_t tx_use_dma:1;
     /** Flag which is set if DMA should be used for recieving. */
     uint8_t rx_use_dma:1;
+    /** Flag used to unsure that the service function is not executed in an
+        interrupt while it is already being run in the main thread */
+    uint8_t service_lock:1;
 };
 
 

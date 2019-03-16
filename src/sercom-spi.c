@@ -162,6 +162,14 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
         return;
     }
     
+    /* Acquire service function lock */
+    if (spi_inst->service_lock) {
+        // Could not accuire lock, service is already being run
+        return;
+    } else {
+        spi_inst->service_lock = 1;
+    }
+    
     struct transaction_t *t = transaction_queue_next(&spi_inst->queue);
     if (t == NULL) {
         // No pending transactions
@@ -209,6 +217,8 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
             spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
         }
     }
+    
+    spi_inst->service_lock = 0;
 }
 
 static inline void sercom_spi_end_transaction (

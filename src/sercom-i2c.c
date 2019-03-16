@@ -457,6 +457,14 @@ static inline void sercom_i2c_begin_in_dma (
 
 void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
 {
+    /* Acquire service function lock */
+    if (i2c_inst->service_lock) {
+        // Could not accuire lock, service is already being run
+        return;
+    } else {
+        i2c_inst->service_lock = 1;
+    }
+    
     if (transaction_queue_head_active(&i2c_inst->queue)) {
         // There is already a transaction in progress
         struct transaction_t *t =
@@ -552,6 +560,8 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         // Keep checking if the bus has become idle as often as possible
         inhibit_sleep();
     }
+    
+    i2c_inst->service_lock = 0;
 }
 
 
