@@ -1,10 +1,10 @@
 /**
  * @file mcp23s17.c
- * @desc Driver for Microchip MCP23S17 IO Expeander
+ * @desc Driver for Microchip MCP23S17 IO Expander
  * @author Samuel Dewan
  * @date 2019-03-14
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-03-15
  */
 
 #include "mcp23s17.h"

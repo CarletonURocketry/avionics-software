@@ -1,10 +1,10 @@
 /**
  * @file mcp23s17.h
- * @desc Driver for Microchip MCP23S17 IO Expeander
+ * @desc Driver for Microchip MCP23S17 IO Expander
  * @author Samuel Dewan
  * @date 2019-03-14
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-03-15
  */
 
 #ifndef mcp23s17_h
@@ -124,7 +124,7 @@ struct mcp23s17_desc_t {
         to be updated from the cache */
     uint8_t olat_dirty:1;
     /** Flag used to unsure that the service function is not executed in an
-        an interrupt while it is already being run in the main thread */
+        interrupt while it is already being run in the main thread */
     uint8_t service_lock:1;
     
     /** The current SPI transaction state */
