@@ -123,6 +123,9 @@ struct mcp23s17_desc_t {
     /** Flag that indicates that the output latch registers on the device need
         to be updated from the cache */
     uint8_t olat_dirty:1;
+    /** Flag used to unsure that the service function is not executed in an
+        an interrupt while it is already being run in the main thread */
+    uint8_t service_lock:1;
     
     /** The current SPI transaction state */
     enum mcp23s17_transaction_state transaction_state:2;
