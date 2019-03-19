@@ -84,6 +84,10 @@ typedef void (*mcp23s17_int_callback)(struct mcp23s17_desc_t *inst,
 #pragma GCC diagnostic ignored "-Wattributes"
 
 struct mcp23s17_desc_t {
+    /** Period with which the input registers should be polled automatically */
+    uint32_t poll_period;
+    /** Stores the last time at which the GPIO registers where polled */
+    uint32_t last_polled;
     /** Callback function for interrupts */
     mcp23s17_int_callback interrupt_callback;
     /** SPI instance used to communicate with device */
@@ -137,13 +141,17 @@ struct mcp23s17_desc_t {
  *  @param descriptor The instance descriptor to be initilized
  *  @param address The 3 bit selectable address of the IO expander
  *  @param spi_inst The SPI instance used to communicate with the device
+ *  @param poll_period The period in milliseconds with which the device should
+ *                     be polled for updated input data, a period of 0 means
+ *                     that automatic polling will not occur
  *  @param cs_pin_mask The mask for the devices chip select pin
  *  @param cs_pin_group The group in which the devices chip select pin is
  *                      located
  */
 extern void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
                           struct sercom_spi_desc_t *spi_inst,
-                          uint32_t cs_pin_mask, uint8_t cs_pin_group);
+                          uint32_t poll_period, uint32_t cs_pin_mask,
+                          uint8_t cs_pin_group);
 
 /**
  *  Service to be run in each iteration of the main loop.

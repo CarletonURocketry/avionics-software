@@ -12,12 +12,15 @@
 
 
 void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
-                   struct sercom_spi_desc_t *spi_inst, uint32_t cs_pin_mask,
-                   uint8_t cs_pin_group)
+                   struct sercom_spi_desc_t *spi_inst, uint32_t poll_period,
+                   uint32_t cs_pin_mask, uint8_t cs_pin_group)
 {
     /* Compute device address */
     descriptor->opcode = MCP23S17_ADDR | (address & 0x7);
     descriptor->spi_out_buffer[0] = descriptor->opcode;
+    
+    /* Store polling period */
+    descriptor->poll_period = poll_period;
     
     /* Store SPI settings */
     descriptor->spi_inst = spi_inst;
@@ -59,6 +62,13 @@ void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
 
 void mcp23s17_service(struct mcp23s17_desc_t *inst)
 {
+    /* Mark the GPIO registers as dirty if the automatic polling period has
+       expired */
+    if (inst->poll_period &&
+        ((millis - inst->last_polled) > inst->poll_period)) {
+        inst->gpio_dirty = 1;
+    }
+    
     /* Acquire service function lock */
     if (inst->service_lock) {
         // Could not accuire lock, service is already being run
@@ -127,6 +137,7 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
                 // Transaction was queued, update state
                 inst->transaction_state = MCP23S17_SPI_GPIO;
                 inst->gpio_dirty = 0;
+                inst->last_polled = millis;
             }
         } else if (inst->config_dirty) {
             /* Start a transaction to update the configuration registers */
