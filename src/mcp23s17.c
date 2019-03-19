@@ -19,11 +19,6 @@ void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
     descriptor->opcode = MCP23S17_ADDR | (address & 0x7);
     descriptor->spi_out_buffer[0] = descriptor->opcode;
     
-    /* Mark all interrupt pins as invalid (interrupt unused) */
-    for (uint8_t i = 0; i < MCP23S17_MAX_NUM_INTERRUPTS; i++) {
-        descriptor->interrupt_pins[i].invalid = 1;
-    }
-    
     /* Store SPI settings */
     descriptor->spi_inst = spi_inst;
     descriptor->cs_pin_mask = cs_pin_mask;
@@ -87,11 +82,10 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
         
         if (inst->transaction_state == MCP23S17_SPI_INTERRUPTS) {
             /* An interrupts fetch transaction has finished, parse interupt */
-            for (uint8_t i = 0; i < MCP23S17_MAX_NUM_INTERRUPTS; i++) {
-                union mcp23s17_pin_t pin = inst->interrupt_pins[i];
-                if ((!pin.invalid) &&
-                    (inst->registers.INTF[pin.port].reg & (1 << pin.pin))) {
-                    inst->interrupt_callbacks[i](inst, pin,
+            for (union mcp23s17_pin_t pin = {.value = 0}; pin.value < 16;
+                    pin.value++) {
+                if ((inst->registers.INTF[pin.port].reg & (1 << pin.pin))) {
+                    inst->interrupt_callback(inst, pin,
                      !!(inst->registers.INTCAP[pin.port].reg & (1 << pin.pin)));
                 }
             }
@@ -158,7 +152,7 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
                                          &inst->spi_transaction_id,
                                          MCP23S17_BAUD_RATE, inst->cs_pin_group,
                                          inst->cs_pin_mask,
-                                         &inst->spi_out_buffer, 4, NULL, 0);
+                                         inst->spi_out_buffer, 4, NULL, 0);
             if (!s) {
                 // Transaction was queued, update state
                 inst->transaction_state = MCP23S17_SPI_OTHER;
@@ -227,87 +221,67 @@ void mcp23s17_set_pull_up(struct mcp23s17_desc_t *inst,
     mcp23s17_service(inst);
 }
 
-uint8_t mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
-                                  union mcp23s17_pin_t pin,
-                                  enum mcp23s17_interrupt_type type,
-                                  mcp23s17_int_callback callback)
+void mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
+                               union mcp23s17_pin_t pin,
+                               enum mcp23s17_interrupt_type type)
 {
-    for (int8_t i = 0; i < MCP23S17_MAX_NUM_INTERRUPTS; i++) {
-        if (inst->interrupt_pins[i].invalid) {
-            // Configure interrupt in instance descriptor
-            inst->interrupt_pins[i] = pin;
-            inst->interrupt_callbacks[i] = callback;
-            
-            // Enable interrupt on device
-            inst->registers.GPINTEN[pin.port].reg |= (1 << pin.pin);
-            switch (type) {
-                case MCP23S17_INT_ON_CHANGE:
-                    if (inst->registers.INTCON[pin.port].reg & (1 << pin.pin)) {
-                        // Set interrupt trigger type to pin change
-                        inst->registers.INTCON[pin.port].reg &= ~(1 << pin.pin);
-                        // Mark device configuration registers to be updated
-                        inst->config_dirty = 1;
-                    }
-                    break;
-                case MCP23S17_INT_FALLING_EDGE:
-                    if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
-                        // Set interrupt trigger type to edge detect
-                        inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
-                        // Mark device configuration registers to be updated
-                        inst->config_dirty = 1;
-                    }
-                    if (!(inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin))) {
-                        // Set edge to falling edge
-                        inst->registers.DEFVAL[pin.port].reg |= (1 << pin.pin);
-                        // Mark device configuration registers to be updated
-                        inst->config_dirty = 1;
-                    }
-                    break;
-                case MCP23S17_INT_RISING_EDGE:
-                    if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
-                        // Set interrupt trigger type to edge detect
-                        inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
-                        // Mark device configuration registers to be updated
-                        inst->config_dirty = 1;
-                    }
-                    if (inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin)) {
-                        // Set edge to rising edge
-                        inst->registers.DEFVAL[pin.port].reg &= ~(1 << pin.pin);
-                        // Mark device configuration registers to be updated
-                        inst->config_dirty = 1;
-                    }
-                    
-                    break;
+    // Enable interrupt on device
+    inst->registers.GPINTEN[pin.port].reg |= (1 << pin.pin);
+    switch (type) {
+        case MCP23S17_INT_ON_CHANGE:
+            if (inst->registers.INTCON[pin.port].reg & (1 << pin.pin)) {
+                // Set interrupt trigger type to pin change
+                inst->registers.INTCON[pin.port].reg &= ~(1 << pin.pin);
+                // Mark device configuration registers to be updated
+                inst->config_dirty = 1;
             }
-            // Start updating registers now if there is not already an operation
-            // in progress
-            mcp23s17_service(inst);
-            return 0;
-        }
+            break;
+        case MCP23S17_INT_FALLING_EDGE:
+            if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
+                // Set interrupt trigger type to edge detect
+                inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
+                // Mark device configuration registers to be updated
+                inst->config_dirty = 1;
+            }
+            if (!(inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin))) {
+                // Set edge to falling edge
+                inst->registers.DEFVAL[pin.port].reg |= (1 << pin.pin);
+                // Mark device configuration registers to be updated
+                inst->config_dirty = 1;
+            }
+            break;
+        case MCP23S17_INT_RISING_EDGE:
+            if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
+                // Set interrupt trigger type to edge detect
+                inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
+                // Mark device configuration registers to be updated
+                inst->config_dirty = 1;
+            }
+            if (inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin)) {
+                // Set edge to rising edge
+                inst->registers.DEFVAL[pin.port].reg &= ~(1 << pin.pin);
+                // Mark device configuration registers to be updated
+                inst->config_dirty = 1;
+            }
+            
+            break;
     }
-    
-    // Could not find a free interrupt slot
-    return 1;
+    // Start updating registers now if there is not already an operation
+    // in progress
+    mcp23s17_service(inst);
 }
 
 void mcp23s17_disable_interrupt(struct mcp23s17_desc_t *inst,
                                 union mcp23s17_pin_t pin)
 {
-    for (int8_t i = 0; i < MCP23S17_MAX_NUM_INTERRUPTS; i++) {
-        if (inst->interrupt_pins[i].value == pin.value) {
-            // Disable interrupt in instance descriptor
-            inst->interrupt_pins[i].invalid = 1;
-            if (inst->registers.GPINTEN[pin.port].reg & (1 << pin.pin)) {
-                // Disable interrupt on device
-                inst->registers.GPINTEN[pin.port].reg &= ~(1 << pin.pin);
-                // Mark device configuration registers as needing to be updated
-                inst->config_dirty = 1;
-                // Start updating registers now if there is not already an
-                // operation in progress
-                mcp23s17_service(inst);
-            }
-            break;
-        }
+    if (inst->registers.GPINTEN[pin.port].reg & (1 << pin.pin)) {
+        // Disable interrupt on device
+        inst->registers.GPINTEN[pin.port].reg &= ~(1 << pin.pin);
+        // Mark device configuration registers as needing to be updated
+        inst->config_dirty = 1;
+        // Start updating registers now if there is not already an
+        // operation in progress
+        mcp23s17_service(inst);
     }
 }
 

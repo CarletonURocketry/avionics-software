@@ -47,8 +47,7 @@ union mcp23s17_pin_t {
     struct {
         uint8_t pin:3;                  /** The pin number for this pin */
         enum mcp23s17_port port:1;      /** The port that this pin is in */
-        uint8_t :3;
-        uint8_t invalid:1;              /** Special value for interrupt list */
+        uint8_t :4;                     /** RESERVED */
     };
     uint8_t value;
 };
@@ -85,11 +84,8 @@ typedef void (*mcp23s17_int_callback)(struct mcp23s17_desc_t *inst,
 #pragma GCC diagnostic ignored "-Wattributes"
 
 struct mcp23s17_desc_t {
-    /** Callback function for each enabled interrupt */
-    mcp23s17_int_callback interrupt_callbacks[MCP23S17_MAX_NUM_INTERRUPTS];
-    /** Pin for each enabled interrupt */
-    union mcp23s17_pin_t interrupt_pins[MCP23S17_MAX_NUM_INTERRUPTS];
-    
+    /** Callback function for interrupts */
+    mcp23s17_int_callback interrupt_callback;
     /** SPI instance used to communicate with device */
     struct sercom_spi_desc_t *spi_inst;
     /** Mask for devices chip select pin */
@@ -232,15 +228,10 @@ extern void mcp23s17_set_pull_up(struct mcp23s17_desc_t *inst,
  *  @param inst The descriptor for the IO expander
  *  @param pin The pin for which the interrupt should be enabled
  *  @param type The trigger type for the interrupt
- *  @param callback The function to be called when this interrupt occures
- *
- *  @return 0 if the interrupt was enabled successfully, an non-zero value
- *          otherwise (ie. the maximum number of interrupts has been reached)
  */
-extern uint8_t mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
-                                        union mcp23s17_pin_t pin,
-                                        enum mcp23s17_interrupt_type type,
-                                        mcp23s17_int_callback callback);
+extern void mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
+                                      union mcp23s17_pin_t pin,
+                                      enum mcp23s17_interrupt_type type);
 
 /**
  *  Disable the interrupt for a pin.
