@@ -197,6 +197,17 @@ extern void mcp23s17_set_pin_mode(struct mcp23s17_desc_t *inst,
                                   union mcp23s17_pin_t pin, uint8_t mode);
 
 /**
+ *  Get the current mode of a pin.
+ *
+ *  @param inst The descriptor for the IO expander
+ *  @param pin The pin for which the mode should be found
+ *
+ *  @return The current mode of the pin
+ */
+extern uint8_t mcp23s17_get_pin_mode(struct mcp23s17_desc_t *inst,
+                                     union mcp23s17_pin_t pin);
+
+/**
  *  Get the value from a pin which is configured as an input.
  *
  *  @param inst The descriptor for the IO expander
@@ -219,6 +230,15 @@ static inline uint8_t mcp23s17_get_input(struct mcp23s17_desc_t *inst,
  */
 extern void mcp23s17_set_output(struct mcp23s17_desc_t *inst,
                                 union mcp23s17_pin_t pin, uint8_t value);
+
+/**
+ *  Toggle the value for a pin which is configured as an output.
+ *
+ *  @param inst The descriptor for the IO expander
+ *  @param pin The pin for which the value should be toggled
+ */
+extern void mcp23s17_toggle_output(struct mcp23s17_desc_t *inst,
+                                   union mcp23s17_pin_t pin);
 
 /**
  *  Enable or disable pull-up for a pin which is configured as an input.

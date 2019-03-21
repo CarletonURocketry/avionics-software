@@ -184,7 +184,8 @@ void mcp23s17_set_pin_mode(struct mcp23s17_desc_t *inst,
         inst->registers.IODIR[pin.port].reg &= ~(1 << pin.pin);
         // Mark configuration to be updated
         inst->config_dirty = 1;
-    } else if (!(inst->registers.IODIR[pin.port].reg & (1 << pin.pin))) {
+    } else if ((mode == MCP23S17_MODE_INPUT) &&
+               !(inst->registers.IODIR[pin.port].reg & (1 << pin.pin))) {
         // Set pin as input
         inst->registers.IODIR[pin.port].reg |= (1 << pin.pin);
         // Mark configuration to be updated
@@ -192,6 +193,16 @@ void mcp23s17_set_pin_mode(struct mcp23s17_desc_t *inst,
     }
     // Start the update immediately if possible
     mcp23s17_service(inst);
+}
+
+uint8_t mcp23s17_get_pin_mode(struct mcp23s17_desc_t *inst,
+                              union mcp23s17_pin_t pin)
+{
+    if (inst->registers.IODIR[pin.port].reg & (1 << pin.pin)) {
+        return MCP23S17_MODE_INPUT;
+    } else {
+        return MCP23S17_MODE_OUTPUT;
+    }
 }
 
 void mcp23s17_set_output(struct mcp23s17_desc_t *inst,
@@ -203,8 +214,27 @@ void mcp23s17_set_output(struct mcp23s17_desc_t *inst,
         inst->registers.OLAT[pin.port].reg &= ~(1 << pin.pin);
         // Mark output latch to be updated
         inst->olat_dirty = 1;
-    } else if (!(inst->registers.OLAT[pin.port].reg & (1 << pin.pin))) {
+    } else if ((value == MCP23S17_VALUE_HIGH) &&
+               !(inst->registers.OLAT[pin.port].reg & (1 << pin.pin))) {
         // Set pin high
+        inst->registers.OLAT[pin.port].reg |= (1 << pin.pin);
+        // Mark output latch to be updated
+        inst->olat_dirty = 1;
+    }
+    // Start the update immediately if possible
+    mcp23s17_service(inst);
+}
+
+void mcp23s17_toggle_output(struct mcp23s17_desc_t *inst,
+                            union mcp23s17_pin_t pin)
+{
+    if ((inst->registers.OLAT[pin.port].reg & (1 << pin.pin))) {
+        // Pin is high, set low
+        inst->registers.OLAT[pin.port].reg &= ~(1 << pin.pin);
+        // Mark output latch to be updated
+        inst->olat_dirty = 1;
+    } else if (!(inst->registers.OLAT[pin.port].reg & (1 << pin.pin))) {
+        // Pin is low, set high
         inst->registers.OLAT[pin.port].reg |= (1 << pin.pin);
         // Mark output latch to be updated
         inst->olat_dirty = 1;
@@ -222,7 +252,8 @@ void mcp23s17_set_pull_up(struct mcp23s17_desc_t *inst,
         inst->registers.GPPU[pin.port].reg &= ~(1 << pin.pin);
         // Mark configuration to be updated
         inst->config_dirty = 1;
-    } else if (!(inst->registers.GPPU[pin.port].reg & (1 << pin.pin))) {
+    } else if ((value == MCP23S17_PULL_UP_ENABLED) &&
+               !(inst->registers.GPPU[pin.port].reg & (1 << pin.pin))) {
         // Enable pull-up
         inst->registers.GPPU[pin.port].reg |= (1 << pin.pin);
         // Mark configuration to be updated
