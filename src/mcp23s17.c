@@ -22,6 +22,9 @@ void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
     /* Store polling period */
     descriptor->poll_period = poll_period;
     
+    /* Make sure that interrupt callback is NULL */
+    descriptor->interrupt_callback = NULL;
+    
     /* Store SPI settings */
     descriptor->spi_inst = spi_inst;
     descriptor->cs_pin_mask = cs_pin_mask;
@@ -94,7 +97,8 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
             /* An interrupts fetch transaction has finished, parse interupt */
             for (union mcp23s17_pin_t pin = {.value = 0}; pin.value < 16;
                     pin.value++) {
-                if ((inst->registers.INTF[pin.port].reg & (1 << pin.pin))) {
+                if ((inst->registers.INTF[pin.port].reg & (1 << pin.pin)) &&
+                        (inst->interrupt_callback != NULL)) {
                     inst->interrupt_callback(inst, pin,
                      !!(inst->registers.INTCAP[pin.port].reg & (1 << pin.pin)));
                 }

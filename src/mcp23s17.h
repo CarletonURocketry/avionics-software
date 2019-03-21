@@ -271,6 +271,18 @@ extern void mcp23s17_disable_interrupt(struct mcp23s17_desc_t *inst,
                                        union mcp23s17_pin_t pin);
 
 /**
+ *  Set the interrupt callback function.
+ *
+ *  @param inst The descriptor for the IO expander
+ *  @param callback The function to be called when an interrupt occures
+ */
+static inline void mcp23s17_set_interrupt_callback(struct mcp23s17_desc_t *inst,
+                                     mcp23s17_int_callback callback)
+{
+    inst->interrupt_callback = callback;
+}
+
+/**
  *  Function to be called on a falling edge of the IO expander's interrupt pin.
  *
  *  @param inst The descriptor for the IO expander
