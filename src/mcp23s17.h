@@ -54,12 +54,12 @@ union mcp23s17_pin_t {
 
 /** Represents an interrupt trigger type on the MCP23S17 */
 enum mcp23s17_interrupt_type {
-    /** Interrupt triggered if the value of the pin changes in any direction */
-    MCP23S17_INT_ON_CHANGE,
-    /** Interrupt triggered if the value of the pin changes from high to low */
-    MCP23S17_INT_FALLING_EDGE,
-    /** Interrupt triggered if the value of the pin changes from low to high */
-    MCP23S17_INT_RISING_EDGE
+    /** Interrupt triggered on rising or falling edge */
+    MCP23S17_INT_EDGE,
+    /** Interrupt triggered if the value of the pin is high */
+    MCP23S17_INT_HIGH,
+    /** Interrupt triggered if the value of the pin is low */
+    MCP23S17_INT_LOW
 };
 
 /** Represents the possible SPI transaction states for the MCP23S17 driver */

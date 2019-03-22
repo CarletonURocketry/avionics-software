@@ -237,10 +237,10 @@ struct mcp23s17_register_map {
     /** Interrupt enable, 1 is enabled, 0 is disabled */
     union MCP23S17_GPINTEN_Reg GPINTEN[2];
     
-    /** Interrupt edge select, 1 is falling edge, 0 is rising edge */
+    /** Interrupt level select, 1 is low, 0 is high */
     union MCP23S17_DEFVAL_Reg DEFVAL[2];
     
-    /** Interrupt mode, 1 is edge detection, 0 is pin change */
+    /** Interrupt mode, 1 is level, 0 is pin change */
     union MCP23S17_INTCON_Reg INTCON[2];
     
     /** Allias of IOCON,  */

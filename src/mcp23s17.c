@@ -274,7 +274,7 @@ void mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
     // Enable interrupt on device
     inst->registers.GPINTEN[pin.port].reg |= (1 << pin.pin);
     switch (type) {
-        case MCP23S17_INT_ON_CHANGE:
+        case MCP23S17_INT_EDGE:
             if (inst->registers.INTCON[pin.port].reg & (1 << pin.pin)) {
                 // Set interrupt trigger type to pin change
                 inst->registers.INTCON[pin.port].reg &= ~(1 << pin.pin);
@@ -282,29 +282,29 @@ void mcp23s17_enable_interrupt(struct mcp23s17_desc_t *inst,
                 inst->config_dirty = 1;
             }
             break;
-        case MCP23S17_INT_FALLING_EDGE:
+        case MCP23S17_INT_LOW:
             if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
-                // Set interrupt trigger type to edge detect
+                // Set interrupt trigger type to level
                 inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
                 // Mark device configuration registers to be updated
                 inst->config_dirty = 1;
             }
             if (!(inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin))) {
-                // Set edge to falling edge
+                // Set level to low
                 inst->registers.DEFVAL[pin.port].reg |= (1 << pin.pin);
                 // Mark device configuration registers to be updated
                 inst->config_dirty = 1;
             }
             break;
-        case MCP23S17_INT_RISING_EDGE:
+        case MCP23S17_INT_HIGH:
             if (!(inst->registers.INTCON[pin.port].reg & (1 << pin.pin))) {
-                // Set interrupt trigger type to edge detect
+                // Set interrupt trigger type to level
                 inst->registers.INTCON[pin.port].reg |= (1 << pin.pin);
                 // Mark device configuration registers to be updated
                 inst->config_dirty = 1;
             }
             if (inst->registers.DEFVAL[pin.port].reg & (1 << pin.pin)) {
-                // Set edge to rising edge
+                // Set level to high
                 inst->registers.DEFVAL[pin.port].reg &= ~(1 << pin.pin);
                 // Mark device configuration registers to be updated
                 inst->config_dirty = 1;
