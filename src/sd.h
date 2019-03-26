@@ -1,6 +1,8 @@
 #ifndef SDSPI_H
 #define SDSPI_H
 
+#include "sercom-spi.h"
+
 // SD card pinout
 /** Usually the SS pin */
 uint8_t const  SD_CHIP_SELECT_PIN = 15;
