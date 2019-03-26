@@ -29,20 +29,20 @@ struct sercom_spi_transaction_t {
     uint16_t out_length;
     /** The number of bytes to be received. */
     uint16_t in_length;
-    
+
     /** The number of bytes which have been sent. */
     uint16_t bytes_out;
     /** The number of bytes which have been received. */
     uint16_t bytes_in;
-    
+
     /** The synchronous clock frequency for this transaction.  */
     uint32_t baudrate;
-    
+
     /** The mask for the chip select pin of the peripheral. */
     uint32_t cs_pin_mask;
     /** The group index of the chip select pin for the peripheral. */
     uint8_t cs_pin_group:2;
-    
+
     /** Flag set if the receive stage has been initialized. */
     uint8_t rx_started:1;
 };
@@ -53,10 +53,10 @@ struct sercom_spi_transaction_t {
 struct sercom_spi_desc_t {
     /** Registers for the SERCOM hardware of this SPI instance. */
     Sercom *sercom;
-    
+
     /** Frequency of the SERCOM code clock, used to calculate baud rates. */
     uint32_t core_frequency;
-    
+
     /** Memory for transaction queue. */
     struct transaction_t transactions[SERCOM_SPI_TRANSACTION_QUEUE_LENGTH];
     /** Memory for transaction state information. */
@@ -66,7 +66,7 @@ struct sercom_spi_desc_t {
 
     /** The instance number of the SERCOM hardware of this SPI instance. */
     uint8_t sercom_instnum;
-    
+
     /** Index of the DMA channel used for transmitting. */
     uint8_t tx_dma_chan:4;
     /** Index of the DMA channel used for receiving. */
@@ -134,7 +134,7 @@ extern uint8_t sercom_spi_transaction_done(struct sercom_spi_desc_t *spi_inst,
                                            uint8_t trans_id);
 
 /**
- *  Remove and SPI transaction from the queue.
+ *  Remove an SPI transaction from the queue.
  *
  *  @param spi_inst The SPI instance from which the queue should be used.
  *  @param trans_id The ID of the transaction to clear.
