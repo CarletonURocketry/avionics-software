@@ -138,7 +138,7 @@ extern struct sercom_uart_desc_t uart3_g;
 #define ENABLE_CONSOLE
 /* UART instance to be used for console, USB is used if not defined (and USB is
    enabled) */
-//#define CONSOLE_UART uart3_g
+#define CONSOLE_UART uart3_g //remove this after
 
 //
 //
