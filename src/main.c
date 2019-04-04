@@ -10,6 +10,8 @@
 #include "global.h"
 #include "config.h"
 
+#include "gpio.h"
+
 #include "dma.h"
 #include "sercom-uart.h"
 #include "sercom-spi.h"
@@ -56,6 +58,10 @@ struct sercom_uart_desc_t uart2_g;
 #endif
 #ifdef UART3_SERCOM_INST
 struct sercom_uart_desc_t uart3_g;
+#endif
+
+#ifdef ENABLE_IO_EXPANDER
+struct mcp23s17_desc_t io_expander_g;
 #endif
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
@@ -242,8 +248,6 @@ int main(void)
 #endif
 
     // Init SPI
-#ifdef SPI_SERCOM_INST
-    
 #ifndef SPI_RX_DMA_CHAN
 #define SPI_RX_DMA_CHAN -1
 #endif
@@ -251,13 +255,13 @@ int main(void)
 #ifndef SPI_TX_DMA_CHAN
 #define SPI_TX_DMA_CHAN -1
 #endif
+    
+#ifdef SPI_SERCOM_INST
      init_sercom_spi(&spi_g, SPI_SERCOM_INST, F_CPU, GCLK_CLKCTRL_GEN_GCLK0,
                      SPI_TX_DMA_CHAN, SPI_RX_DMA_CHAN);
 #endif
     
     // Init I2C
-#ifdef I2C_SERCOM_INST
-    
 #ifndef I2C_DMA_CHAN
 #define I2C_DMA_CHAN -1
 #endif
@@ -265,42 +269,48 @@ int main(void)
 #ifndef I2C_SPEED
 #define I2C_SPEED I2C_MODE_STANDARD
 #endif
+    
+#ifdef I2C_SERCOM_INST
     init_sercom_i2c(&i2c_g, I2C_SERCOM_INST, F_CPU, GCLK_CLKCTRL_GEN_GCLK0,
                     I2C_SPEED, I2C_DMA_CHAN);
 #endif
     
     // Init UART 0
-#ifdef UART0_SERCOM_INST
 #ifndef UART0_DMA_CHAN
 #define UART0_DMA_CHAN -1
 #endif
+    
+#ifdef UART0_SERCOM_INST
     init_sercom_uart(&uart0_g, UART0_SERCOM_INST, UART0_BAUD, F_CPU,
                      GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO);
 #endif
     
     // Init UART 1
-#ifdef UART1_SERCOM_INST
 #ifndef UART1_DMA_CHAN
 #define UART1_DMA_CHAN -1
 #endif
+    
+#ifdef UART1_SERCOM_INST
     init_sercom_uart(&uart1_g, UART1_SERCOM_INST, UART1_BAUD, F_CPU,
                      GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO);
 #endif
     
     // Init UART 2
-#ifdef UART2_SERCOM_INST
 #ifndef UART2_DMA_CHAN
 #define UART2_DMA_CHAN -1
 #endif
+    
+#ifdef UART2_SERCOM_INST
     init_sercom_uart(&uart2_g, UART2_SERCOM_INST, UART2_BAUD, F_CPU,
                      GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO);
 #endif
     
     // Init UART 3
-#ifdef UART3_SERCOM_INST
 #ifndef UART3_DMA_CHAN
 #define UART3_DMA_CHAN -1
 #endif
+    
+#ifdef UART3_SERCOM_INST
     init_sercom_uart(&uart3_g, UART3_SERCOM_INST, UART3_BAUD, F_CPU,
                      GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO);
 #endif
@@ -327,6 +337,19 @@ int main(void)
              debug_commands_num_funcs);
 #endif
     
+    // IO Expander
+#ifdef ENABLE_IO_EXPANDER
+    init_mcp23s17(&io_expander_g, 0, &spi_g, 0, PORT_PA28, 0);
+#endif
+    
+    // GPIO
+#ifdef ENABLE_IO_EXPANDER
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, PIN_PA27);
+#else
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0);
+#endif
+    
+    //gpio_set_pin_mode(DEBUG_LED_PIN, GPIO_PIN_OUTPUT_STRONG);
     
     
     // SPI Test
@@ -354,11 +377,7 @@ static void main_loop ()
 {
     static uint32_t period = 1000;
     
-    if (PORT->Group[0].IN.reg & PORT_PA15) {
-        period = 1000;
-    } else {
-        //period = 100;
-    }
+    period = 1000;
 
     if ((millis - lastLed_g) >= period) {
         lastLed_g = millis;
@@ -368,8 +387,8 @@ static void main_loop ()
     static uint32_t last_stat;
     static uint8_t stat_buffer[] ={0b01000000, 0x12, 0b11000000};
     
-    if (sercom_spi_transaction_done(&spi_g, stat_transaction_id) &&
-        ((millis - last_stat) >= STAT_PERIOD)) {
+    if (((millis - last_stat) >= STAT_PERIOD) &&
+        sercom_spi_transaction_done(&spi_g, stat_transaction_id)) {
         last_stat = millis;
         sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
         

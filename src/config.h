@@ -14,6 +14,8 @@
 #include "sercom-i2c.h"
 #include "sercom-uart.h"
 
+#include "gpio.h"
+
 //
 //
 //  General
@@ -27,6 +29,8 @@
 /* Enable Micro Trace Buffer if defined */
 #define ENABLE_MTB
 
+/* Debug LED */
+#define DEBUG_LED_PIN GPIO_PIN_FOR(PIN_PB15)
 
 //
 //
@@ -118,7 +122,6 @@ extern struct sercom_uart_desc_t uart2_g;
 /* UART Instance */
 extern struct sercom_uart_desc_t uart3_g;
 
-
 //
 //
 //  USB
@@ -139,6 +142,18 @@ extern struct sercom_uart_desc_t uart3_g;
 /* UART instance to be used for console, USB is used if not defined (and USB is
    enabled) */
 //#define CONSOLE_UART uart3_g
+
+//
+//
+//  MCP23S17 GPIO Expander
+//
+//
+
+/* IO Expander enabled if defined */
+#define ENABLE_IO_EXPANDER
+/*  */
+/* IO Expander Instance */
+extern struct mcp23s17_desc_t io_expander_g;
 
 //
 //
