@@ -5,31 +5,43 @@
  *
  */
 
+#include "config.h"
 #include "sd.h"
+#include "sercom_spi.h"
 
 /**
  * To initialize the SD card, set CS high for 74 clock cycles to put the SD
  * card into SPI mode. Then set the pin to low and send CMD0 (set idle state).
- *
  */
 uint8_t init()
 {
-    // Must set MOSI high for>=74 clock cycles with CS high to tell SD card to
-    // use SPI mode
-    chip_select_high();
-    for (uint8_t i = 0; i < 10; i++) {
-        // Send over spi bus 0xFF
-        // send cs pin group FF for this transaction only otherwise send
-        // value defined in config.h
+    uint8_t retCode = 0;
+    uint8_t *transactionId;
+    uint8_t *sendBuffer;
+    uint8_t *receiveBuffer;
+    uint16_t sendBufferLength = 1;
+    uint16_t receiveBufferLength = 1;
+    while (retCode != SD_CARD_ERROR_CMD0) {
+        for (uint8_t i = 0; i < 10; i++) {
+            retCode = 1;
+            while (retCode == 1) {
+                *sendBuffer = 0xFF;
+                retCode = sercom_spi_start(spi_g, transactionId, SD_BAUDRATE,
+                        0xFF, SD_CS_PIN_MASK, sendBuffer, sendBufferLength,
+                        receiveBuffer, receiveBufferLength);
+            }
+        }
+        sendBuffer = CMD0;
+        retCode = sercom_spi_start(spi_g, transactionId, SD_BAUDRATE,
+                SD_CS_PIN_GROUP, SD_CS_PIN_MASK, sendBuffer, sendBufferLength,
+                receiveBuffer, receiveBufferLength);
     }
-    chip_select_low()
-    // Send command 0
-    // Check if response is 0b00000001 (no errors), MOSI still set high
-    // Response must be received in 16 clock cycles of the SD card
-    // If response not that, re-reset the card
-    // If response good, send CMD8
-    // Check the first 8 bit received to see if successful... next 32 bits
-    // are just SD information so ignore those
+    while (retCode != SD_CARD_ERROR_CMD8) {
+        sendBuffer = CMD8;
+        retCode = sercom_spi_start(spi_g, transactionId, SD_BAUDRATE,
+                SD_CS_PIN_GROUP, SD_CS_PIN_MASK, sendBuffer, sendBufferLength,
+                receiveBuffer, receiveBufferLength);
+    }
 }
 
 uint8_t write_block(uint32_t blockNumber, const uint8_t* src)

@@ -24,4 +24,14 @@
 #define USB_MANUFACTURER_STRING u"CU InSpace"
 #define USB_PRODUCT_STRING u"CU InSpace MCU Board"
 
+//
+//
+// SD Card
+//
+//
+#define ENABLE_SD
+#define SD_BAUDRATE 12000000 //12M baud
+#define SD_CS_PIN_GROUP 0
+#define SD_CS_PIN_MASK (1<<11)
+
 #endif /* config_h */
