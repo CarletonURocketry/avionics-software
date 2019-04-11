@@ -507,6 +507,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
                                                    SERCOM_I2CM_INTENCLR_ERROR);
         }
         
+        i2c_inst->service_lock = 0;
         return;
     }
     
@@ -518,6 +519,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
     } else if (i2c_inst->wait_for_idle) {
         // The bus still isn't idle, return now so that we don't start
         // doubly waiting for idle.
+        i2c_inst->service_lock = 0;
         return;
     }
     
@@ -525,6 +527,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
     struct transaction_t *t = transaction_queue_next(&i2c_inst->queue);
     if (t == NULL) {
         // No pending transactions
+        i2c_inst->service_lock = 0;
         return;
     } else if (i2c_inst->sercom->I2CM.STATUS.bit.BUSSTATE == 0x1) {
         // Start the next transaction

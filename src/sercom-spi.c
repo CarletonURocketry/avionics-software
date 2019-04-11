@@ -173,6 +173,7 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
     struct transaction_t *t = transaction_queue_next(&spi_inst->queue);
     if (t == NULL) {
         // No pending transactions
+        spi_inst->service_lock = 0;
         return;
     } else {
         // Start the next transaction
