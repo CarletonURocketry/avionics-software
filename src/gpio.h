@@ -160,7 +160,7 @@ extern uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull);
  *
  *  @param pin The pin for which the value should be found
  *
- *  @return The value of the pin, 0 = logic high, 1 = logic low
+ *  @return The value of the pin, 1 = logic high, 0 = logic low
  */
 extern uint8_t gpio_get_input(union gpio_pin_t pin);
 
@@ -168,7 +168,7 @@ extern uint8_t gpio_get_input(union gpio_pin_t pin);
  *  Set the value of a pin which is conigured as an output.
  *
  *  @param pin The pin for which the value should be set
- *  @param value The new value for the pin, 0 = logic high, 1 = logic low
+ *  @param value The new value for the pin, 1 = logic high, 0 = logic low
  *
  *  @return 0 if successfull, a non-zero value if the pin is not configured as
  *          an output and/or does not support output
