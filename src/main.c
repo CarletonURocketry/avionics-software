@@ -10,6 +10,7 @@
 #include "global.h"
 #include "config.h"
 
+#include "wdt.h"
 #include "dma.h"
 #include "sercom-uart.h"
 #include "sercom-spi.h"
@@ -373,10 +374,16 @@ int main(void)
     while (!sercom_spi_transaction_done(&spi_g, stat_transaction_id));
     sercom_spi_clear_transaction(&spi_g, stat_transaction_id);
     
+    // Start Watchdog Timer
+    init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
     // Main Loop
     for (;;) {
+        // Pat the watchdog
+        wdt_pat();
+        // Run the main loop
         main_loop();
+        // Sleep if sleep is not inhibited
         if (!inhibit_sleep_g) {
             __WFI();
         }
