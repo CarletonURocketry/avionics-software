@@ -29,8 +29,12 @@
 /* Enable Micro Trace Buffer if defined */
 #define ENABLE_MTB
 
-/* Debug LED */
-#define DEBUG_LED_PIN GPIO_PIN_FOR(PIN_PB15)
+/* Debug LEDs */
+#define DEBUG0_LED_PIN GPIO_PIN_FOR(PIN_PB15)
+#define DEBUG1_LED_PIN MCP23S17_PIN_FOR(MCP23S17_PORT_A, 7)
+/* Stat LEDs */
+#define STAT_R_LED_PIN MCP23S17_PIN_FOR(MCP23S17_PORT_A, 6)
+#define STAT_G_LED_PIN MCP23S17_PIN_FOR(MCP23S17_PORT_A, 5)
 
 //
 //
@@ -151,9 +155,14 @@ extern struct sercom_uart_desc_t uart3_g;
 
 /* IO Expander enabled if defined */
 #define ENABLE_IO_EXPANDER
-/*  */
 /* IO Expander Instance */
 extern struct mcp23s17_desc_t io_expander_g;
+/* MCP23S17 CS pin mask */
+#define IO_EXPANDER_PIN_MASK (1 << PIN_PA28)
+/* MCP23S17 CS pin group */
+#define IO_EXPANDER_PIN_GROUP 0
+/* NCP23S17 Interrupt pin */
+#define IO_EXPANDER_PIN_INT_PIN ((uint16_t)PIN_PA27)
 
 //
 //
