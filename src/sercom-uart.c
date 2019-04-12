@@ -244,6 +244,7 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
     
     if (circular_buffer_is_empty(&uart->out_buffer)) {
         // No data to be sent
+        uart->service_lock = 0;
         return;
     } else if (uart->use_dma && !dma_chan_is_active(uart->dma_chan)) {
         // A DMA write operation is not in progress
