@@ -371,9 +371,9 @@ int main(void)
     
     // GPIO
 #ifdef ENABLE_IO_EXPANDER
-    init_mcp23s17(&io_expander_g, 0, &spi_g, 0, IO_EXPANDER_PIN_MASK,
-                  IO_EXPANDER_PIN_GROUP);
-    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_PIN_INT_PIN);
+    init_mcp23s17(&io_expander_g, 0, &spi_g, 100, IO_EXPANDER_CS_PIN_MASK,
+                  IO_EXPANDER_CS_PIN_GROUP);
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN);
 #else
     init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0);
 #endif
@@ -382,6 +382,8 @@ int main(void)
     gpio_set_pin_mode(DEBUG1_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_R_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_G_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
+    
+    gpio_set_output(STAT_G_LED_PIN, 1);
     
     // Start Watchdog Timer
     init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
@@ -410,14 +412,15 @@ static void main_loop ()
     if ((millis - lastLed_g) >= period) {
         lastLed_g = millis;
         gpio_toggle_output(DEBUG0_LED_PIN);
+        
+        gpio_toggle_output(STAT_R_LED_PIN);
+        gpio_toggle_output(STAT_G_LED_PIN);
     }
     
     static uint32_t last_stat;
     if (((millis - last_stat) >= STAT_PERIOD)) {
         last_stat = millis;
         gpio_toggle_output(DEBUG1_LED_PIN);
-        gpio_toggle_output(STAT_R_LED_PIN);
-        gpio_toggle_output(STAT_G_LED_PIN);
     }
     
 #ifdef ENABLE_CONSOLE
