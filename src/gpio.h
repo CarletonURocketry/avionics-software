@@ -99,7 +99,7 @@ enum gpio_interupt_trigger {
 typedef void (*gpio_interrupt_cb)(union gpio_pin_t);
 
 #define GPIO_PIN_FOR(x) ((union gpio_pin_t){.type = GPIO_INTERNAL_PIN, .internal.raw = x})
-#define MCP23S17_PIN_FOR(port, pin) ((union gpio_pin_t){.type = GPIO_MCP23S17_PIN, .mcp23s17.value = (pin | (MCP23S17_PORT_A << port))})
+#define MCP23S17_PIN_FOR(port, pin) ((union gpio_pin_t){.type = GPIO_MCP23S17_PIN, .mcp23s17.value = (pin | (port << 3))})
 
 /**
  *  Initilize the GPIO system.
