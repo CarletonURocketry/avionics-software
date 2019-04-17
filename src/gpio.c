@@ -3,8 +3,8 @@
  * @desc Unified driver for internal and external GPIO
  * @author Samuel Dewan
  * @date 2019-03-15
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-04-16
  */
 
 #include "gpio.h"
@@ -164,7 +164,7 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
             } else if (mode == GPIO_PIN_INPUT) {
                 // Input
                 mcp23s17_set_pin_mode(gpio_mcp23s17_g, pin.mcp23s17,
-                                      MCP23S17_MODE_OUTPUT);
+                                      MCP23S17_MODE_INPUT);
                 return 0;
             } else {
                 // Not supported
