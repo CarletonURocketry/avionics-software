@@ -336,7 +336,7 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
     }
     
     // Receive Complete
-    if (sercom->SPI.INTENSET.bit.RXC && sercom->USART.INTFLAG.bit.RXC) {
+    if (sercom->SPI.INTENSET.bit.RXC && sercom->SPI.INTFLAG.bit.RXC) {
         // Get the recieved byte
         s->in_buffer[s->bytes_in] = sercom->SPI.DATA.reg;
         s->bytes_in++;
@@ -348,7 +348,7 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
             // For some reason the RXC interupt seems to get disabled every time
             // the interupt service routine runs. Not clear why this happens, it
             // is not mentioned in the datasheet.
-            sercom->USART.INTENSET.bit.RXC = 0b1;
+            sercom->SPI.INTENSET.bit.RXC = 0b1;
         }
     }
 }
@@ -357,14 +357,21 @@ static void sercom_spi_dma_callback (uint8_t chan, void *state)
 {
     struct sercom_spi_desc_t *spi_inst = (struct sercom_spi_desc_t*)state;
     struct transaction_t *t = transaction_queue_get_active(&spi_inst->queue);
+    
+    if (spi_inst->tx_use_dma && (chan == spi_inst->tx_dma_chan) &&
+        t == NULL) {
+        // TX transaction for RX stage completed after RX transaction, ignore
+        return;
+    }
+    
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
     
-    if (spi_inst->tx_use_dma && chan == spi_inst->tx_dma_chan &&
+    if (spi_inst->tx_use_dma && (chan == spi_inst->tx_dma_chan) &&
                                 !s->rx_started) {
         // TX stage is complete
         spi_inst->sercom->SPI.INTENSET.bit.TXC = 0b1;
-    } else if (spi_inst->rx_use_dma && chan == spi_inst->rx_dma_chan) {
+    } else if (spi_inst->rx_use_dma && (chan == spi_inst->rx_dma_chan)) {
         // Transaction is complete
         sercom_spi_end_transaction(spi_inst, t);
     }
