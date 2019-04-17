@@ -4,7 +4,7 @@
  * @author Samuel Dewan
  * @date 2019-03-14
  * Last Author: Samuel Dewan
- * Last Edited On: 2019-03-15
+ * Last Edited On: 2019-04-16
  */
 
 #ifndef mcp23s17_h
@@ -123,7 +123,7 @@ struct mcp23s17_desc_t {
     /** Flag that indicates that the output latch registers on the device need
         to be updated from the cache */
     uint8_t olat_dirty:1;
-    /** Flag used to unsure that the service function is not executed in an
+    /** Flag used to ensure that the service function is not executed in an
         interrupt while it is already being run in the main thread */
     uint8_t service_lock:1;
     

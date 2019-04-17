@@ -4,7 +4,7 @@
  * @author Samuel Dewan
  * @date 2019-03-14
  * Last Author: Samuel Dewan
- * Last Edited On: 2019-03-15
+ * Last Edited On: 2019-04-16
  */
 
 #include "mcp23s17.h"
@@ -16,7 +16,7 @@ void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
                    uint32_t cs_pin_mask, uint8_t cs_pin_group)
 {
     /* Compute device address */
-    descriptor->opcode = (MCP23S17_ADDR << 1) | (address & 0x7);
+    descriptor->opcode = ((MCP23S17_ADDR | (address & 0x7)) << 1);
     descriptor->spi_out_buffer[0] = descriptor->opcode;
     
     /* Store polling period */
