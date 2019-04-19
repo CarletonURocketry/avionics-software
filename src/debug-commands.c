@@ -24,7 +24,7 @@
 
 
 #define DEBUG_VERSION_NAME  "version"
-#define DEBUG_VERSION_HELP  "Get software version information."
+#define DEBUG_VERSION_HELP  "Get software version information.\n"
 
 static void debug_version (uint8_t argc, char **argv,
                            struct console_desc_t *console)
@@ -38,7 +38,7 @@ static void debug_version (uint8_t argc, char **argv,
 
 
 #define DEBUG_DID_NAME  "did"
-#define DEBUG_DID_HELP  "Get device identification information."
+#define DEBUG_DID_HELP  "Get device identification information.\n"
 
 static void debug_did (uint8_t argc, char **argv,
                        struct console_desc_t *console)
@@ -101,7 +101,7 @@ static void debug_did (uint8_t argc, char **argv,
 
 
 #define DEBUG_I2C_SCAN_NAME  "i2c-scan"
-#define DEBUG_I2C_SCAN_HELP  "Scan for devices on the I2C bus."
+#define DEBUG_I2C_SCAN_HELP  "Scan for devices on the I2C bus.\n"
 
 static void debug_i2c_scan (uint8_t argc, char **argv,
                            struct console_desc_t *console)
@@ -161,7 +161,7 @@ static void debug_i2c_scan (uint8_t argc, char **argv,
 
 
 #define DEBUG_ALT_PROM_NAME  "alt-prom"
-#define DEBUG_ALT_PROM_HELP  "Read data from altimeter PROM."
+#define DEBUG_ALT_PROM_HELP  "Read data from altimeter PROM.\n"
 
 static void debug_alt_prom (uint8_t argc, char **argv,
                             struct console_desc_t *console)
@@ -274,7 +274,7 @@ static void debug_alt_prom (uint8_t argc, char **argv,
 
 
 #define DEBUG_IMU_WAI_NAME  "imu-wai"
-#define DEBUG_IMU_WAI_HELP  "Read IMU Who Am I register."
+#define DEBUG_IMU_WAI_HELP  "Read IMU Who Am I register.\n"
 
 static void debug_imu_wai (uint8_t argc, char **argv,
                            struct console_desc_t *console)
