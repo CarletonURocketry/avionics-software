@@ -56,9 +56,9 @@ union mcp23s17_pin_t {
 enum mcp23s17_interrupt_type {
     /** Interrupt triggered on rising or falling edge */
     MCP23S17_INT_EDGE,
-    /** Interrupt triggered if the value of the pin is high */
+    /** Interrupt triggered on rising edge */
     MCP23S17_INT_HIGH,
-    /** Interrupt triggered if the value of the pin is low */
+    /** Interrupt triggered on falling edge */
     MCP23S17_INT_LOW
 };
 

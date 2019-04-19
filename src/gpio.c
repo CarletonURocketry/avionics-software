@@ -453,10 +453,10 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
                     gpio_ext_io_ints[i].callback = callback;
                     gpio_ext_io_ints[i].pin = pin;
                     
-                    if (trigger == GPIO_INTERRUPT_LOW) {
+                    if (trigger == GPIO_INTERRUPT_FALLING_EDGE) {
                         mcp23s17_enable_interrupt(gpio_mcp23s17_g, pin.mcp23s17,
                                                   MCP23S17_INT_LOW);
-                    } else if (trigger == GPIO_INTERRUPT_HIGH) {
+                    } else if (trigger == GPIO_INTERRUPT_RISING_EDGE) {
                         mcp23s17_enable_interrupt(gpio_mcp23s17_g, pin.mcp23s17,
                                                   MCP23S17_INT_HIGH);
                     } else if (trigger == GPIO_INTERRUPT_BOTH_EDGES) {
