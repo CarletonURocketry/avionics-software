@@ -85,7 +85,7 @@ enum gpio_pull_mode {
 enum gpio_interupt_trigger {
     /** Trigger interrupt when pin transitions from low to high */
     GPIO_INTERRUPT_RISING_EDGE,
-    /** Trigger interrupt when pin transitiosn from high to low */
+    /** Trigger interrupt when pin transitions from high to low */
     GPIO_INTERRUPT_FALLING_EDGE,
     /** Trigger interrupt when pin changes */
     GPIO_INTERRUPT_BOTH_EDGES,
@@ -96,7 +96,7 @@ enum gpio_interupt_trigger {
 };
 
 /** Type of function called when an interrupt occures */
-typedef void (*gpio_interrupt_cb)(union gpio_pin_t);
+typedef void (*gpio_interrupt_cb)(union gpio_pin_t pin, uint8_t value);
 
 #define GPIO_PIN_FOR(x) ((union gpio_pin_t){.type = GPIO_INTERNAL_PIN, .internal.raw = x})
 #define MCP23S17_PIN_FOR(port, pin) ((union gpio_pin_t){.type = GPIO_MCP23S17_PIN, .mcp23s17.value = (pin | (port << 3))})

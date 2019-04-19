@@ -35,7 +35,7 @@ static struct mcp23s17_desc_t *gpio_mcp23s17_g;
 /**
  *  Callback function for MCP23S17 interrupt
  */
-static void gpio_mcp23s17_int_cb (union gpio_pin_t pin);
+static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value);
 
 /**
  *  Function to be called by MCP23S17 driver when an interrupt has occured
@@ -534,7 +534,7 @@ uint8_t gpio_disable_interupt(union gpio_pin_t pin)
 
 
 
-static void gpio_mcp23s17_int_cb (union gpio_pin_t pin)
+static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value)
 {
     mcp23s17_handle_interrupt(gpio_mcp23s17_g);
 }
@@ -548,7 +548,8 @@ static void gpio_mcp23s17_interrupt_occured (struct mcp23s17_desc_t *inst,
                 (gpio_ext_io_ints[i].pin.mcp23s17.value == pin.value)) {
             if (gpio_ext_io_ints[i].callback != NULL) {
                 gpio_ext_io_ints[i].callback((union gpio_pin_t)
-                                {.type = GPIO_MCP23S17_PIN, .mcp23s17 = pin});
+                                {.type = GPIO_MCP23S17_PIN, .mcp23s17 = pin},
+                                             value);
             }
         }
     }
@@ -562,7 +563,7 @@ void EIC_Handler (void)
             if (gpio_int_callbacks[i] != NULL) {
                 union gpio_pin_t pin;
                 if (!get_pin_for_interrupt(i, &pin)) {
-                    gpio_int_callbacks[i](pin);
+                    gpio_int_callbacks[i](pin, gpio_get_input(pin));
                 }
             }
             // Clear interrupt flag
