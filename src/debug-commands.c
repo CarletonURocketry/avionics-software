@@ -4,7 +4,7 @@
  * @author Samuel Dewan
  * @date 2019-09-22
  * Last Author: Samuel Dewan
- * Last Edited On: 2019-09-23
+ * Last Edited On: 2019-04-18
  */
 
 #include "debug-commands.h"
@@ -15,7 +15,11 @@
 #include "global.h"
 #include "config.h"
 
+#include "wdt.h"
+
 #include "sercom-i2c.h"
+#include "sercom-spi.h"
+#include "mcp23s17-registers.h"
 
 
 
@@ -107,7 +111,7 @@ static void debug_i2c_scan (uint8_t argc, char **argv,
     sercom_i2c_start_scan(&i2c_g, &i2c_t_id);
     
     // Wait for scan to complete
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t_id));
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t_id)) wdt_pat();
     
     // Check if scan completed successfully
     switch (sercom_i2c_transaction_state(&i2c_g, i2c_t_id)) {
@@ -170,7 +174,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     // 0: Factory data and setup
     uint8_t cmd = 0b10100000;
     sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "0: 0x");
     utoa(data, str, 16);
     console_send_str(console, str);
@@ -181,7 +188,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     //sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
     cmd = 0b10100100;
     sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C1: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -190,7 +200,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     
     // C2: Pressure offset
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100010, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C2: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -199,7 +212,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     
     // C3: Temperature coefficient of pressure sensitivity
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100110, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C3: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -208,7 +224,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     
     // C4: Temperature coefficient of pressure offset
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100001, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C4: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -217,7 +236,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     
     // C5: Reference temperature
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100101, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C5: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -226,7 +248,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     
     // C6: Temperature coefficient of the temperature
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100011, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "C6: ");
     utoa(data, str, 10);
     console_send_str(console, str);
@@ -236,7 +261,10 @@ static void debug_alt_prom (uint8_t argc, char **argv,
     // 7: Serial code and CRC
     cmd = 0b10100111;
     sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "7: 0x");
     utoa(data, str, 16);
     console_send_str(console, str);
@@ -257,7 +285,10 @@ static void debug_imu_wai (uint8_t argc, char **argv,
     
     // Who Am I
     sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1101000, 0x75, &data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) sercom_i2c_service(&i2c_g);
+    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
+        sercom_i2c_service(&i2c_g);
+        wdt_pat();
+    }
     console_send_str(console, "Who Am I: 0x");
     utoa(data, str, 16);
     console_send_str(console, str);
@@ -265,12 +296,114 @@ static void debug_imu_wai (uint8_t argc, char **argv,
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
 }
 
+#define DEBUG_IO_EXP_REGS_NAME  "io-exp-regs"
+#define DEBUG_IO_EXP_REGS_HELP  "Read MCP23S17 registers.\n"\
+                                "Usage: io-exp-regs [address]\n"
 
-const uint8_t debug_commands_num_funcs = 5;
+static void debug_print_byte_with_pad (struct console_desc_t *console,
+                                       const char *line_start, uint8_t byte,
+                                       const char *line_end)
+{
+    char str[9];
+    
+    console_send_str(console, line_start);
+    
+    utoa(byte, str, 2);
+    for (uint8_t i = strlen(str); i < 8; i++) {
+        console_send_str(console, "0");
+    }
+    console_send_str(console, str);
+    
+    console_send_str(console, line_end);
+}
+
+static void debug_io_exp_regs (uint8_t argc, char **argv,
+                               struct console_desc_t *console)
+{
+    uint8_t address = 0;
+    
+    if (argc > 2) {
+        console_send_str(console, DEBUG_IO_EXP_REGS_HELP);
+        return;
+    } else if (argc == 2) {
+        char* end;
+        
+        uint32_t addr = strtoul(argv[1], &end, 0);
+        if ((*end != '\0') || (addr > 7)) {
+            console_send_str(console, DEBUG_IO_EXP_REGS_HELP);
+            return;
+        }
+        
+        address = (uint8_t)addr;
+    }
+    
+    uint8_t command[] = {((MCP23S17_ADDR | address) << 1) | 1, 0};
+    struct mcp23s17_register_map registers;
+    
+    
+    uint8_t t_id;
+    uint8_t s = sercom_spi_start(&spi_g, &t_id, 8000000UL,
+                                 IO_EXPANDER_CS_PIN_GROUP,
+                                 IO_EXPANDER_CS_PIN_MASK, command, 2,
+                                 (uint8_t*)&registers, 10);
+    
+    if (s) {
+        console_send_str(console, "Failed to queue SPI transaction.\n");
+        return;
+    }
+    
+    while (!sercom_spi_transaction_done(&spi_g, t_id)) wdt_pat();
+    sercom_spi_clear_transaction(&spi_g, t_id);
+    
+    command[1] = 0x0B;
+    s = sercom_spi_start(&spi_g, &t_id, 8000000UL, IO_EXPANDER_CS_PIN_GROUP,
+                         IO_EXPANDER_CS_PIN_MASK, command, 2,
+                         (uint8_t*)&registers.IOCON, 11);
+    
+    if (s) {
+        console_send_str(console, "Failed to queue SPI transaction.\n");
+        return;
+    }
+    
+    debug_print_byte_with_pad(console, "   IODIRA: 0b", registers.IODIR[0].reg, "\n");
+    debug_print_byte_with_pad(console, "   IODIRB: 0b", registers.IODIR[1].reg, "\n\n");
+    debug_print_byte_with_pad(console, "    IPOLA: 0b", registers.IPOL[0].reg, "\n");
+    debug_print_byte_with_pad(console, "    IPOLB: 0b", registers.IPOL[1].reg, "\n\n");
+    wdt_pat();
+    debug_print_byte_with_pad(console, " GPINTENA: 0b", registers.GPINTEN[0].reg, "\n");
+    debug_print_byte_with_pad(console, " GPINTENB: 0b", registers.GPINTEN[1].reg, "\n\n");
+    debug_print_byte_with_pad(console, "  DEFVALA: 0b", registers.DEFVAL[0].reg, "\n");
+    debug_print_byte_with_pad(console, "  DEFVALB: 0b", registers.DEFVAL[1].reg, "\n\n");
+    wdt_pat();
+    debug_print_byte_with_pad(console, "  INTCONA: 0b", registers.INTCON[0].reg, "\n");
+    debug_print_byte_with_pad(console, "  INTCONB: 0b", registers.INTCON[1].reg, "\n\n");
+    
+    while (!sercom_spi_transaction_done(&spi_g, t_id)) wdt_pat();
+    sercom_spi_clear_transaction(&spi_g, t_id);
+    
+    debug_print_byte_with_pad(console, "   IOCON: 0b", registers.IOCON.reg, "\n\n");
+    debug_print_byte_with_pad(console, "   GPPUA: 0b", registers.GPPU[0].reg, "\n");
+    debug_print_byte_with_pad(console, "   GPPUB: 0b", registers.GPPU[1].reg, "\n\n");
+    wdt_pat();
+    debug_print_byte_with_pad(console, "   INTFA: 0b", registers.INTF[0].reg, "\n");
+    debug_print_byte_with_pad(console, "   INTFB: 0b", registers.INTF[1].reg, "\n\n");
+    debug_print_byte_with_pad(console, " INTCAPA: 0b", registers.INTCAP[0].reg, "\n");
+    wdt_pat();
+    debug_print_byte_with_pad(console, " INTCAPB: 0b", registers.INTCAP[1].reg, "\n\n");
+    debug_print_byte_with_pad(console, "   GPIOA: 0b", registers.GPIO[0].reg, "\n");
+    debug_print_byte_with_pad(console, "   GPIOB: 0b", registers.GPIO[1].reg, "\n\n");
+    wdt_pat();
+    debug_print_byte_with_pad(console, "   OLATA: 0b", registers.OLAT[0].reg, "\n");
+    debug_print_byte_with_pad(console, "   OLATB: 0b", registers.OLAT[1].reg, "\n");
+}
+
+
+const uint8_t debug_commands_num_funcs = 6;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
     {.func = debug_i2c_scan, .name = DEBUG_I2C_SCAN_NAME, .help_string = DEBUG_I2C_SCAN_HELP},
     {.func = debug_alt_prom, .name = DEBUG_ALT_PROM_NAME, .help_string = DEBUG_ALT_PROM_HELP},
-    {.func = debug_imu_wai, .name = DEBUG_IMU_WAI_NAME, .help_string = DEBUG_IMU_WAI_HELP}
+    {.func = debug_imu_wai, .name = DEBUG_IMU_WAI_NAME, .help_string = DEBUG_IMU_WAI_HELP},
+    {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME, .help_string = DEBUG_IO_EXP_REGS_HELP}
 };
