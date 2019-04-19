@@ -31,6 +31,7 @@
 
 // MARK: Function prototypes
 static void main_loop(void);
+static void test_ext_int(union gpio_pin_t pin, uint8_t value);
 
 // MARK: Variable Definitions
 volatile uint32_t millis;
@@ -378,10 +379,22 @@ int main(void)
     init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0);
 #endif
     
-    gpio_set_pin_mode(DEBUG0_LED_PIN, GPIO_PIN_OUTPUT_STRONG);
+    gpio_set_pin_mode(DEBUG0_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(DEBUG1_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_R_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_G_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
+    
+    gpio_set_pin_mode(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7), GPIO_PIN_INPUT);
+    gpio_set_pull(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7), GPIO_PULL_HIGH);
+
+    gpio_enable_interupt(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7),
+                         GPIO_INTERRUPT_FALLING_EDGE, 0, test_ext_int);
+    
+//    gpio_set_pin_mode(GPIO_PIN_FOR(PIN_PB30), GPIO_PIN_INPUT);
+//    gpio_set_pull(GPIO_PIN_FOR(PIN_PB30), GPIO_PULL_HIGH);
+//
+//    gpio_enable_interupt(GPIO_PIN_FOR(PIN_PB30), GPIO_INTERRUPT_LOW, 1,
+//                         test_ext_int);
     
     gpio_set_output(STAT_G_LED_PIN, 1);
     
@@ -412,16 +425,15 @@ static void main_loop ()
     if ((millis - lastLed_g) >= period) {
         lastLed_g = millis;
         gpio_toggle_output(DEBUG0_LED_PIN);
-        
-        gpio_toggle_output(STAT_R_LED_PIN);
-        gpio_toggle_output(STAT_G_LED_PIN);
     }
     
     static uint32_t last_stat;
     if (((millis - last_stat) >= STAT_PERIOD)) {
         last_stat = millis;
-        gpio_toggle_output(DEBUG1_LED_PIN);
+        gpio_toggle_output(STAT_R_LED_PIN);
+        gpio_toggle_output(STAT_G_LED_PIN);
     }
+    gpio_set_output(DEBUG1_LED_PIN, gpio_get_input(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7)));
     
 #ifdef ENABLE_CONSOLE
     console_service(&console_g);
@@ -437,6 +449,10 @@ static void main_loop ()
 }
 
 
+static void test_ext_int(union gpio_pin_t pin, uint8_t value)
+{
+    
+}
 
 
 /* Interupt Service Routines */
