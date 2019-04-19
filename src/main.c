@@ -181,8 +181,8 @@ static void init_clocks (void)
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
     
     /* Configure Generic Clock Generator 7 */
-    // Set division factor to 0 (no division)
-    GCLK->GENDIV.reg = GCLK_GENDIV_DIV(0) | GCLK_GENDIV_ID(7);
+    // Set division factor to 2 (divide by 2^2 = 4)
+    GCLK->GENDIV.reg = GCLK_GENDIV_DIV(2) | GCLK_GENDIV_ID(7);
     // Wait for synchronization
     while (GCLK->STATUS.bit.SYNCBUSY);
     // Write Generic Clock Generator 7 configuration
