@@ -46,13 +46,14 @@ static void gpio_mcp23s17_interrupt_occured (struct mcp23s17_desc_t *inst,
 
 
 #define NUM_GPIO_PIN_INTERUPTS  64
-//PA0                         PA7
-static const int8_t gpio_pin_interrupts[] = { 0,  1,  2,  3,  4,  5,  6,  7,
+static const int8_t gpio_pin_interrupts[] = {
+    //PA0                         PA7
+    0,  1,  2,  3,  4,  5,  6,  7,
     //PA8                         PA15
     -1,  9, 10, 11, 12, 13, 14, 15,
-    //PA16                         PA23
+    //PA16                        PA23
     0,  1,  2,  3,  4,  5,  6,  7,
-    //PA24                         PA31
+    //PA24                        PA31
     12, 13, -2, 15,  8, -2, 10, 11,
     //PB0                         PB7
     0,  1,  2,  3,  4,  5,  6,  7,
@@ -61,7 +62,7 @@ static const int8_t gpio_pin_interrupts[] = { 0,  1,  2,  3,  4,  5,  6,  7,
     //PB16                        PB23
     0,  1, -2, -2, -2, -2,  6,  7,
     //PB24                        PB31
-    -2, -2, -2, -2, -2, -2, 10, 11 };
+    -2, -2, -2, -2, -2, -2, 14, 15 };
 
 
 
