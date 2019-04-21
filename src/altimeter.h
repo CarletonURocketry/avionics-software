@@ -16,7 +16,7 @@
 
 //Definitions
 
-#define DEV_ADDRESS 0b11000000
+#define DEV_ADDRESS 0b1110110
 
 uint32_t altitude_data;
 
