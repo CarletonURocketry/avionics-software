@@ -3,8 +3,8 @@
  * @desc Abstraction layer for configuring DMAC
  * @author Samuel Dewan
  * @date 2018-12-30
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-04-27
  */
 
 #ifndef dma_h
@@ -109,6 +109,14 @@ extern void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer,
                                        uint16_t length,
                                        const volatile uint8_t *source,
                                        uint8_t trigger, uint8_t priority);
+
+/**
+ *  The same as dma_start_static_to_buffer but with a two byte beat size.
+ */
+extern void dma_start_static_to_buffer_hword(uint8_t chan, uint16_t *buffer,
+                                             uint16_t length,
+                                             const volatile uint16_t *source,
+                                             uint8_t trigger, uint8_t priority);
 
 /**
  *  Repeatedly transfer a static value to a static address (peripheral).

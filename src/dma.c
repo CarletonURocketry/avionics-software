@@ -3,8 +3,8 @@
  * @desc Abstraction layer for configuring DMAC
  * @author Samuel Dewan
  * @date 2018-12-30
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2019-04-27
  */
 
 #include "dma.h"
@@ -285,6 +285,51 @@ void dma_start_static_to_buffer(uint8_t chan, uint8_t *buffer, uint16_t length,
     dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_SRC |
                                           DMAC_BTCTRL_DSTINC |
                                           DMAC_BTCTRL_BEATSIZE_BYTE |
+                                          DMAC_BTCTRL_VALID |
+                                          DMAC_BTCTRL_BLOCKACT_INT);
+    
+    // Set source and destination addresses
+    dmacDescriptors_g[chan].SRCADDR.reg = (uint32_t)source;
+    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)buffer + length;
+    
+    // Select block transfer count
+    dmacDescriptors_g[chan].BTCNT.reg = length;
+    
+    // Set next descriptor address
+    dmacDescriptors_g[chan].DESCADDR.reg = 0x0;
+    
+    /* Enable channel */
+    DMAC->CHCTRLA.bit.ENABLE = 0b1;
+}
+
+void dma_start_static_to_buffer_hword(uint8_t chan, uint16_t *buffer,
+                                      uint16_t length,
+                                      const volatile uint16_t *source,
+                                      uint8_t trigger, uint8_t priority)
+{
+    /* Select DMA channel to configure */
+    DMAC->CHID.reg = chan;
+    
+    /* Reset DMA channel */
+    DMAC->CHCTRLA.bit.SWRST = 0b1;
+    // Wait for reset to complete
+    while (DMAC->CHCTRLA.bit.SWRST);
+    
+    /* Configure DMA Channel */
+    // Require one trigger per beat, select trigger source and select priority
+    DMAC->CHCTRLB.reg = (DMAC_CHCTRLB_TRIGACT_BEAT |
+                         DMAC_CHCTRLB_TRIGSRC(trigger) |
+                         DMAC_CHCTRLB_LVL(priority));
+    // Enable transfer complete interupt
+    DMAC->CHINTENSET.bit.TCMPL = 0b1;
+    
+    /* Configure transfer descriptor */
+    // Ensure that the step size setting does not apply to destination address,
+    // enable incrementing of destination address, set beatsize to one hword and
+    // mark descriptor as valid
+    dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_SRC |
+                                          DMAC_BTCTRL_DSTINC |
+                                          DMAC_BTCTRL_BEATSIZE_HWORD |
                                           DMAC_BTCTRL_VALID |
                                           DMAC_BTCTRL_BLOCKACT_INT);
     
