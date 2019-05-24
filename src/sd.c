@@ -123,8 +123,8 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
     
     // Send CMD24 (the single block write command)
     response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
-    // If not immediately successful, exit because can't afford to wait
-    // for the SD card to respond if it's busy.
+    // If not immediately successful, exit because we can't afford keep
+    // trying for a single write command.
     if (response != 0x00)
         return 1;
     
