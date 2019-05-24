@@ -137,7 +137,7 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
     sendBuffer[5] = crc; // Usually 0x00 during normal (i.e. not init) operation
     // Provides 8 clock cycles necessary to allow the card to complete the
     // operation according to the SD Card spec
-    sendBuffer[6] = 0x00;
+    sendBuffer[6] = 0xFF;
 
     if (initFlag) {
         sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, 0xFF,
