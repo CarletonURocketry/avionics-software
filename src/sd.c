@@ -124,7 +124,7 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
                                   uint8_t initFlag)
 {
     uint8_t *transactionId;
-    uint8_t *receiveBuffer;
+    uint8_t receiveBuffer;
     uint8_t sendBuffer[7];
     uint16_t sendBufferLength = sizeof(sendBuffer);
     uint16_t receiveBufferLength = sizeof(receiveBuffer);
@@ -141,13 +141,13 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
 
     if (initFlag) {
         sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, 0xFF,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, receiveBuffer,
+                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
                 receiveBufferLength);
     }
     else {
         sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, receiveBuffer,
+                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
                 receiveBufferLength);
     }
-    return *receiveBuffer;
+    return receiveBuffer;
 }
