@@ -7,6 +7,7 @@
  *  -- https://electronics.stackexchange.com/questions/77417
  *  -- https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/
  *  -- https://nerdclub-uk.blogspot.com/2012/11/how-spi-works-with-sd-card.html
+ *  -- https://openlabpro.com/guide/raw-sd-readwrite-using-pic-18f4550/
  *
  * Supposedly, the proper way to initalize a card over SPI is to:
  *      1. Set the clock speed to 400kHz or less
@@ -138,9 +139,18 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
                 SD_CS_PIN_MASK, src, sendBufferLength, &response,
                 responseLength);
     
-    // Check if write was successful. (If this always fails, CMD13 may
-    // in fact be mandatory after writing to get the status of the card)
-    if (receiveBuffer == 0x00)
+    // Send two more dummy bytes after sending the data.
+    for (uint8_t i = 0; i < 2; i++)
+        sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                    SD_CS_PIN_MASK, 0xFF, 1, &response,
+                    responseLength);
+    
+    // It is (apparently) mandatory to send CMD13 after every block write
+    // presumably because this returns the status of the card.
+    response = sd_send_cmd(CMD13, 0x00000000, 0xFF, 0)
+    
+    // Check if write was successful.
+    if (response == 0x00)
         return 0;
     else
         return 1;
