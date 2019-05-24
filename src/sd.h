@@ -123,7 +123,7 @@ uint8_t const DATA_RES_ACCEPTED = 0X05;
 uint8_t init();
 void chip_select_high(void);
 void chip_select_low(void);
-uint8_t write_block(uint32_t blockNumber, const uint8_t* src);
+uint8_t write_block(uint32_t blockAddr, const uint8_t* src);
 
 // SD Card struct
 struct sd_card_t{
