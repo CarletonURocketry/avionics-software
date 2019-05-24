@@ -116,11 +116,6 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
     uint16_t sendBufferLength = SD_BLOCKSIZE;
     uint16_t responseLength = sizeof(response);
     
-    // First byte in data MUST be 0xFE to enable writing of a single
-    // block. Check to see if this is set, error out if not.
-    if (src[0] != 0xFE)
-        return 1;
-    
     // Send CMD24 (the single block write command)
     response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
     // If not immediately successful, exit because we can't afford keep
@@ -131,6 +126,11 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
     // Send one dummy byte before sending the data.
     sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, 0xFF, 1, &response,
+                responseLength);
+    
+    // First byte sent MUST be 0xFE to enable writing of a single block.
+    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, 0xFE, 1, &response,
                 responseLength);
     
     // Write the block.
