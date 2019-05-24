@@ -130,4 +130,7 @@ struct sd_card_t{
     uint32_t currentBlock; // The block to read from/write to
 };
 
+// SD Card block size
+uint32_t const SD_BLOCKSIZE = 0x00000200;
+
 #endif
