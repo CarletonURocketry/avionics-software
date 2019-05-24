@@ -92,7 +92,7 @@ uint8_t init()
         // Set the R/W block size to 512 bytes with CMD16
         // Try 3 times, if success return 0 immediately
         for(uint8_t i = 0; i < 3; i++) {
-            response = sd_send_cmd(CMD16, 0x000002000, 0xFF);
+            response = sd_send_cmd(CMD16, 0x00000200, 0xFF);
             if (response == 0x00)
                 return 0;
         }
