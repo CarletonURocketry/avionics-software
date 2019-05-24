@@ -100,11 +100,6 @@ uint8_t write_block(uint32_t blockNumber, const uint8_t* src)
 // array of bytes to be written
 }
 
-uint8_t read_block(uint32_t blockNumber)
-{
-// read one block's worth of data to the SD card (may not be necessary)
-}
-
 /**
  * sd_send_cmd()
  * @brief Sets up the buffer for sending commands to the SD card and then
