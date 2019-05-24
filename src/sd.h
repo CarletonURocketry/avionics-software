@@ -125,11 +125,6 @@ void chip_select_high(void);
 void chip_select_low(void);
 uint8_t write_block(uint32_t blockAddr, const uint8_t* src);
 
-// SD Card struct
-struct sd_card_t{
-    uint32_t currentBlock; // The block to read from/write to
-};
-
 // SD Card block size
 uint32_t const SD_BLOCKSIZE = 0x00000200;
 
