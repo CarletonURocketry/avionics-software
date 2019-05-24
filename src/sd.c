@@ -88,10 +88,17 @@ uint8_t init()
     }
     // Response should be 0x00 indicating the SD card is ready, if not,
     // initialization has failed
-    if (response == 0x00)
-        return 0;
-    else
-        return 1;
+    if (response == 0x00) {
+        // Set the R/W block size to 512 bytes with CMD16
+        // Try 3 times, if success return 0 immediately
+        for(uint8_t i = 0; i < 3; i++) {
+            response = sd_send_cmd(CMD16, 0x000002000, 0xFF);
+            if (response == 0x00)
+                return 0;
+        }
+    }
+    // In all error cases, return 1
+    return 1;
 }
 
 uint8_t write_block(uint32_t blockNumber, const uint8_t* src)
