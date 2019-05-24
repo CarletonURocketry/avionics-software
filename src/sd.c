@@ -112,6 +112,13 @@ uint8_t init()
  */
 uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
 {
+    /* NOTE: This may be difficult to do because the specification and
+     * many of the resources I found required that we wait for responses
+     * and for things to complete on the SD card. Depending on how the SPI
+     * driver schedules things, writes could fail because the SD card
+     * expects to have exclusive control of the SPI bus when it is being
+     * commanded to do something.
+     */
     uint8_t *transactionId;
     uint8_t response = 0xFF;
     uint16_t sendBufferLength = SD_BLOCKSIZE;
