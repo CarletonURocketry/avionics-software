@@ -112,11 +112,10 @@ uint8_t init()
 uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
 {
     uint8_t *transactionId;
-    uint8_t receiveBuffer;
-    uint16_t sendBufferLength = SD_BLOCKSIZE;
-    uint16_t receiveBufferLength = sizeof(receiveBuffer);
     uint8_t response = 0xFF;
-        
+    uint16_t sendBufferLength = SD_BLOCKSIZE;
+    uint16_t responseLength = sizeof(response);
+    
     // First byte in data MUST be 0xFE to enable writing of a single
     // block. Check to see if this is set, error out if not.
     if (src[0] != 0xFE)
@@ -131,13 +130,13 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
     
     // Send one dummy byte before sending the data.
     sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, 0xFF, 1, &receiveBuffer,
-                receiveBufferLength);
+                SD_CS_PIN_MASK, 0xFF, 1, &response,
+                responseLength);
     
     // Write the block.
     sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, src, sendBufferLength, &receiveBuffer,
-                receiveBufferLength);
+                SD_CS_PIN_MASK, src, sendBufferLength, &response,
+                responseLength);
     
     // Check if write was successful. (If this always fails, CMD13 may
     // in fact be mandatory after writing to get the status of the card)
