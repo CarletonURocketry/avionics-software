@@ -1,6 +1,6 @@
 /**
  * @file sd.c
- * @ brief Containing function implementations for communicating with the SD
+ * @brief Containing function implementations for communicating with the SD
  *          Card
  *
  * Sources for implementation:
@@ -46,11 +46,10 @@ uint8_t init()
 {
     uint8_t oldCardFlag = 0;
     uint8_t softResetCount = 0;
-    uint8_t response = 0x00;
+    uint8_t response = 0xFF;
 
     // Put SD card in SPI mode
     for (uint8_t i = 0; i < 10; i++) {
-        retCode = 1;
         sd_send_cmd(0xFF, 0xFFFFFFFF, 0xFF, 1);
     }
     // Repeat until soft reset successful or a reasonable number of times
@@ -77,7 +76,7 @@ uint8_t init()
                 oldCardFlag = 1;
             }
             else {
-                response = sd_send_cmd(ACMD41, 0x40000000, 0x77);
+                response = sd_send_cmd(ACMD41, 0x40000000, 0x77, 0);
                 // If this response is given, we need to send CMD55 again
                 if (response == 0x01) {
                     i--;
@@ -92,7 +91,7 @@ uint8_t init()
         // Set the R/W block size to 512 bytes with CMD16
         // Try 3 times, if success return 0 immediately
         for(uint8_t i = 0; i < 3; i++) {
-            response = sd_send_cmd(CMD16, 0x00000200, 0xFF);
+            response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF, 0);
             if (response == 0x00)
                 return 0;
         }
@@ -101,10 +100,51 @@ uint8_t init()
     return 1;
 }
 
-uint8_t write_block(uint32_t blockNumber, const uint8_t* src)
+/**
+ * write_block()
+ * @brief Write a single block to the SD card.
+ *
+ * @param blockAddr The address of the block to write to.
+ * @param src A pointer to the data which will be written to the card.
+ * 
+ * @return 0 on success, 1 on error.
+ */
+uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
 {
-// write one block's worth of data to the SD card where src points to the
-// array of bytes to be written
+    uint8_t *transactionId;
+    uint8_t receiveBuffer;
+    uint16_t sendBufferLength = SD_BLOCKSIZE;
+    uint16_t receiveBufferLength = sizeof(receiveBuffer);
+    uint8_t response = 0xFF;
+        
+    // First byte in data MUST be 0xFE to enable writing of a single
+    // block. Check to see if this is set, error out if not.
+    if (src[0] != 0xFE)
+        return 1;
+    
+    // Send CMD24 (the single block write command)
+    response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
+    // If not immediately successful, exit because can't afford to wait
+    // for the SD card to respond if it's busy.
+    if (response != 0x00)
+        return 1;
+    
+    // Send one dummy byte before sending the data.
+    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, 0xFF, 1, &receiveBuffer,
+                receiveBufferLength);
+    
+    // Write the block.
+    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, src, sendBufferLength, &receiveBuffer,
+                receiveBufferLength);
+    
+    // Check if write was successful. (If this always fails, CMD13 may
+    // in fact be mandatory after writing to get the status of the card)
+    if (receiveBuffer == 0x00)
+        return 0;
+    else
+        return 1;
 }
 
 /**
