@@ -20,6 +20,7 @@
 #include "sercom-i2c.h"
 #include "sercom-spi.h"
 #include "mcp23s17-registers.h"
+#include "adc.h"
 
 
 
@@ -397,13 +398,248 @@ static void debug_io_exp_regs (uint8_t argc, char **argv,
     debug_print_byte_with_pad(console, "   OLATB: 0b", registers.OLAT[1].reg, "\n");
 }
 
+#define DEBUG_TEMP_NAME  "temp"
+#define DEBUG_TEMP_HELP  "Read internal temperature sensor and the NVM "\
+                         "temperature log row.\n"
 
-const uint8_t debug_commands_num_funcs = 6;
+static void debug_temp (uint8_t argc, char **argv,
+                        struct console_desc_t *console)
+{
+    // Read tempurature log values from
+    uint8_t room_temp_val_int = (uint8_t)(((*((uint32_t*)
+                                    NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_ADDR)) &
+                                        NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Msk) >>
+                                          NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Pos);
+    uint8_t room_temp_val_dec = (uint8_t)(((*((uint32_t*)
+                                    NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_ADDR)) &
+                                        NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Msk) >>
+                                          NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Pos);
+    uint8_t hot_temp_val_int = (uint8_t)(((*((uint32_t*)
+                                        NVMCTRL_FUSES_HOT_TEMP_VAL_INT_ADDR)) &
+                                        NVMCTRL_FUSES_HOT_TEMP_VAL_INT_Msk) >>
+                                          NVMCTRL_FUSES_HOT_TEMP_VAL_INT_Pos);
+    uint8_t hot_temp_val_dec = (uint8_t)(((*((uint32_t*)
+                                        NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_ADDR)) &
+                                        NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Msk) >>
+                                          NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Pos);
+    int8_t room_int1v_val = (int8_t)(((*((uint32_t*)
+                                        NVMCTRL_FUSES_ROOM_INT1V_VAL_ADDR)) &
+                                          NVMCTRL_FUSES_ROOM_INT1V_VAL_Msk) >>
+                                         NVMCTRL_FUSES_ROOM_INT1V_VAL_Pos);
+    int8_t hot_int1v_val = (int8_t)(((*((uint32_t*)
+                                        NVMCTRL_FUSES_HOT_INT1V_VAL_ADDR)) &
+                                          NVMCTRL_FUSES_HOT_INT1V_VAL_Msk) >>
+                                         NVMCTRL_FUSES_HOT_INT1V_VAL_Pos);
+    
+    uint16_t room_adc_val = (uint16_t)(((*((uint32_t*)
+                                         NVMCTRL_FUSES_ROOM_ADC_VAL_ADDR)) &
+                                        NVMCTRL_FUSES_ROOM_ADC_VAL_Msk) >>
+                                       NVMCTRL_FUSES_ROOM_ADC_VAL_Pos);
+    uint16_t hot_adc_val = (uint16_t)(((*((uint32_t*)
+                                           NVMCTRL_FUSES_HOT_ADC_VAL_ADDR)) &
+                                        NVMCTRL_FUSES_HOT_ADC_VAL_Msk) >>
+                                       NVMCTRL_FUSES_HOT_ADC_VAL_Pos);
+    
+    char str[8];
+    
+    console_send_str(console, "Temperature (course): ");
+    int16_t t_course = adc_get_temp_course();
+    itoa(t_course / 100, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+    utoa(abs(t_course % 100), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " C\nTemperature (fine): ");
+    int16_t t_fine = adc_get_temp_fine();
+    itoa(t_fine / 100, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+    utoa(abs(t_fine % 100), str, 10);
+    console_send_str(console, str);
+    
+    wdt_pat();
+    
+    console_send_str(console, " C\n\nTemperature Log Row:");
+    
+    console_send_str(console, "\n     ROOM_TEMP_VAL: ");
+    utoa(room_temp_val_int, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+    utoa(room_temp_val_dec, str, 10);
+    console_send_str(console, str);
+    
+    console_send_str(console, " C\n      HOT_TEMP_VAL: ");
+    utoa(hot_temp_val_int, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+    utoa(hot_temp_val_dec, str, 10);
+    console_send_str(console, str);
+    
+    wdt_pat();
+    
+    console_send_str(console, " C\n    ROOM_INT1V_VAL: ");
+    console_send_str(console, (room_int1v_val >= 0) ? "1." : "0.");
+    utoa((room_int1v_val >= 0) ? ((unsigned int)room_int1v_val) :
+         ((unsigned int)(1000 + room_int1v_val)), str, 10);
+    console_send_str(console, str);
+    
+    console_send_str(console, " V\n     HOT_INT1V_VAL: ");
+    console_send_str(console, (hot_int1v_val >= 0) ? "1." : "0.");
+    utoa((hot_int1v_val >= 0) ? ((unsigned int)hot_int1v_val) :
+         ((unsigned int)(1000 + hot_int1v_val)), str, 10);
+    console_send_str(console, str);
+    
+    wdt_pat();
+    
+    console_send_str(console, " V\n      ROOM_ADC_VAL: 0x");
+    utoa(room_adc_val, str, 16);
+    console_send_str(console, str);
+    
+    console_send_str(console, "\n       HOT_ADC_VAL: 0x");
+    utoa(hot_adc_val, str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+}
+
+
+#define DEBUG_ANALOG_NAME  "analog"
+#define DEBUG_ANALOG_HELP  "Print values of analog inputs.\nUsage: analog "\
+                           "[pin numbering]\nPin numbering should be one of"\
+                           "internal or header.\n"
+
+static void debug_analog_print_channel (struct console_desc_t *console,
+                                        uint8_t channel, int32_t parsed_value,
+                                        uint32_t scale, const char *name,
+                                        const char *unit)
+{
+    char str[10];
+    
+    if (*name == '\0') {
+        if (channel < 10) {
+            console_send_str(console, "  ");
+        } else {
+            console_send_str(console, " ");
+        }
+        utoa(channel, str, 10);
+        console_send_str(console, str);
+    } else {
+        console_send_str(console, name);
+    }
+    console_send_str(console, ": 0x");
+    
+    utoa(adc_get_value(channel), str, 16);
+    console_send_str(console, str);
+    
+    if (*unit != '\0') {
+        console_send_str(console, " (");
+        itoa(parsed_value / scale, str, 10);
+        console_send_str(console, str);
+        console_send_str(console, ".");
+        utoa(abs(parsed_value % scale), str, 10);
+        console_send_str(console, str);
+        console_send_str(console, " ");
+        console_send_str(console, unit);
+        console_send_str(console, ")\n");
+    } else {
+        console_send_str(console, "\n");
+    }
+}
+
+static void debug_analog (uint8_t argc, char **argv,
+                          struct console_desc_t *console)
+{
+    uint8_t numbering = 0;
+    if ((argc == 2) && !strcasecmp(argv[1], "internal")) {
+        numbering = 1;
+    } else if ((argc == 2) && !strcasecmp(argv[1], "header")) {
+        numbering = 0;
+    } else if (argc != 1) {
+        console_send_str(console, DEBUG_ANALOG_HELP);
+        return;
+    }
+    
+    uint32_t channel_mask = adc_get_channel_mask();
+    
+    if (numbering) {
+        // Use internal pin numbers
+        
+        // Iterate over all enabled external channels
+        uint32_t int_chans = channel_mask & 0xFFFFF;
+        
+        while (int_chans != 0) {
+            uint32_t t = int_chans & -int_chans;
+            
+            uint8_t i = __builtin_ctzl(int_chans);
+            uint16_t volts = adc_get_value_millivolts(i);
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000, "",
+                                       "V");
+            
+            int_chans ^= t;
+            
+            wdt_pat();
+        }
+    } else {
+        // Use header pin numbers
+        uint8_t analog_header_chans[] = HEADER_ANALOG_PINS;
+        // Iterate over all of the analog header pins
+        for (uint8_t i = 0; i < NUM_ANALOG_HEADER_PINS; i++) {
+            uint16_t volts = adc_get_value_millivolts(analog_header_chans[i]);
+            debug_analog_print_channel(console, analog_header_chans[i],
+                                       (uint32_t)volts, 1000, "", "V");
+            
+            wdt_pat();
+        }
+    }
+    
+    
+    // Iterate over enabled internal channels
+    channel_mask &= 0x1F000000;
+    
+    while (channel_mask != 0) {
+        uint32_t t = channel_mask & -channel_mask;
+        int i = __builtin_ctzl(channel_mask);
+        
+        if (i == ADC_INPUTCTRL_MUXPOS_TEMP_Val) {
+            int16_t temp = adc_get_temp_fine();
+            debug_analog_print_channel(console, i, (uint32_t)temp, 100,
+                                       "Temperature", "C");
+        } else if (i == ADC_INPUTCTRL_MUXPOS_BANDGAP_Val) {
+            uint16_t volts = adc_get_value_millivolts(i);
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+                                       "Bandgap", "V");
+        } else if (i == ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val) {
+            int16_t volts = adc_get_core_vcc();
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+                                       "Core VCC", "V");
+        } else if (i == ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC_Val) {
+            int16_t volts = adc_get_io_vcc();
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+                                       "IO VCC", "V");
+        } else if (i == ADC_INPUTCTRL_MUXPOS_DAC_Val) {
+            uint16_t volts = adc_get_value_millivolts(i);
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+                                       "DAC", "V");
+        } else {
+            uint16_t volts = adc_get_value_millivolts(i);
+            debug_analog_print_channel(console, i, (uint32_t)volts, 1000, "",
+                                       "V");
+        }
+        
+        channel_mask ^= t;
+        wdt_pat();
+    }
+}
+
+
+
+const uint8_t debug_commands_num_funcs = 8;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
     {.func = debug_i2c_scan, .name = DEBUG_I2C_SCAN_NAME, .help_string = DEBUG_I2C_SCAN_HELP},
     {.func = debug_alt_prom, .name = DEBUG_ALT_PROM_NAME, .help_string = DEBUG_ALT_PROM_HELP},
     {.func = debug_imu_wai, .name = DEBUG_IMU_WAI_NAME, .help_string = DEBUG_IMU_WAI_HELP},
-    {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME, .help_string = DEBUG_IO_EXP_REGS_HELP}
+    {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME, .help_string = DEBUG_IO_EXP_REGS_HELP},
+    {.func = debug_temp, .name = DEBUG_TEMP_NAME, .help_string = DEBUG_TEMP_HELP},
+    {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP}
 };
