@@ -13,6 +13,7 @@
 #include "wdt.h"
 #include "gpio.h"
 #include "dma.h"
+#include "adc.h"
 #include "sercom-uart.h"
 #include "sercom-spi.h"
 #include "sercom-i2c.h"
@@ -348,6 +349,25 @@ int main(void)
                      GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO);
 #endif
     
+    // Init ADC
+#ifdef ENABLE_ADC
+#ifndef ADC_DMA_CHAN
+#define ADC_DMA_CHAN -1
+#endif
+#ifndef ADC_TC
+#define ADC_TC NULL
+#endif
+#ifndef ADC_EVENT_CHAN
+#define ADC_EVENT_CHAN -1
+#endif
+    uint32_t chan_mask = (EXTERNAL_ANALOG_MASK |
+                          (1 << ADC_INPUTCTRL_MUXPOS_TEMP_Val) |
+                          (1 << ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC) |
+                          (1 << ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC));
+    init_adc(GCLK_CLKCTRL_GEN_GCLK3, 8000000UL, chan_mask, ADC_PERIOD,
+             ADC_DMA_CHAN, ADC_TC, ADC_EVENT_CHAN);
+#endif
+    
     // Init USB
 #ifdef ENABLE_USB
     usb_init();
@@ -397,6 +417,12 @@ int main(void)
 //                         test_ext_int);
     
     gpio_set_output(STAT_G_LED_PIN, 1);
+    gpio_set_output(DEBUG1_LED_PIN, 1);
+    
+    // Configure PA10 as an analog input
+    PORT->Group[0].PMUX[5].bit.PMUXE = 0x1;
+    PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
+    
     
     // Start Watchdog Timer
     init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
@@ -445,6 +471,10 @@ static void main_loop ()
     
 #ifdef ENABLE_IO_EXPANDER
     mcp23s17_service(&io_expander_g);
+#endif
+    
+#ifdef ENABLE_ADC
+    adc_service();
 #endif
 }
 

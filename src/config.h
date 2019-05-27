@@ -162,7 +162,59 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* MCP23S17 CS pin group */
 #define IO_EXPANDER_CS_PIN_GROUP 0
 /* NCP23S17 Interrupt pin */
-#define IO_EXPANDER_INT_PIN ((uint16_t)PIN_PA27)
+#define IO_EXPANDER_INT_PIN ((uint16_t)PIN_PA28)
+
+//
+//
+//  Analog
+//
+//
+
+/* ADC enabled if defined */
+#define ENABLE_ADC
+/* Period between ADC sweeps in milliseconds */
+#define ADC_PERIOD 2000
+/* DMA Channel used for ADC results, DMA not used if not defined or defined
+   as -1 */
+#define ADC_DMA_CHAN 11
+/* Timer Counter used for ADC timing, TC not used if not defined or if NULL */
+#define ADC_TC NULL
+/* Event Channel used for ADC timing, EVSYS not used if not defined or defined
+   as -1, must be defined as a valid channel if TC is defined as a value other
+   than NULL */
+#define ADC_EVENT_CHAN -1
+/* ADC header pin channels */
+#define HEADER_A0   18
+#define HEADER_A1   17
+#define HEADER_A2   7
+#define HEADER_A3   3
+#define HEADER_A4   15
+#define HEADER_A5   13
+#define HEADER_A6   11
+#define HEADER_A7   9
+#define HEADER_A8   8
+#define HEADER_A9   10
+#define HEADER_A10  12
+#define HEADER_A11  14
+#define HEADER_A12  2
+#define HEADER_A13  6
+#define HEADER_A14  16
+
+#define NUM_ANALOG_HEADER_PINS 15
+
+#define HEADER_ANALOG_PINS {HEADER_A0, HEADER_A1, HEADER_A2, HEADER_A3, \
+                            HEADER_A4, HEADER_A5, HEADER_A6, HEADER_A7, \
+                            HEADER_A8, HEADER_A9, HEADER_A10, HEADER_A11, \
+                            HEADER_A12, HEADER_A13, HEADER_A14}
+
+#define EXTERNAL_ANALOG_MASK ((1 << HEADER_A0) | (1 << HEADER_A1) | \
+                              (1 << HEADER_A2) | (1 << HEADER_A3) | \
+                              (1 << HEADER_A4) | (1 << HEADER_A5) | \
+                              (1 << HEADER_A6) | (1 << HEADER_A7) | \
+                              (1 << HEADER_A8) | (1 << HEADER_A9) | \
+                              (1 << HEADER_A10) | (1 << HEADER_A11) | \
+                              (1 << HEADER_A12) | (1 << HEADER_A13) | \
+                              (1 << HEADER_A14))
 
 //
 //
