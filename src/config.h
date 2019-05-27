@@ -158,7 +158,7 @@ extern struct sercom_uart_desc_t uart3_g;
 /* IO Expander Instance */
 extern struct mcp23s17_desc_t io_expander_g;
 /* MCP23S17 CS pin mask */
-#define IO_EXPANDER_CS_PIN_MASK PORT_PA28
+#define IO_EXPANDER_CS_PIN_MASK PORT_PA27
 /* MCP23S17 CS pin group */
 #define IO_EXPANDER_CS_PIN_GROUP 0
 /* NCP23S17 Interrupt pin */

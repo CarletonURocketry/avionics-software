@@ -251,8 +251,8 @@ static inline void init_io (void)
     PORT->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
     
     // IO Expander CS pin
-    PORT->Group[0].DIRSET.reg = PORT_PA28;
-    PORT->Group[0].OUTSET.reg = PORT_PA28;
+    PORT->Group[IO_EXPANDER_CS_PIN_GROUP].DIRSET.reg = IO_EXPANDER_CS_PIN_MASK;
+    PORT->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
 }
 
 int main(void)
@@ -459,7 +459,7 @@ static void main_loop ()
         gpio_toggle_output(STAT_R_LED_PIN);
         gpio_toggle_output(STAT_G_LED_PIN);
     }
-    gpio_set_output(DEBUG1_LED_PIN, gpio_get_input(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7)));
+    //gpio_set_output(DEBUG1_LED_PIN, gpio_get_input(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7)));
     
 #ifdef ENABLE_CONSOLE
     console_service(&console_g);
