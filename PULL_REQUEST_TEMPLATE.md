@@ -2,4 +2,4 @@
 
 ** Describe any bugs with your implementation **
 
-** Provide a reference to an open feature request issue **
+** Provide a reference to an open feature request or issue **
