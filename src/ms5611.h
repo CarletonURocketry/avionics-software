@@ -73,7 +73,7 @@ struct ms5611_desc_t {
  *
  * @param inst Pointer to the instance descriptor to be initialized
  * @param i2c_inst I2C interface to be used by this driver instance
- * @param address Non-zero value if CSB pin of sensor is pulled high
+ * @param csb Non-zero value if CSB pin of sensor is pulled high
  * @param period Period in milliseconds at which the sensor should be polled
  * @param calculate_altitude Whether the altitude value should be calculated
  *                           when the sensor is polled
@@ -136,7 +136,7 @@ static inline float ms5611_get_altitude (struct ms5611_desc_t *inst)
  *
  * @return The value of millis when the last reading was started
  */
-static inline uint32_t get_last_reading_time (struct ms5611_desc_t *inst)
+static inline uint32_t ms5611_get_last_reading_time (struct ms5611_desc_t *inst)
 {
     return inst->last_reading_time;
 }
@@ -148,7 +148,8 @@ static inline uint32_t get_last_reading_time (struct ms5611_desc_t *inst)
  * @param period The new period at which readings should be taken in
  *               milliseconds
  */
-static inline void set_period (struct ms5611_desc_t *inst, uint32_t period)
+static inline void ms5611_set_period (struct ms5611_desc_t *inst,
+                                      uint32_t period)
 {
     inst->period = period;
 }
@@ -159,7 +160,7 @@ static inline void set_period (struct ms5611_desc_t *inst, uint32_t period)
  *
  * @param inst The MS5611 driver instance
  */
-static inline void tare_now (struct ms5611_desc_t *inst)
+static inline void ms5611_tare_now (struct ms5611_desc_t *inst)
 {
     inst->p0 = ((float)inst->pressure) / 100.0;
 }
@@ -170,7 +171,7 @@ static inline void tare_now (struct ms5611_desc_t *inst)
  *
  * @param inst The MS5611 driver instance
  */
-static inline void tare_next (struct ms5611_desc_t *inst)
+static inline void ms5611_tare_next (struct ms5611_desc_t *inst)
 {
     inst->p0_set = 0;
 }
