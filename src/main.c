@@ -65,6 +65,10 @@ struct sercom_uart_desc_t uart3_g;
 struct mcp23s17_desc_t io_expander_g;
 #endif
 
+#ifdef ENABLE_ALTIMETER
+struct ms5611_desc_t altimeter_g;
+#endif
+
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
 // 4 -> 16 packets
 #define TRACE_BUFFER_MAGNITUDE_PACKETS 4
@@ -368,6 +372,13 @@ int main(void)
              ADC_DMA_CHAN, ADC_TC, ADC_EVENT_CHAN);
 #endif
     
+    // Init Altimeter
+#ifdef ENABLE_ALTIMETER
+    init_ms5611(&altimeter_g, &i2c_g, ALTIMETER_CSB, ALTIMETER_PERIOD, 1);
+#endif
+    
+    
+    
     // Init USB
 #ifdef ENABLE_USB
     usb_init();
@@ -466,7 +477,7 @@ static void main_loop ()
 #endif
     
 #ifdef I2C_SERCOM_INST
-    //sercom_i2c_service(&i2c_g);
+    sercom_i2c_service(&i2c_g);
 #endif
     
 #ifdef ENABLE_IO_EXPANDER
@@ -475,6 +486,10 @@ static void main_loop ()
     
 #ifdef ENABLE_ADC
     adc_service();
+#endif
+    
+#ifdef ENABLE_ALTIMETER
+    ms5611_service(&altimeter_g);
 #endif
 }
 
