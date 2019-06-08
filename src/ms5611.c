@@ -53,12 +53,6 @@ static uint8_t handle_read_state (struct ms5611_desc_t *inst, uint8_t width,
         
         if (state == I2C_STATE_DONE) {
             // Got result!
-            // Swap the bytes so that they are in the correct order
-            if (width == 2) {
-                *result_addr = __builtin_bswap16(*result_addr);
-            } else if (width == 3) {
-                *result_addr = __builtin_bswap32(*result_addr);
-            }
             // go to next state
             return 1;
         }
@@ -130,7 +124,7 @@ static void do_calculations (struct ms5611_desc_t *inst)
     }
     // Calculate altitude
     if (inst->calc_altitude) {
-        float t = (float)(inst->temperature + 27315) / 100;
+        float t = ((float)(inst->temperature + 27315)) / 100;
         float p = ((float)inst->pressure) / 100;
         inst->altitude = (((powf((inst->p0 / p), 0.1902225604) - 1.0) * t) /
                           0.0065);
@@ -153,6 +147,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C1),
                                   (uint8_t*)(&(inst->prom_values[0])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[0] = __builtin_bswap16(inst->prom_values[0]);
                 // Go to the next state
                 inst->state = MS5611_READ_C2;
                 /* fall through */
@@ -164,6 +160,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C2),
                                   (uint8_t*)(&(inst->prom_values[1])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[1] = __builtin_bswap16(inst->prom_values[1]);
                 // Go to the next state
                 inst->state = MS5611_READ_C3;
                 /* fall through */
@@ -175,6 +173,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C3),
                                   (uint8_t*)(&(inst->prom_values[2])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[2] = __builtin_bswap16(inst->prom_values[2]);
                 // Go to the next state
                 inst->state = MS5611_READ_C4;
                 /* fall through */
@@ -186,6 +186,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C4),
                                   (uint8_t*)(&(inst->prom_values[3])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[3] = __builtin_bswap16(inst->prom_values[3]);
                 // Go to the next state
                 inst->state = MS5611_READ_C5;
                 /* fall through */
@@ -197,6 +199,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C5),
                                   (uint8_t*)(&(inst->prom_values[4])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[4] = __builtin_bswap16(inst->prom_values[4]);
                 // Go to the next state
                 inst->state = MS5611_READ_C6;
                 /* fall through */
@@ -208,6 +212,8 @@ void ms5611_service (struct ms5611_desc_t *inst)
             if (handle_read_state(inst, 2,
                                   (MS5611_CMD_PROM_READ | MS5611_PROM_C6),
                                   (uint8_t*)(&(inst->prom_values[5])))) {
+                // Swap bytes to correct endianness
+                inst->prom_values[5] = __builtin_bswap16(inst->prom_values[5]);
                 // Go to the next state
                 inst->state = MS5611_IDLE;
                 /* fall through */
@@ -235,7 +241,9 @@ void ms5611_service (struct ms5611_desc_t *inst)
         case MS5611_READ_PRES:
             // In process of reading back pressure measurment
             if (handle_read_state(inst, 3, MS5611_CMD_ADC_READ,
-                                  (uint8_t*)(&(inst->d1)))) {
+                                  ((uint8_t*)(&(inst->d1))) + 1)) {
+                // Swap bytes to correct endianness
+                inst->d1 = __builtin_bswap32(inst->d1);
                 // Go to the next state
                 inst->state = MS5611_CONVERT_TEMP;
                 /* fall through */
@@ -254,9 +262,11 @@ void ms5611_service (struct ms5611_desc_t *inst)
         case MS5611_READ_TEMP:
             // In process of reading back temperature measurment
             if (!(handle_read_state(inst, 3, MS5611_CMD_ADC_READ,
-                                   (uint8_t*)(&(inst->d2))))) {
-                 break;
+                                   ((uint8_t*)(&(inst->d2))) + 1))) {
+                break;
             }
+            // Swap bytes to correct endianness
+            inst->d2 = __builtin_bswap32(inst->d2);
             do_calculations(inst);
             // Wait till next measurment should be taken
             inst->state = MS5611_IDLE;
