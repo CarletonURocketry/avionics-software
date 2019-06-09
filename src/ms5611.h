@@ -15,6 +15,8 @@
 #include "sercom-i2c.h"
 
 enum ms5611_state {
+    MS5611_RESET,
+    MS5611_RESET_WAIT,
     MS5611_READ_C1,
     MS5611_READ_C2,
     MS5611_READ_C3,
@@ -23,8 +25,10 @@ enum ms5611_state {
     MS5611_READ_C6,
     MS5611_IDLE,
     MS5611_CONVERT_PRES,
+    MS5611_CONVERT_PRES_WAIT,
     MS5611_READ_PRES,
     MS5611_CONVERT_TEMP,
+    MS5611_CONVERT_TEMP_WAIT,
     MS5611_READ_TEMP,
     MS5611_FAILED
 };
@@ -48,6 +52,9 @@ struct ms5611_desc_t {
     uint32_t d1;
     /** Digital tempuratue value from ADC */
     uint32_t d2;
+
+    /** Conversion start time */
+    uint32_t conv_start_time;
     
     /** Time between readings of the sensor */
     uint32_t period;

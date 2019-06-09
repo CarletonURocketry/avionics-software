@@ -14,14 +14,22 @@
 #include <math.h>
 
 
+#define CONV_WAIT_TIME 10
+
+static const uint8_t reset_cmd = MS5611_CMD_RESET;
+static const uint8_t adc_conv_d1_cmd = MS5611_CMD_D1 | MS5611_OSR_4096;
+static const uint8_t adc_conv_d2_cmd = MS5611_CMD_D2 | MS5611_OSR_4096;
+
+
 void init_ms5611 (struct ms5611_desc_t *inst,
                   struct sercom_i2c_desc_t *i2c_inst, uint8_t csb,
                   uint32_t period, uint8_t calculate_altitude)
 {
-    inst->address = MS5611_ADDR | ((!csb) << MS5611_ADDR_CSB_Pos);
+    inst->address = MS5611_ADDR | ((csb) << MS5611_ADDR_CSB_Pos);
     inst->period = period;
-    
     inst->calc_altitude = !!calculate_altitude;
+    
+    inst->i2c_inst = i2c_inst;
     
     inst->p0_set = 0;
     
@@ -75,7 +83,8 @@ static uint8_t handle_read_state (struct ms5611_desc_t *inst, uint8_t width,
  *
  * @return 1 if the FSM should procceed to the next state, 0 otherwise
  */
-static uint8_t handle_convert_state (struct ms5611_desc_t *inst, uint8_t cmd)
+static uint8_t handle_write_state (struct ms5611_desc_t *inst,
+                                   uint8_t const* cmd)
 {
     if (inst->i2c_in_progress) {
         // Just finished command transaction
@@ -94,10 +103,10 @@ static uint8_t handle_convert_state (struct ms5611_desc_t *inst, uint8_t cmd)
         // I2C transaction failed, start a new one
     }
     // Need to send command
-    inst->i2c_in_progress = !sercom_i2c_start_reg_read(inst->i2c_inst,
-                                                       &inst->t_id,
-                                                       inst->address, cmd, NULL,
-                                                       0);
+    inst->i2c_in_progress = !sercom_i2c_start_generic(inst->i2c_inst,
+                                                      &inst->t_id,
+                                                      inst->address, cmd, 1,
+                                                      NULL, 0);
     // Stay in same state
     return 0;
 }
@@ -121,6 +130,7 @@ static void do_calculations (struct ms5611_desc_t *inst)
     // Set p0 if it has not already been set
     if (!inst->p0_set) {
         inst->p0 = ((float)inst->pressure) / 100.0;
+        inst->p0_set = 1;
     }
     // Calculate altitude
     if (inst->calc_altitude) {
@@ -142,6 +152,23 @@ void ms5611_service (struct ms5611_desc_t *inst)
     }
     
     switch (inst->state) {
+        case MS5611_RESET:
+            if (handle_write_state(inst, &reset_cmd)) {
+                // Go to the next state
+                inst->state = MS5611_RESET_WAIT;
+                // Record time
+                inst->conv_start_time = millis;
+                /* fall through */
+            } else {
+                break;
+            }
+        case MS5611_RESET_WAIT:
+            if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
+                // Not yet time to move on
+                break;
+            }
+            inst->state = MS5611_READ_C1;
+            /* fall through */
         case MS5611_READ_C1:
             // In process of reading C1 from the sensor
             if (handle_read_state(inst, 2,
@@ -222,7 +249,7 @@ void ms5611_service (struct ms5611_desc_t *inst)
             }
         case MS5611_IDLE:
             // Waiting for it to be time to start a new read
-            if (!((millis - inst->last_reading_time) >= inst->period)) {
+            if ((millis - inst->last_reading_time) < inst->period) {
                 // Not yet time to move on
                 break;
             }
@@ -231,17 +258,28 @@ void ms5611_service (struct ms5611_desc_t *inst)
             /* fall through */
         case MS5611_CONVERT_PRES:
             // In process of sending command to take presure measurment
-            if (handle_convert_state(inst, (MS5611_CMD_D1 | MS5611_OSR_4096))) {
+            if (handle_write_state(inst, &adc_conv_d1_cmd)) {
                 // Go to the next state
-                inst->state = MS5611_READ_PRES;
+                inst->state = MS5611_CONVERT_PRES_WAIT;
+                // Record time
+                inst->conv_start_time = millis;
                 /* fall through */
             } else {
                 break;
             }
+        case MS5611_CONVERT_PRES_WAIT:
+            // Waiting for it to be time to read result
+            if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
+                // Not yet time to move on
+                break;
+            }
+            inst->state = MS5611_READ_PRES;
+            /* fall through */
         case MS5611_READ_PRES:
             // In process of reading back pressure measurment
             if (handle_read_state(inst, 3, MS5611_CMD_ADC_READ,
                                   ((uint8_t*)(&(inst->d1))) + 1)) {
+                *((uint8_t*)(&(inst->d1))) = 0;
                 // Swap bytes to correct endianness
                 inst->d1 = __builtin_bswap32(inst->d1);
                 // Go to the next state
@@ -252,13 +290,23 @@ void ms5611_service (struct ms5611_desc_t *inst)
             }
         case MS5611_CONVERT_TEMP:
             // In process of sending command to take temperature measurment
-            if (handle_convert_state(inst, (MS5611_CMD_D2 | MS5611_OSR_4096))) {
+            if (handle_write_state(inst, &adc_conv_d2_cmd)) {
                 // Go to the next state
-                inst->state = MS5611_READ_TEMP;
+                inst->state = MS5611_CONVERT_TEMP_WAIT;
+                // Record time
+                inst->conv_start_time = millis;
                 /* fall through */
             } else {
                 break;
             }
+        case MS5611_CONVERT_TEMP_WAIT:
+            // Waiting for it to be time to read result
+            if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
+                // Not yet time to move on
+                break;
+            }
+            inst->state = MS5611_READ_TEMP;
+            /* fall through */
         case MS5611_READ_TEMP:
             // In process of reading back temperature measurment
             if (!(handle_read_state(inst, 3, MS5611_CMD_ADC_READ,
@@ -266,6 +314,7 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 break;
             }
             // Swap bytes to correct endianness
+            *((uint8_t*)(&(inst->d2))) = 0;
             inst->d2 = __builtin_bswap32(inst->d2);
             do_calculations(inst);
             // Wait till next measurment should be taken
