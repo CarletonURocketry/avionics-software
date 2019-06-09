@@ -642,9 +642,14 @@ static void print_fixed_point (struct console_desc_t *console, int32_t value,
     
     char str[10];
     int32_t whole = value / scale;
-    itoa(whole, str, 10);
-    console_send_str(console, str);
-    console_send_str(console, ".");
+    
+    if ((whole == 0) && (value < 0)) {
+        console_send_str(console, "-0.");
+    } else {
+        itoa(whole, str, 10);
+        console_send_str(console, str);
+        console_send_str(console, ".");
+    }
     
     int32_t frac = abs(value - (whole * scale));
     itoa(frac, str, 10);
