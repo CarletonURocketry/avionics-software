@@ -63,7 +63,7 @@ extern struct sercom_spi_desc_t spi_g;
 /* SERCOM instance to be used for I2C, I2C is disabled if not defined */
 #define I2C_SERCOM_INST SERCOM5
 /* DMA Channel used for I2C, DMA not used if not defined or defined as -1 */
-#define I2C_DMA_CHAN 6
+//#define I2C_DMA_CHAN 6
 /* I2C Speed, defaults to I2C_MODE_STANDARD (100 KHz) if not defined */
 #define I2C_SPEED I2C_MODE_FAST
 /* I2C Instance */
@@ -147,7 +147,7 @@ extern struct sercom_uart_desc_t uart3_g;
 #define ENABLE_CONSOLE
 /* UART instance to be used for console, USB is used if not defined (and USB is
    enabled) */
-#define CONSOLE_UART uart3_g //remove this after
+//#define CONSOLE_UART uart3_g
 
 //
 //
