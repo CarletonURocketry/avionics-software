@@ -683,6 +683,8 @@ static void debug_alt (uint8_t argc, char **argv,
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of pressure sensitivity)\n");
     
+    wdt_pat();
+    
     // C4: Temperature coefficient of pressure offset
     console_send_str(console, "C4: ");
     utoa(altimeter_g.prom_values[3], str, 10);
@@ -701,9 +703,11 @@ static void debug_alt (uint8_t argc, char **argv,
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of the temperature)\n");
     
+    wdt_pat();
+    
     // Last reading time
     uint32_t last_reading_time = ms5611_get_last_reading_time(&altimeter_g);
-    console_send_str(console, "Last reading at ");
+    console_send_str(console, "\nLast reading at ");
     utoa(last_reading_time, str, 10);
     console_send_str(console, str);
     console_send_str(console, " (");
@@ -714,18 +718,25 @@ static void debug_alt (uint8_t argc, char **argv,
     // Pressure
     console_send_str(console, "Pressure: ");
     print_fixed_point(console, altimeter_g.pressure, 2);
+    console_send_str(console, " mbar (");
+    utoa(altimeter_g.d1, str, 10);
     console_send_str(console, str);
+    console_send_str(console, ", p0 = ");
+    print_fixed_point(console, (int32_t)(altimeter_g.p0 * 100), 2);
+    
+    wdt_pat();
     
     // Temperature
-    console_send_str(console, " mbar\nTemperature: ");
+    console_send_str(console, " mbar)\nTemperature: ");
     print_fixed_point(console, altimeter_g.temperature, 2);
+    console_send_str(console, " C (");
+    utoa(altimeter_g.d2, str, 10);
     console_send_str(console, str);
     
     // Altitude
     int32_t altitude = (int32_t)(altimeter_g.altitude * 100);
-    console_send_str(console, " C\nAltitude: ");
+    console_send_str(console, ")\nAltitude: ");
     print_fixed_point(console, altitude, 2);
-    console_send_str(console, str);
     console_send_str(console, " m\n");
 }
 
