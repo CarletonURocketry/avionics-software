@@ -10,8 +10,8 @@
 #ifndef ms5611_commands_h
 #define ms5611_commands_h
 
-#define MS5611_ADDR             0b11101100
-#define MS5611_ADDR_CSB_Pos     1
+#define MS5611_ADDR             0b1110110
+#define MS5611_ADDR_CSB_Pos     0
 
 #define MS5611_CMD_RESET        0x1E
 #define MS5611_CMD_D1           0x40
