@@ -638,7 +638,7 @@ static void debug_analog (uint8_t argc, char **argv,
 static void print_fixed_point (struct console_desc_t *console, int32_t value,
                                uint8_t decimal_places)
 {
-    uint32_t scale = pow(10, decimal_places);
+    int32_t scale = pow(10, decimal_places);
     
     char str[10];
     int32_t whole = value / scale;
