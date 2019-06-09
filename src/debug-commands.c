@@ -740,9 +740,39 @@ static void debug_alt (uint8_t argc, char **argv,
     console_send_str(console, " m\n");
 }
 
+#define DEBUG_ALT_TARE_NOW_NAME  "alt-tare-now"
+#define DEBUG_ALT_TARE_NOW_HELP  "Tare altimeter to most recently measured presure"
+
+static void debug_alt_tare_now (uint8_t argc, char **argv,
+                                struct console_desc_t *console)
+{
+#ifndef ENABLE_ALTIMETER
+    console_send_str(console, "Altimeter is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    ms5611_tare_now(&altimeter_g);
+}
+
+#define DEBUG_ALT_TARE_NEXT_NAME  "alt-tare-next"
+#define DEBUG_ALT_TARE_NEXT_HELP  "Tare altimeter to next measured presure"
+
+static void debug_alt_tare_next (uint8_t argc, char **argv,
+                                 struct console_desc_t *console)
+{
+#ifndef ENABLE_ALTIMETER
+    console_send_str(console, "Altimeter is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    ms5611_tare_next(&altimeter_g);
+}
 
 
-const uint8_t debug_commands_num_funcs = 8;
+
+const uint8_t debug_commands_num_funcs = 11;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -752,5 +782,7 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME, .help_string = DEBUG_IO_EXP_REGS_HELP},
     {.func = debug_temp, .name = DEBUG_TEMP_NAME, .help_string = DEBUG_TEMP_HELP},
     {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP},
-    {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP}
+    {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP},
+    {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
+    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP}
 };
