@@ -119,7 +119,7 @@ extern struct sercom_uart_desc_t uart2_g;
 /* SERCOM instance to be used for UART, UART is disabled if not defined */
 #define UART3_SERCOM_INST SERCOM3
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
-#define UART4_DMA_CHAN 10
+#define UART3_DMA_CHAN 10
 /* Baud rate for UART */
 #define UART3_BAUD 115200UL
 /* Define as one if UART should echo received bytes and provide line editing,

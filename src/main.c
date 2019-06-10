@@ -225,27 +225,27 @@ static inline void init_io (void)
     PORT->Group[1].PINCFG[17].bit.PMUXEN = 0b1;
     
     // UART 0
-    PORT->Group[0].PMUX[2].bit.PMUXE = 0x3;
+    PORT->Group[0].PMUX[2].bit.PMUXE = 0x3;     // TX Sercom 0 Pad 0
     PORT->Group[0].PINCFG[4].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[2].bit.PMUXO = 0x3;
+    PORT->Group[0].PMUX[2].bit.PMUXO = 0x3;     // RX Sercom 0 Pad 1
     PORT->Group[0].PINCFG[5].bit.PMUXEN = 0b1;
     
     // UART 1
-    PORT->Group[0].PMUX[8].bit.PMUXE = 0x3;
+    PORT->Group[0].PMUX[8].bit.PMUXE = 0x2;     // TX Sercom 1 Pad 0
     PORT->Group[0].PINCFG[16].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[8].bit.PMUXO = 0x3;
+    PORT->Group[0].PMUX[8].bit.PMUXO = 0x2;     // RX Sercom 1 Pad 1
     PORT->Group[0].PINCFG[17].bit.PMUXEN = 0b1;
     
     // UART 2
-    PORT->Group[0].PMUX[6].bit.PMUXE = 0x3;
+    PORT->Group[0].PMUX[6].bit.PMUXE = 0x2;     // TX Sercom 2 Pad 0
     PORT->Group[0].PINCFG[12].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[6].bit.PMUXO = 0x3;
+    PORT->Group[0].PMUX[6].bit.PMUXO = 0x2;     // RX Sercom 2 Pad 1
     PORT->Group[0].PINCFG[13].bit.PMUXEN = 0b1;
     
     // UART 3
-    PORT->Group[0].PMUX[11].bit.PMUXE = 0x2;
+    PORT->Group[0].PMUX[11].bit.PMUXE = 0x2;    // TX Sercom 3 Pad 0
     PORT->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[11].bit.PMUXO = 0x2;
+    PORT->Group[0].PMUX[11].bit.PMUXO = 0x2;    // RX Sercom 3 Pad 1
     PORT->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
     
     // USB
