@@ -776,8 +776,24 @@ static void debug_alt_tare_next (uint8_t argc, char **argv,
 }
 
 
+#define DEBUG_LORA_VERSION_NAME  "lora-version"
+#define DEBUG_LORA_VERSION_HELP  "Get the version of the LoRa radio firmware"
 
-const uint8_t debug_commands_num_funcs = 11;
+static void debug_lora_version (uint8_t argc, char **argv,
+                                struct console_desc_t *console)
+{
+    sercom_uart_put_string_blocking(&uart1_g, "sys get ver\r\n");
+    while (!sercom_uart_has_line(&uart1_g, '\r')) {
+        wdt_pat();
+    }
+    char str[128];
+    sercom_uart_get_line(&uart1_g, '\n', str, 128);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+}
+
+
+const uint8_t debug_commands_num_funcs = 12;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -789,5 +805,6 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP},
     {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP},
     {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
-    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP}
+    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP},
+    {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME, .help_string = DEBUG_LORA_VERSION_HELP},
 };
