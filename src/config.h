@@ -82,7 +82,7 @@ extern struct sercom_i2c_desc_t i2c_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART0_DMA_CHAN 7
 /* Baud rate for UART */
-#define UART0_BAUD 9600UL
+#define UART0_BAUD 57600UL
 /* Define as one if UART should echo received bytes and provide line editing,
    0 otherwise */
 #define UART0_ECHO 0
@@ -95,7 +95,7 @@ extern struct sercom_uart_desc_t uart0_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART1_DMA_CHAN 8
 /* Baud rate for UART */
-#define UART1_BAUD 9600UL
+#define UART1_BAUD 57600UL
 /* Define as one if UART should echo received bytes and provide line editing,
    0 otherwise */
 #define UART1_ECHO 0
