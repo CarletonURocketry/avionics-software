@@ -3,7 +3,7 @@
  * @desc XA1110 GNSS Receiver Driver
  * @author Tauheed ELahee
  * @date 2019-04-05
- * @last-edited: 2019-05-21
+ * @last-edited: 2019-06-09
  */
 
 #ifndef gnss_h
