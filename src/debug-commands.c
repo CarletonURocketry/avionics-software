@@ -792,8 +792,183 @@ static void debug_lora_version (uint8_t argc, char **argv,
     console_send_str(console, "\n");
 }
 
+#define DEBUG_RADIO_SEND_NAME  "radio-send"
+#define DEBUG_RADIO_SEND_HELP  "Send a message via the RN2483 radio.\n"\
+                               "Usage: radio-send <message>\n"
 
-const uint8_t debug_commands_num_funcs = 12;
+static void debug_radio_send (uint8_t argc, char **argv,
+                              struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    if (argc < 2) {
+        console_send_str(console, "No message specified.\n");
+        return;
+    } else if (argc > 2) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
+    
+    enum rn2483_operation_result result = rn2483_send(&rn2483_g,
+                                                      (uint8_t*)argv[1],
+                                                      strlen(argv[1]) + 1);
+    
+    if (result == RN2483_OP_SUCCESS) {
+        console_send_str(console, "Sending.\n");
+    } else if (result == RN2483_OP_BUSY) {
+        console_send_str(console, "Radio busy.\n");
+    } else if (result == RN2483_OP_TOO_LONG) {
+        console_send_str(console, "String too long to send.\n");
+    }
+}
+
+#define DEBUG_RADIO_COUNT_NAME  "radio-count"
+#define DEBUG_RADIO_COUNT_HELP  "Send counts at an interval with the RN2483"\
+                                " radio.\nUsage: radio-count [max] [interval]\n"
+
+static void debug_radio_count (uint8_t argc, char **argv,
+                               struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    uint32_t max = UINT32_MAX;
+    uint32_t interval = 10;
+    uint32_t last_send;
+    
+    char *end;
+    if (argc == 2) {
+        max = strtoul(argv[1], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid count.\n");
+            return;
+        }
+    } else if (argc == 3) {
+        interval = strtoul(argv[2], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid interval.\n");
+            return;
+        }
+    } else if (argc > 3) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
+    
+    char str[11];
+    for (uint32_t i = 0; i < max; i++) {
+        utoa(i, str, 10);
+        enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
+                                                           (uint8_t*)str,
+                                                           strlen(str) + 1);
+        
+        if (result == RN2483_OP_SUCCESS) {
+            console_send_str(console, str);
+            console_send_str(console, "\n");
+        } else if (result == RN2483_OP_BUSY) {
+            console_send_str(console, "Radio busy.\n");
+        } else if (result == RN2483_OP_TOO_LONG) {
+            console_send_str(console, "String too long to send.\n");
+        }
+        
+        last_send = millis;
+        
+        while ((millis - last_send) < interval) {
+            wdt_pat();
+            rn2483_service(&rn2483_g);
+        }
+    }
+}
+
+#define DEBUG_RADIO_RECV_NAME  "radio-receive"
+#define DEBUG_RADIO_RECV_HELP  "Receive a message with the RN2483 radio.\n"\
+                               "Usage: radio-receive [count] [window]\n"
+
+struct radio_recv_context {
+    struct console_desc_t *console;
+    uint8_t receive_complete:1;
+};
+
+static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
+                                       void *context, uint8_t *data,
+                                       uint8_t length, int8_t snr)
+{
+    struct radio_recv_context *c = (struct radio_recv_context*)context;
+    
+    if (length) {
+        // Received some data
+        console_send_str(c->console, "Received: \"");
+        console_send_str(c->console, (char*)data);
+        console_send_str(c->console, "\"\nSNR: ");
+        char str[5];
+        itoa(snr, str, 10);
+        console_send_str(c->console, str);
+        console_send_str(c->console, "\n");
+    } else {
+        // Did not receive any data
+        console_send_str(c->console, "Did not receive data within window.\n");
+    }
+    c->receive_complete = 1;
+}
+
+static void debug_radio_recv (uint8_t argc, char **argv,
+                              struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    uint32_t count = 1;
+    uint32_t window = 500;
+    
+    char *end;
+    if (argc == 2) {
+        count = strtoul(argv[1], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid count.\n");
+            return;
+        }
+    } else if (argc == 3) {
+        window = strtoul(argv[2], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid window.\n");
+            return;
+        }
+    } else if (argc > 3) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
+    
+    struct radio_recv_context context;
+    context.console = console;
+    
+    for (uint32_t i = 0; (i < count)) || (count == 0); i++) {
+        enum rn2483_operation_result result =  rn2483_receive(&rn2483_g, window,
+                                                    debug_radio_recv_callback,
+                                                              &context);
+        
+        if (result == RN2483_OP_BUSY) {
+            console_send_str(console, "Radio busy.\n");
+        } else {
+            context.receive_complete = 0;
+            while (!context.receive_complete) {
+                wdt_pat();
+                rn2483_service(&rn2483_g);
+            }
+        }
+    }
+}
+
+
+const uint8_t debug_commands_num_funcs = 15;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -807,4 +982,7 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
     {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP},
     {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME, .help_string = DEBUG_LORA_VERSION_HELP},
+    {.func = debug_radio_send, .name = DEBUG_RADIO_SEND_NAME, .help_string = DEBUG_RADIO_SEND_HELP},
+    {.func = debug_radio_count, .name = DEBUG_RADIO_COUNT_NAME, .help_string = DEBUG_RADIO_COUNT_HELP},
+    {.func = debug_radio_recv, .name = DEBUG_RADIO_RECV_NAME, .help_string = DEBUG_RADIO_RECV_HELP}
 };
