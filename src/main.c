@@ -81,6 +81,10 @@ struct ms5611_desc_t altimeter_g;
 struct console_desc_t gnss_console_g;
 #endif
 
+#ifdef ENABLE_GROUND_SERVICE
+struct console_desc_t ground_station_console_g;
+#endif
+
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
 // 4 -> 16 packets
 #define TRACE_BUFFER_MAGNITUDE_PACKETS 4
@@ -460,6 +464,16 @@ int main(void)
                 LORA_CRC, LORA_INVERT_IQ, LORA_SYNC_WORD);
 #endif
     
+    // Ground station console
+#ifdef ENABLE_GROUND_SERVICE
+#ifdef GROUND_UART
+    init_console(&ground_station_console_g, &GROUND_UART, '\r');
+#elif defined ENABLE_USB
+    init_console(&ground_station_console_g, NULL, '\r');
+#endif
+    init_ground_service(&ground_station_console_g, &rn2483_g);
+#endif
+    
     
     // Start Watchdog Timer
     init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
@@ -502,6 +516,10 @@ static void main_loop ()
     console_service(&console_g);
 #endif
     
+#ifdef ENABLE_GROUND_SERVICE
+    console_service(&ground_station_console_g);
+#endif
+    
 #ifdef I2C_SERCOM_INST
     sercom_i2c_service(&i2c_g);
 #endif
@@ -524,6 +542,10 @@ static void main_loop ()
     
 #ifdef ENABLE_LORA_RADIO
     rn2483_service(&rn2483_g);
+#endif
+    
+#ifdef ENABLE_GROUND_SERVICE
+    ground_service();
 #endif
 }
 
