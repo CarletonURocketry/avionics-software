@@ -69,6 +69,10 @@ struct sercom_uart_desc_t uart3_g;
 struct mcp23s17_desc_t io_expander_g;
 #endif
 
+#ifdef ENABLE_LORA_RADIO
+struct rn2483_desc_t rn2483_g;
+#endif
+
 #ifdef ENABLE_ALTIMETER
 struct ms5611_desc_t altimeter_g;
 #endif
@@ -516,6 +520,8 @@ static void main_loop ()
     
 #ifdef ENABLE_GNSS
     console_service(&gnss_console_g);
+#endif
+    
 #ifdef ENABLE_LORA_RADIO
     rn2483_service(&rn2483_g);
 #endif
