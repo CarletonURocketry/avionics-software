@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "global.h"
 #include "config.h"
@@ -22,6 +23,7 @@
 #include "mcp23s17-registers.h"
 #include "adc.h"
 
+#include "ms5611.h"
 
 
 #define DEBUG_VERSION_NAME  "version"
@@ -180,33 +182,33 @@ static void debug_alt_prom (uint8_t argc, char **argv,
         wdt_pat();
     }
     console_send_str(console, "0: 0x");
-    utoa(data, str, 16);
+    utoa(__builtin_bswap16(data), str, 16);
     console_send_str(console, str);
     console_send_str(console, " (Factory data and setup)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
     
     // C1: Pressure Sensitivity
     //sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
-    cmd = 0b10100100;
+    cmd = 0b10100010;
     sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
     while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
         sercom_i2c_service(&i2c_g);
         wdt_pat();
     }
     console_send_str(console, "C1: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Pressure sensitivity)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
     
     // C2: Pressure offset
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100010, (uint8_t*)&data, 2);
+    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
     while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
         sercom_i2c_service(&i2c_g);
         wdt_pat();
     }
     console_send_str(console, "C2: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Pressure offset)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
@@ -218,43 +220,43 @@ static void debug_alt_prom (uint8_t argc, char **argv,
         wdt_pat();
     }
     console_send_str(console, "C3: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of pressure sensitivity)\n");
      sercom_i2c_clear_transaction(&i2c_g, i2c_t);
     
     // C4: Temperature coefficient of pressure offset
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100001, (uint8_t*)&data, 2);
+    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101000, (uint8_t*)&data, 2);
     while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
         sercom_i2c_service(&i2c_g);
         wdt_pat();
     }
     console_send_str(console, "C4: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of pressure offset)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
     
     // C5: Reference temperature
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100101, (uint8_t*)&data, 2);
+    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101010, (uint8_t*)&data, 2);
     while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
         sercom_i2c_service(&i2c_g);
         wdt_pat();
     }
     console_send_str(console, "C5: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Reference temperature)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
     
     // C6: Temperature coefficient of the temperature
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100011, (uint8_t*)&data, 2);
+    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101100, (uint8_t*)&data, 2);
     while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
         sercom_i2c_service(&i2c_g);
         wdt_pat();
     }
     console_send_str(console, "C6: ");
-    utoa(data, str, 10);
+    utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of the temperature)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
@@ -267,7 +269,7 @@ static void debug_alt_prom (uint8_t argc, char **argv,
         wdt_pat();
     }
     console_send_str(console, "7: 0x");
-    utoa(data, str, 16);
+    utoa(__builtin_bswap16(data), str, 16);
     console_send_str(console, str);
     console_send_str(console, " (Serial code and CRC)\n");
     sercom_i2c_clear_transaction(&i2c_g, i2c_t);
@@ -630,9 +632,152 @@ static void debug_analog (uint8_t argc, char **argv,
     }
 }
 
+#define DEBUG_ALT_NAME  "alt-test"
+#define DEBUG_ALT_HELP  "Print most recent values from altimeter."
+
+static void print_fixed_point (struct console_desc_t *console, int32_t value,
+                               uint8_t decimal_places)
+{
+    int32_t scale = pow(10, decimal_places);
+    
+    char str[10];
+    int32_t whole = value / scale;
+    
+    if ((whole == 0) && (value < 0)) {
+        console_send_str(console, "-0.");
+    } else {
+        itoa(whole, str, 10);
+        console_send_str(console, str);
+        console_send_str(console, ".");
+    }
+    
+    int32_t frac = abs(value - (whole * scale));
+    itoa(frac, str, 10);
+    for (int i = strlen(str); i < decimal_places; i++) {
+        console_send_str(console, "0");
+    }
+    console_send_str(console, str);
+}
+
+static void debug_alt (uint8_t argc, char **argv,
+                       struct console_desc_t *console)
+{
+#ifndef ENABLE_ALTIMETER
+    console_send_str(console, "Altimeter is not enabled in compile time "
+                        "configuration.\n");
+    return;
+#endif
+    char str[16];
+    
+    console_send_str(console, "PROM Values:\n");
+    // C1: Pressure Sensitivity
+    console_send_str(console, "C1: ");
+    utoa(altimeter_g.prom_values[0], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Pressure sensitivity)\n");
+    
+    // C2: Pressure offset
+    console_send_str(console, "C2: ");
+    utoa(altimeter_g.prom_values[1], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Pressure offset)\n");
+    
+    // C3: Temperature coefficient of pressure sensitivity
+    console_send_str(console, "C3: ");
+    utoa(altimeter_g.prom_values[2], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Temperature coefficient of pressure sensitivity)\n");
+    
+    wdt_pat();
+    
+    // C4: Temperature coefficient of pressure offset
+    console_send_str(console, "C4: ");
+    utoa(altimeter_g.prom_values[3], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Temperature coefficient of pressure offset)\n");
+    
+    // C5: Reference temperature
+    console_send_str(console, "C5: ");
+    utoa(altimeter_g.prom_values[4], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Reference temperature)\n");
+    
+    // C6: Temperature coefficient of the temperature
+    console_send_str(console, "C6: ");
+    utoa(altimeter_g.prom_values[5], str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (Temperature coefficient of the temperature)\n");
+    
+    wdt_pat();
+    
+    // Last reading time
+    uint32_t last_reading_time = ms5611_get_last_reading_time(&altimeter_g);
+    console_send_str(console, "\nLast reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(millis - last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "  milliseconds ago)\n");
+    
+    // Pressure
+    console_send_str(console, "Pressure: ");
+    print_fixed_point(console, altimeter_g.pressure, 2);
+    console_send_str(console, " mbar (");
+    utoa(altimeter_g.d1, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ", p0 = ");
+    print_fixed_point(console, (int32_t)(altimeter_g.p0 * 100), 2);
+    
+    wdt_pat();
+    
+    // Temperature
+    console_send_str(console, " mbar)\nTemperature: ");
+    print_fixed_point(console, altimeter_g.temperature, 2);
+    console_send_str(console, " C (");
+    utoa(altimeter_g.d2, str, 10);
+    console_send_str(console, str);
+    
+    // Altitude
+    int32_t altitude = (int32_t)(altimeter_g.altitude * 100);
+    console_send_str(console, ")\nAltitude: ");
+    print_fixed_point(console, altitude, 2);
+    console_send_str(console, " m\n");
+}
+
+#define DEBUG_ALT_TARE_NOW_NAME  "alt-tare-now"
+#define DEBUG_ALT_TARE_NOW_HELP  "Tare altimeter to most recently measured presure"
+
+static void debug_alt_tare_now (uint8_t argc, char **argv,
+                                struct console_desc_t *console)
+{
+#ifndef ENABLE_ALTIMETER
+    console_send_str(console, "Altimeter is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    ms5611_tare_now(&altimeter_g);
+}
+
+#define DEBUG_ALT_TARE_NEXT_NAME  "alt-tare-next"
+#define DEBUG_ALT_TARE_NEXT_HELP  "Tare altimeter to next measured presure"
+
+static void debug_alt_tare_next (uint8_t argc, char **argv,
+                                 struct console_desc_t *console)
+{
+#ifndef ENABLE_ALTIMETER
+    console_send_str(console, "Altimeter is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    ms5611_tare_next(&altimeter_g);
+}
 
 
-const uint8_t debug_commands_num_funcs = 8;
+
+const uint8_t debug_commands_num_funcs = 11;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -641,5 +786,8 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_imu_wai, .name = DEBUG_IMU_WAI_NAME, .help_string = DEBUG_IMU_WAI_HELP},
     {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME, .help_string = DEBUG_IO_EXP_REGS_HELP},
     {.func = debug_temp, .name = DEBUG_TEMP_NAME, .help_string = DEBUG_TEMP_HELP},
-    {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP}
+    {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP},
+    {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP},
+    {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
+    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP}
 };

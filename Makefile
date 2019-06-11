@@ -125,7 +125,7 @@ ASFLAGS = -Wa,-adhlns=$(patsubst $(SRCDIR)/%.S,$(OBJDIR)/%.lst,$<),-gstabs,--lis
 
 
 #---------------- Library Options ----------------
-MATH_LIB = -Lsamd21/lib/libarm_cortexM0l_math.a
+MATH_LIB = -Lsamd21/lib/libarm_cortexM0l_math.a -lm
 
 
 #---------------- Linker Options ----------------

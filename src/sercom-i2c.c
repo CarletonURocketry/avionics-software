@@ -178,7 +178,7 @@ void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor, Sercom *sercom,
 
 uint8_t sercom_i2c_start_generic(struct sercom_i2c_desc_t *i2c_inst,
                                  uint8_t *trans_id, uint8_t dev_address,
-                                 uint8_t *out_buffer, uint16_t out_length,
+                                 uint8_t const* out_buffer, uint16_t out_length,
                                  uint8_t *in_buffer, uint16_t in_length)
 {
     struct transaction_t *t = transaction_queue_add(&i2c_inst->queue);
@@ -459,7 +459,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
 {
     /* Acquire service function lock */
     if (i2c_inst->service_lock) {
-        // Could not accuire lock, service is already being run
+        // Could not acquire lock, service is already being run
         return;
     } else {
         i2c_inst->service_lock = 1;
