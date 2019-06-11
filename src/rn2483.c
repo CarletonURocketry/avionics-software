@@ -432,16 +432,17 @@ void rn2483_service (struct rn2483_desc_t *inst)
                 int8_t snr = (int8_t) strtol(inst->buffer, NULL, 10);
                 
                 // Parse packet
-                size_t str_len = strlen(inst->buffer);
-                uint8_t len = (str_len - RN2483_RSP_RX_OK_LEN) / 2;
+                char *s = inst->buffer + RN2483_RSP_RX_OK_LEN + 1;
+                size_t str_len = strlen(s);
+                uint8_t len = str_len / 2;
                 uint8_t data[len];
                 
-                char *s = inst->buffer + str_len;
-                for (uint8_t i = len ; i >= 0; i--) {
+                s += str_len;
+                for (uint8_t i = len; i > 0; i--) {
                     // Move back to previous byte
                     s -= 2;
                     // Parse byte
-                    data[i] = (uint8_t) strtoul(s, NULL, 16);
+                    data[i - 1] = (uint8_t) strtoul(s, NULL, 16);
                     // Place null char so that previous byte can be parsed
                     *s = '\0';
                 }
