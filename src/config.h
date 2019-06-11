@@ -121,10 +121,10 @@ extern struct sercom_uart_desc_t uart2_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART4_DMA_CHAN 10
 /* Baud rate for UART */
-#define UART3_BAUD 115200UL
+#define UART3_BAUD 9600UL
 /* Define as one if UART should echo received bytes and provide line editing,
    0 otherwise */
-#define UART3_ECHO 1
+#define UART3_ECHO 0
 /* UART Instance */
 extern struct sercom_uart_desc_t uart3_g;
 
@@ -242,5 +242,16 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* Altimeter sample period in milliseconds */
 #define ALTIMETER_PERIOD 1000
 extern struct ms5611_desc_t altimeter_g;
+
+//
+//
+// GNSS
+//
+//
+
+/* GNSS enabled if defined */
+#define ENABLE_GNSS
+/* UART used to communicate with GNSS */
+#define GNSS_UART uart3_g
 
 #endif /* config_h */

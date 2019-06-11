@@ -28,6 +28,8 @@
 #include "cli.h"
 #include "debug-commands.h"
 
+#include "gnss-xa1110.h"
+
 //MARK: Constants
 
 // MARK: Function prototypes
@@ -67,6 +69,10 @@ struct mcp23s17_desc_t io_expander_g;
 
 #ifdef ENABLE_ALTIMETER
 struct ms5611_desc_t altimeter_g;
+#endif
+
+#ifdef ENABLE_GNSS
+struct console_desc_t gnss_console_g;
 #endif
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
@@ -377,6 +383,12 @@ int main(void)
     init_ms5611(&altimeter_g, &i2c_g, ALTIMETER_CSB, ALTIMETER_PERIOD, 1);
 #endif
     
+    // Init GNSS
+#ifdef ENABLE_GNSS
+    init_console(&gnss_console_g, &GNSS_UART, '\r');
+    init_gnss_xa1110(&gnss_console_g);
+#endif
+    
     
     
     // Init USB
@@ -490,6 +502,10 @@ static void main_loop ()
     
 #ifdef ENABLE_ALTIMETER
     ms5611_service(&altimeter_g);
+#endif
+    
+#ifdef ENABLE_GNSS
+    console_service(&gnss_console_g);
 #endif
 }
 
