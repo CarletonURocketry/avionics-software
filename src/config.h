@@ -17,6 +17,7 @@
 #include "gpio.h"
 
 #include "ms5611.h"
+#include "rn2483.h"
 
 //
 //
@@ -82,7 +83,7 @@ extern struct sercom_i2c_desc_t i2c_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART0_DMA_CHAN 7
 /* Baud rate for UART */
-#define UART0_BAUD 9600UL
+#define UART0_BAUD 57600UL
 /* Define as one if UART should echo received bytes and provide line editing,
    0 otherwise */
 #define UART0_ECHO 0
@@ -95,7 +96,7 @@ extern struct sercom_uart_desc_t uart0_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART1_DMA_CHAN 8
 /* Baud rate for UART */
-#define UART1_BAUD 9600UL
+#define UART1_BAUD 57600UL
 /* Define as one if UART should echo received bytes and provide line editing,
    0 otherwise */
 #define UART1_ECHO 0
@@ -119,7 +120,7 @@ extern struct sercom_uart_desc_t uart2_g;
 /* SERCOM instance to be used for UART, UART is disabled if not defined */
 #define UART3_SERCOM_INST SERCOM3
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
-#define UART4_DMA_CHAN 10
+#define UART3_DMA_CHAN 10
 /* Baud rate for UART */
 #define UART3_BAUD 9600UL
 /* Define as one if UART should echo received bytes and provide line editing,
@@ -231,7 +232,36 @@ extern struct mcp23s17_desc_t io_expander_g;
 
 //
 //
-// Altimeter
+//  Radio
+//
+//
+/* RN2483 enabled if defined */
+#define ENABLE_LORA_RADIO
+/*  The uart instance used to communicate with the radio */
+#define LORA_UART uart1_g
+/*  Centre frequency in hertz, from 433050000 to 434790000 */
+#define LORA_FREQ 433050000
+/*  Power level in dBm, from -3 to 14 */
+#define LORA_POWER 14
+/*  LoRa spreading factor */
+#define LORA_SPREADING_FACTOR RN2483_SF_SF9
+/*  LoRa coding rate */
+#define LORA_CODING_RATE RN2483_CR_4_7
+/*  Bandwidth */
+#define LORA_BANDWIDTH RN2483_BW_500
+/*  Whether a CRC should be added to the data */
+#define LORA_CRC 0
+/*  Whether the I and Q streams should be inverted */
+#define LORA_INVERT_IQ 0
+/*  Sync word */
+#define LORA_SYNC_WORD 0x43
+#ifdef ENABLE_LORA_RADIO
+extern struct rn2483_desc_t rn2483_g;
+#endif
+
+//
+//
+//  Altimeter
 //
 //
 
