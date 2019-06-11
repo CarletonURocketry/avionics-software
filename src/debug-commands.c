@@ -900,53 +900,195 @@ static void debug_gnss (uint8_t argc, char **argv,
 {
 #ifndef ENABLE_GNSS
     console_send_str(console, "GNSS is not enabled in compile time "
+
+#define DEBUG_LORA_VERSION_NAME  "lora-version"
+#define DEBUG_LORA_VERSION_HELP  "Get the version of the LoRa radio firmware"
+
+static void debug_lora_version (uint8_t argc, char **argv,
+                                struct console_desc_t *console)
+{
+    sercom_uart_put_string_blocking(&uart1_g, "sys get ver\r\n");
+    while (!sercom_uart_has_line(&uart1_g, '\r')) {
+        wdt_pat();
+    }
+    char str[128];
+    sercom_uart_get_line(&uart1_g, '\n', str, 128);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+}
+
+#define DEBUG_RADIO_SEND_NAME  "radio-send"
+#define DEBUG_RADIO_SEND_HELP  "Send a message via the RN2483 radio.\n"\
+                               "Usage: radio-send <message>\n"
+
+static void debug_radio_send (uint8_t argc, char **argv,
+                              struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
                      "configuration.\n");
     return;
 #endif
     
-//    int16_t gnss_xa1110_speed;
-//    int16_t gnss_xa1110_course;
-//    uint8_t gnss_xa1110_status;
+    if (argc < 2) {
+        console_send_str(console, "No message specified.\n");
+        return;
+    } else if (argc > 2) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
     
-    char str[16];
+    enum rn2483_operation_result result = rn2483_send(&rn2483_g,
+                                                      (uint8_t*)argv[1],
+                                                      strlen(argv[1]) + 1);
     
-    // Last reading time
-    uint32_t last_reading_time = gnss_xa1110_retrieve_sytem_time();
-    console_send_str(console, "Last reading at ");
-    utoa(last_reading_time, str, 10);
-    console_send_str(console, str);
-    console_send_str(console, " (");
-    utoa(millis - last_reading_time, str, 10);
-    console_send_str(console, str);
+    if (result == RN2483_OP_SUCCESS) {
+        console_send_str(console, "Sending.\n");
+    } else if (result == RN2483_OP_BUSY) {
+        console_send_str(console, "Radio busy.\n");
+    } else if (result == RN2483_OP_TOO_LONG) {
+        console_send_str(console, "String too long to send.\n");
+    }
+}
+
+#define DEBUG_RADIO_COUNT_NAME  "radio-count"
+#define DEBUG_RADIO_COUNT_HELP  "Send counts at an interval with the RN2483"\
+                                " radio.\nUsage: radio-count [max] [interval]\n"
+
+static void debug_radio_count (uint8_t argc, char **argv,
+                               struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
     
-    wdt_pat();
+    uint32_t max = UINT32_MAX;
+    uint32_t interval = 10;
+    uint32_t last_send;
     
-    // UTC Time
-    console_send_str(console, "  milliseconds ago)\n\nTime: ");
-    print_time(console, gnss_xa1110_retrieve_utc_time());
+    char *end;
+    if (argc == 2) {
+        max = strtoul(argv[1], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid count.\n");
+            return;
+        }
+    } else if (argc == 3) {
+        interval = strtoul(argv[2], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid interval.\n");
+            return;
+        }
+    } else if (argc > 3) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
     
-    // Latitude
-    console_send_str(console, "  (UTC)\nLatitude/Longitude: ");
-    print_fixed_point(console, gnss_xa1110_retrieve_latitude(), 4);
-    // Longitude
-    console_send_str(console, ", ");
-    print_fixed_point(console, gnss_xa1110_retrieve_longitude(), 4);
+    char str[11];
+    for (uint32_t i = 0; i < max; i++) {
+        utoa(i, str, 10);
+        enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
+                                                           (uint8_t*)str,
+                                                           strlen(str) + 1);
+        
+        if (result == RN2483_OP_SUCCESS) {
+            console_send_str(console, str);
+            console_send_str(console, "\n");
+        } else if (result == RN2483_OP_BUSY) {
+            console_send_str(console, "Radio busy.\n");
+        } else if (result == RN2483_OP_TOO_LONG) {
+            console_send_str(console, "String too long to send.\n");
+        }
+        
+        last_send = millis;
+        
+        while ((millis - last_send) < interval) {
+            wdt_pat();
+            rn2483_service(&rn2483_g);
+        }
+    }
+}
+
+#define DEBUG_RADIO_RECV_NAME  "radio-receive"
+#define DEBUG_RADIO_RECV_HELP  "Receive a message with the RN2483 radio.\n"\
+                               "Usage: radio-receive [count] [window]\n"
+
+struct radio_recv_context {
+    struct console_desc_t *console;
+    uint8_t receive_complete:1;
+};
+
+static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
+                                       void *context, uint8_t *data,
+                                       uint8_t length, int8_t snr)
+{
+    struct radio_recv_context *c = (struct radio_recv_context*)context;
     
-    wdt_pat();
-    
-//    // Speed over ground
-//    console_send_str(console, "\nSpeed over ground: ");
-//    print_fixed_point(console, gnss_xa1110_retrieve_speed(), 2);
-//    wdt_pat();
-//    // Course over ground
-//    console_send_str(console, " knots per hour\nCourse over ground: ");
-//    print_fixed_point(console, gnss_xa1110_retrieve_course(), 2);
-    
-    // Status
-    if (gnss_xa1110_retrieve_status()) {
-        console_send_str(console, " degrees\nData Valid.\n");
+    if (length) {
+        // Received some data
+        console_send_str(c->console, "Received: \"");
+        console_send_str(c->console, (char*)data);
+        console_send_str(c->console, "\"\nSNR: ");
+        char str[5];
+        itoa(snr, str, 10);
+        console_send_str(c->console, str);
+        console_send_str(c->console, "\n");
     } else {
-        console_send_str(console, " degrees\nData Not Valid.\n");
+        // Did not receive any data
+        console_send_str(c->console, "Did not receive data within window.\n");
+    }
+    c->receive_complete = 1;
+}
+
+static void debug_radio_recv (uint8_t argc, char **argv,
+                              struct console_desc_t *console)
+{
+#ifndef ENABLE_LORA_RADIO
+    console_send_str(console, "LoRa Radio is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    uint32_t count = 1;
+    uint32_t window = 500;
+    
+    char *end;
+    if (argc == 2) {
+        count = strtoul(argv[1], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid count.\n");
+            return;
+        }
+    } else if (argc == 3) {
+        window = strtoul(argv[2], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid window.\n");
+            return;
+        }
+    } else if (argc > 3) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    }
+    
+    struct radio_recv_context context;
+    context.console = console;
+    
+    for (uint32_t i = 0; (i < count)) || (count == 0); i++) {
+        enum rn2483_operation_result result =  rn2483_receive(&rn2483_g, window,
+                                                    debug_radio_recv_callback,
+                                                              &context);
+        
+        if (result == RN2483_OP_BUSY) {
+            console_send_str(console, "Radio busy.\n");
+        } else {
+            context.receive_complete = 0;
+            while (!context.receive_complete) {
+                wdt_pat();
+                rn2483_service(&rn2483_g);
+            }
+        }
     }
 }
 
