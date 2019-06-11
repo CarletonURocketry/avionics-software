@@ -28,6 +28,9 @@
 #include "cli.h"
 #include "debug-commands.h"
 
+#include "ms5611.h"
+#include "rn2483.h"
+
 //MARK: Constants
 
 // MARK: Function prototypes
@@ -67,6 +70,10 @@ struct mcp23s17_desc_t io_expander_g;
 
 #ifdef ENABLE_ALTIMETER
 struct ms5611_desc_t altimeter_g;
+#endif
+
+#ifdef ENABLE_LORA_RADIO
+struct rn2483_desc_t rn2483_g;
 #endif
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
@@ -435,6 +442,14 @@ int main(void)
     PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
     
     
+    // LoRa Radio
+#ifdef ENABLE_LORA_RADIO
+    init_rn2483(&rn2483_g, &LORA_UART, LORA_FREQ, LORA_POWER,
+                LORA_SPREADING_FACTOR, LORA_CODING_RATE, LORA_BANDWIDTH,
+                LORA_CRC, LORA_INVERT_IQ, LORA_SYNC_WORD);
+#endif
+    
+    
     // Start Watchdog Timer
     init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
@@ -490,6 +505,10 @@ static void main_loop ()
     
 #ifdef ENABLE_ALTIMETER
     ms5611_service(&altimeter_g);
+#endif
+    
+#ifdef ENABLE_LORA_RADIO
+    rn2483_service(&rn2483_g);
 #endif
 }
 
