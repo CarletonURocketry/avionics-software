@@ -15,7 +15,7 @@
 /**
    Configures the desctiptor structure with all the necessary data for the GNSS reciever to work.
    Begin the process of sending any commands to the module that are nessary to initilize it.
-   @param console
+   @param console Console used to communicate with GNSS module
 */
 extern uint8_t init_gnss_xa1110(struct console_desc_t* console);
 
