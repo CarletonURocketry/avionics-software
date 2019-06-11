@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #include "global.h"
 #include "config.h"
@@ -23,6 +24,7 @@
 #include "mcp23s17-registers.h"
 #include "adc.h"
 
+#include "gnss-xa1110.h"
 #include "ms5611.h"
 
 
@@ -775,9 +777,182 @@ static void debug_alt_tare_next (uint8_t argc, char **argv,
     ms5611_tare_next(&altimeter_g);
 }
 
+#define DEBUG_GNSS_NAME  "gnss"
+#define DEBUG_GNSS_HELP  "Print GNSS info"
+
+/* 2000-03-01 (mod 400 year, immediately after feb29 */
+#define LEAPOCH (946684800UL + 86400*(31+29))
+
+#define DAYS_PER_400Y (365*400 + 97)
+#define DAYS_PER_100Y (365*100 + 24)
+#define DAYS_PER_4Y   (365*4   + 1)
+
+/**
+ *  Print a unix time. From:
+ *    http://git.musl-libc.org/cgit/musl/tree/src/time/__secs_to_tm.c?h=v0.9.15
+ *
+ *  @param console Console on which time should be printed
+ *  @param time The time to be printed
+ */
+static void print_time (struct console_desc_t *console, int64_t time)
+{
+    int64_t days, secs;
+    int remdays, remsecs, remyears;
+    int qc_cycles, c_cycles, q_cycles;
+    int years, months;
+    int wday, yday, leap;
+    static const char days_in_month[] = {31,30,31,30,31,31,30,31,30,31,31,29};
+    
+    secs = time - LEAPOCH;
+    days = secs / 86400;
+    remsecs = secs % 86400;
+    if (remsecs < 0) {
+        remsecs += 86400;
+        days--;
+    }
+    
+    wday = (3+days)%7;
+    if (wday < 0) wday += 7;
+    
+    qc_cycles = days / DAYS_PER_400Y;
+    remdays = days % DAYS_PER_400Y;
+    if (remdays < 0) {
+        remdays += DAYS_PER_400Y;
+        qc_cycles--;
+    }
+    
+    c_cycles = remdays / DAYS_PER_100Y;
+    if (c_cycles == 4) c_cycles--;
+    remdays -= c_cycles * DAYS_PER_100Y;
+    
+    q_cycles = remdays / DAYS_PER_4Y;
+    if (q_cycles == 25) q_cycles--;
+    remdays -= q_cycles * DAYS_PER_4Y;
+    
+    remyears = remdays / 365;
+    if (remyears == 4) remyears--;
+    remdays -= remyears * 365;
+    
+    leap = !remyears && (q_cycles || !c_cycles);
+    yday = remdays + 31 + 28 + leap;
+    if (yday >= 365+leap) yday -= 365+leap;
+    
+    years = remyears + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
+    
+    for (months=0; days_in_month[months] <= remdays; months++)
+        remdays -= days_in_month[months];
+    
+    uint32_t final_years = years + 100;
+    uint32_t final_month = months + 2;
+    if (final_month >= 12) {
+        final_month -=12;
+        final_years++;
+    }
+    uint8_t final_month_day = remdays + 1;
+    
+    uint8_t final_hour = remsecs / 3600;
+    uint8_t final_minute = remsecs / 60 % 60;
+    uint8_t final_secs = remsecs % 60;
+    
+    char str[16];
+    // Year
+    utoa(final_years, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "-");
+    // Month
+    if (final_month < 10) {
+        console_send_str(console, "0");
+    }
+    utoa(final_month, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "-");
+    // Day
+    if (final_month_day < 10) {
+        console_send_str(console, "0");
+    }
+    utoa(final_month_day, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " ");
+    // Hours
+    if (final_hour < 10) {
+        console_send_str(console, "0");
+    }
+    utoa(final_hour, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ":");
+    // Minutes
+    if (final_minute < 10) {
+        console_send_str(console, "0");
+    }
+    utoa(final_minute, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ":");
+    // Seconds
+    if (final_secs < 10) {
+        console_send_str(console, "0");
+    }
+    utoa(final_secs, str, 10);
+    console_send_str(console, str);
+}
+
+static void debug_gnss (uint8_t argc, char **argv,
+                                 struct console_desc_t *console)
+{
+#ifndef ENABLE_GNSS
+    console_send_str(console, "GNSS is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+//    int16_t gnss_xa1110_speed;
+//    int16_t gnss_xa1110_course;
+//    uint8_t gnss_xa1110_status;
+    
+    char str[16];
+    
+    // Last reading time
+    uint32_t last_reading_time = gnss_xa1110_retrieve_sytem_time();
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(millis - last_reading_time, str, 10);
+    console_send_str(console, str);
+    
+    wdt_pat();
+    
+    // UTC Time
+    console_send_str(console, "  milliseconds ago)\n\nTime: ");
+    print_time(console, gnss_xa1110_retrieve_utc_time());
+    
+    // Latitude
+    console_send_str(console, "  (UTC)\nLatitude/Longitude: ");
+    print_fixed_point(console, gnss_xa1110_retrieve_latitude(), 4);
+    // Longitude
+    console_send_str(console, ", ");
+    print_fixed_point(console, gnss_xa1110_retrieve_longitude(), 4);
+    
+    wdt_pat();
+    
+//    // Speed over ground
+//    console_send_str(console, "\nSpeed over ground: ");
+//    print_fixed_point(console, gnss_xa1110_retrieve_speed(), 2);
+//    wdt_pat();
+//    // Course over ground
+//    console_send_str(console, " knots per hour\nCourse over ground: ");
+//    print_fixed_point(console, gnss_xa1110_retrieve_course(), 2);
+    
+    // Status
+    if (gnss_xa1110_retrieve_status()) {
+        console_send_str(console, " degrees\nData Valid.\n");
+    } else {
+        console_send_str(console, " degrees\nData Not Valid.\n");
+    }
+}
 
 
-const uint8_t debug_commands_num_funcs = 11;
+
+const uint8_t debug_commands_num_funcs = 12;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -789,5 +964,6 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_analog, .name = DEBUG_ANALOG_NAME, .help_string = DEBUG_ANALOG_HELP},
     {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP},
     {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
-    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP}
+    {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP},
+    {.func = debug_gnss, .name = DEBUG_GNSS_NAME, .help_string = DEBUG_GNSS_HELP}
 };
