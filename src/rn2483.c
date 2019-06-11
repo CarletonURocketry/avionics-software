@@ -473,7 +473,12 @@ enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
     char *insert_point = inst->buffer + strlen(RN2483_CMD_TX);
     
     for (uint8_t i = 0; i < length; i++) {
-        utoa(data[i], insert_point, 16);
+        if (data[i] < 16) {
+            *insert_point = '0';
+            utoa(data[i], insert_point + 1, 16);
+        } else {
+            utoa(data[i], insert_point, 16);
+        }
         insert_point = inst->buffer + strlen(inst->buffer);
     }
     
