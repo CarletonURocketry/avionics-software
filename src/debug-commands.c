@@ -896,10 +896,59 @@ static void print_time (struct console_desc_t *console, int64_t time)
 }
 
 static void debug_gnss (uint8_t argc, char **argv,
-                                 struct console_desc_t *console)
+                        struct console_desc_t *console)
 {
 #ifndef ENABLE_GNSS
     console_send_str(console, "GNSS is not enabled in compile time "
+                     "configuration.\n");
+    return;
+#endif
+    
+    //    int16_t gnss_xa1110_speed;
+    //    int16_t gnss_xa1110_course;
+    //    uint8_t gnss_xa1110_status;
+    
+    char str[16];
+    
+    // Last reading time
+    uint32_t last_reading_time = gnss_xa1110_retrieve_sytem_time();
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(millis - last_reading_time, str, 10);
+    console_send_str(console, str);
+    
+    wdt_pat();
+    
+    // UTC Time
+    console_send_str(console, "  milliseconds ago)\n\nTime: ");
+    print_time(console, gnss_xa1110_retrieve_utc_time());
+    
+    // Latitude
+    console_send_str(console, "  (UTC)\nLatitude/Longitude: ");
+    print_fixed_point(console, gnss_xa1110_retrieve_latitude(), 4);
+    // Longitude
+    console_send_str(console, ", ");
+    print_fixed_point(console, gnss_xa1110_retrieve_longitude(), 4);
+    
+    wdt_pat();
+    
+    //    // Speed over ground
+    //    console_send_str(console, "\nSpeed over ground: ");
+    //    print_fixed_point(console, gnss_xa1110_retrieve_speed(), 2);
+    //    wdt_pat();
+    //    // Course over ground
+    //    console_send_str(console, " knots per hour\nCourse over ground: ");
+    //    print_fixed_point(console, gnss_xa1110_retrieve_course(), 2);
+    
+    // Status
+    if (gnss_xa1110_retrieve_status()) {
+        console_send_str(console, " degrees\nData Valid.\n");
+    } else {
+        console_send_str(console, " degrees\nData Not Valid.\n");
+    }
+}
 
 #define DEBUG_LORA_VERSION_NAME  "lora-version"
 #define DEBUG_LORA_VERSION_HELP  "Get the version of the LoRa radio firmware"
@@ -1075,7 +1124,7 @@ static void debug_radio_recv (uint8_t argc, char **argv,
     struct radio_recv_context context;
     context.console = console;
     
-    for (uint32_t i = 0; (i < count)) || (count == 0); i++) {
+    for (uint32_t i = 0; (i < count) || (count == 0); i++) {
         enum rn2483_operation_result result =  rn2483_receive(&rn2483_g, window,
                                                     debug_radio_recv_callback,
                                                               &context);
@@ -1093,8 +1142,7 @@ static void debug_radio_recv (uint8_t argc, char **argv,
 }
 
 
-
-const uint8_t debug_commands_num_funcs = 12;
+const uint8_t debug_commands_num_funcs = 16;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -1107,5 +1155,9 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_alt, .name = DEBUG_ALT_NAME, .help_string = DEBUG_ALT_HELP},
     {.func = debug_alt_tare_now, .name = DEBUG_ALT_TARE_NOW_NAME, .help_string = DEBUG_ALT_TARE_NOW_HELP},
     {.func = debug_alt_tare_next, .name = DEBUG_ALT_TARE_NEXT_NAME, .help_string = DEBUG_ALT_TARE_NEXT_HELP},
-    {.func = debug_gnss, .name = DEBUG_GNSS_NAME, .help_string = DEBUG_GNSS_HELP}
+    {.func = debug_gnss, .name = DEBUG_GNSS_NAME, .help_string = DEBUG_GNSS_HELP},
+    {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME, .help_string = DEBUG_LORA_VERSION_HELP},
+    {.func = debug_radio_send, .name = DEBUG_RADIO_SEND_NAME, .help_string = DEBUG_RADIO_SEND_HELP},
+    {.func = debug_radio_count, .name = DEBUG_RADIO_COUNT_NAME, .help_string = DEBUG_RADIO_COUNT_HELP},
+    {.func = debug_radio_recv, .name = DEBUG_RADIO_RECV_NAME, .help_string = DEBUG_RADIO_RECV_HELP}
 };
