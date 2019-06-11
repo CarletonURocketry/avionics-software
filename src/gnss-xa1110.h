@@ -13,50 +13,59 @@
 #include "console.h"
 
 /**
- * gnss_line_callback function
- * @param line
- * @param console
- * @param context
- */
-extern void gnss_line_callback(char* line, struct console_desc_t* console, void* context);
-
-/**
- * gnss_init_callback function
- * @param console
- * @param context
- */
-extern void gnss_init_callback(struct console_desc_t* console, void* context);
-
-/**
    Configures the desctiptor structure with all the necessary data for the GNSS reciever to work.
    Begin the process of sending any commands to the module that are nessary to initilize it.
    @param console
 */
-extern void init_gnss_xa1110(struct console_desc_t* console);
+extern uint8_t init_gnss_xa1110(struct console_desc_t* console);
+
+extern struct gnss {
+  uint32_t gnss_xa1110_system_time;
+  uint32_t gnss_xa1110_utc_time;
+  int32_t gnss_xa1110_latitude;
+  int32_t gnss_xa1110_longitude;
+  int16_t gnss_xa1110_speed;
+  int16_t gnss_xa1110_course;
+  uint8_t gnss_xa1110_status;
+} gnss_xa1110_descriptor;
 
 /**
  * A set of functions that return the particular part of the struct that conatians the data provided by the GNSS module
  */
 
-extern uint32_t gnss_xa1110_retrieve_sytem_time(void);
+static inline uint32_t gnss_xa1110_retrieve_sytem_time(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_system_time;
+}
 
-extern uint32_t gnss_xa1110_retrieve_utc_time(void);
+static inline uint32_t gnss_xa1110_retrieve_utc_time(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_utc_time;
+}
 
-extern uint32_t gnss_xa1110_retrieve_latitude(void);
+static inline uint32_t gnss_xa1110_retrieve_latitude(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_latitude;
+}
 
-extern uint32_t gnss_xa1110_retrieve_longitude(void);
+static inline uint32_t gnss_xa1110_retrieve_longitude(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_longitude;
+}
 
-extern uint16_t gnss_xa1110_retrieve_speed(void);
+static inline uint16_t gnss_xa1110_retrieve_speed(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_speed;
+}
 
-extern uint16_t gnss_xa1110_retrieve_course(void);
+static inline uint16_t gnss_xa1110_retrieve_course(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_course;
+}
 
-extern uint8_t gnss_xa1110_retrieve_status(void);
+static inline uint8_t gnss_xa1110_retrieve_status(void)
+{
+  return gnss_xa1110_descriptor.gnss_xa1110_status;
+}
 
 #endif /* gnss_h */
-
-/*
- * init
- * service
- * retrive for each time, position, velocity and status
- * already 
-*/
