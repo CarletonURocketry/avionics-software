@@ -668,7 +668,7 @@ static void debug_alt (uint8_t argc, char **argv,
     console_send_str(console, "Altimeter is not enabled in compile time "
                         "configuration.\n");
     return;
-#endif
+#else
     char str[16];
     
     console_send_str(console, "PROM Values:\n");
@@ -745,6 +745,7 @@ static void debug_alt (uint8_t argc, char **argv,
     console_send_str(console, ")\nAltitude: ");
     print_fixed_point(console, altitude, 2);
     console_send_str(console, " m\n");
+#endif
 }
 
 #define DEBUG_ALT_TARE_NOW_NAME  "alt-tare-now"
@@ -757,9 +758,9 @@ static void debug_alt_tare_now (uint8_t argc, char **argv,
     console_send_str(console, "Altimeter is not enabled in compile time "
                      "configuration.\n");
     return;
-#endif
-    
+#else
     ms5611_tare_now(&altimeter_g);
+#endif
 }
 
 #define DEBUG_ALT_TARE_NEXT_NAME  "alt-tare-next"
@@ -772,9 +773,9 @@ static void debug_alt_tare_next (uint8_t argc, char **argv,
     console_send_str(console, "Altimeter is not enabled in compile time "
                      "configuration.\n");
     return;
-#endif
-    
+#else
     ms5611_tare_next(&altimeter_g);
+#endif
 }
 
 #define DEBUG_GNSS_NAME  "gnss"
