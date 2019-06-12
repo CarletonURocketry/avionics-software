@@ -89,6 +89,30 @@ extern void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
                                             const char *str);
 
 /**
+ *  Queue a byte array to be written to the UART.
+ *
+ *  @param uart The UART to which the array should be written.
+ *  @param bytes The array to be written
+ *  @param length The number of bytes to be writen
+ *
+ *  @return The number of bytes which could be added to the queue.
+ */
+extern uint16_t sercom_uart_put_bytes(struct sercom_uart_desc_t *uart,
+                                      const uint8_t *bytes, uint16_t length);
+
+/**
+ *  Queue a string to be written to the UART. If there is not enough space
+ *  for the string in the buffer, block until there is.
+ *
+ *  @param uart The UART to which the string should be written.
+ *  @param bytes The array to be written
+ *  @param length The number of bytes to be writen
+ */
+extern void sercom_uart_put_bytes_blocking(struct sercom_uart_desc_t *uart,
+                                           const uint8_t *bytes,
+                                           uint16_t length);
+
+/**
  *  Write a character to a UART.
  *
  *  @param uart The UART to which the character should be written.

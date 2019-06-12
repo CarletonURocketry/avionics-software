@@ -67,6 +67,33 @@ extern uint16_t console_send_str_async (struct console_desc_t *console,
                                         const char *str);
 
 /**
+ *  Send a byte array on a console. This function will block until the whole
+ *  array is copied in to the buffer even if the whole araay does not initialy
+ *  fit in the avaliable free space.
+ *
+ *  @param console The console on which the string should be sent
+ *  @param data The array to be send
+ *  @param length The number of bytes to be sent
+ */
+extern void console_send_bytes (struct console_desc_t *console,
+                                const uint8_t *data, uint16_t length);
+
+/**
+ *  Send a string on a console. This function copies the array into the output
+ *  buffer and then returns immediately. If there is not enough space, the whole
+ *  array may not be coppied. The number of bytes which could be coppied to the
+ *  buffer is returned.
+ *
+ *  @param console The console on which the string should be sent
+ *  @param data The array to be send
+ *  @param length The number of bytes to be sent
+ *
+ *  @return The number of bytes which could be queued for transmition.
+ */
+extern uint16_t console_send_bytes_async (struct console_desc_t *console,
+                                          const uint8_t *data, uint16_t length);
+
+/**
  *  Set the function which should be called when a full line has been recieved.
  *  The function will be passed the line as a string, a pointer to the console
  *  on which to the line was recieved and a pointer to an object which contains

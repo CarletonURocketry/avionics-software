@@ -27,9 +27,8 @@ static void ground_radio_recv_callback (struct rn2483_desc_t *inst,
                                        uint8_t length, int8_t snr)
 {
     if (length && ready_to_send_g) {
-        console_send_str(ground_console_g, (char*)data);
-        char s[2] = {snr, '\0'};
-        console_send_str(ground_console_g, s);
+        console_send_bytes(ground_console_g, data, length);
+        console_send_bytes(ground_console_g, (uint8_t*)&snr, 1);
     }
     ground_op_status_g =  rn2483_receive(ground_radio_g, 0,
                                          ground_radio_recv_callback, NULL);

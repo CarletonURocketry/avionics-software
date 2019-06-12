@@ -58,6 +58,26 @@ extern uint16_t usb_serial_put_string(const char *str);
 extern void usb_serial_put_string_blocking(const char *str);
 
 /**
+ *  Queue a byte array to be written to the serial interface.
+ *
+ *  @param bytes The array to be written
+ *  @param length The number of bytes to be writen
+ *
+ *  @return The number of bytes which could be added to the queue.
+ */
+extern uint16_t usb_serial_put_bytes(const uint8_t *bytes, uint16_t length);
+
+/**
+ *  Queue a string to be written to the serial interface. If there is not enough
+ *  space for the string in the buffer, block until there is.
+ *
+ *  @param bytes The array to be written
+ *  @param length The number of bytes to be writen
+ */
+extern void usb_serial_put_bytes_blocking(const uint8_t *bytes,
+                                          uint16_t length);
+
+/**
  *  Write a character to a serial interface.
  *
  *  @param c The character to be written
