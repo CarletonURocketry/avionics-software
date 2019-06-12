@@ -27,6 +27,9 @@
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 
+#include "telemetry-format.h"
+#include "telemetry.h"
+
 
 #define DEBUG_VERSION_NAME  "version"
 #define DEBUG_VERSION_HELP  "Get software version information.\n"
@@ -926,6 +929,8 @@ static void debug_gnss (uint8_t argc, char **argv,
     console_send_str(console, "  milliseconds ago)\n\nTime: ");
     print_time(console, gnss_xa1110_retrieve_utc_time());
     
+    wdt_pat();
+    
     // Latitude
     console_send_str(console, "  (UTC)\nLatitude/Longitude: ");
     print_fixed_point(console, gnss_xa1110_retrieve_latitude(), 4);
@@ -933,15 +938,14 @@ static void debug_gnss (uint8_t argc, char **argv,
     console_send_str(console, ", ");
     print_fixed_point(console, gnss_xa1110_retrieve_longitude(), 4);
     
-    wdt_pat();
     
-    //    // Speed over ground
-    //    console_send_str(console, "\nSpeed over ground: ");
-    //    print_fixed_point(console, gnss_xa1110_retrieve_speed(), 2);
-    //    wdt_pat();
-    //    // Course over ground
-    //    console_send_str(console, " knots per hour\nCourse over ground: ");
-    //    print_fixed_point(console, gnss_xa1110_retrieve_course(), 2);
+    // Speed over ground
+    console_send_str(console, "\nSpeed over ground: ");
+    print_fixed_point(console, gnss_xa1110_retrieve_speed(), 2);
+    wdt_pat();
+    // Course over ground
+    console_send_str(console, " knots per hour\nCourse over ground: ");
+    print_fixed_point(console, gnss_xa1110_retrieve_course(), 2);
     
     // Status
     if (gnss_xa1110_retrieve_status()) {
@@ -1015,7 +1019,7 @@ static void debug_radio_count (uint8_t argc, char **argv,
 #endif
     
     uint32_t max = UINT32_MAX;
-    uint32_t interval = 10;
+    uint32_t interval = 100;
     uint32_t last_send;
     
     char *end;
@@ -1039,6 +1043,9 @@ static void debug_radio_count (uint8_t argc, char **argv,
     char str[11];
     for (uint32_t i = 0; i < max; i++) {
         utoa(i, str, 10);
+        uint8_t len = strlen(str);
+        str[len] = '\n';
+        str[len + 1] = '\0';
         enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
                                                            (uint8_t*)str,
                                                            strlen(str) + 1);
@@ -1142,8 +1149,62 @@ static void debug_radio_recv (uint8_t argc, char **argv,
     }
 }
 
+#define DEBUG_TELEM_TEST_NAME  "telem-test"
+#define DEBUG_TELEM_TEST_HELP  "Send a test telemetry packet"
 
-const uint8_t debug_commands_num_funcs = 16;
+static void debug_telem_test (uint8_t argc, char **argv,
+                              struct console_desc_t *console)
+{
+    struct telemetry_api_frame packet;
+    packet.start_delimiter = 0x52;
+    packet.payload_type = 0;
+    packet.length = sizeof packet.payload;
+    packet.end_delimiter = 0xcc;
+    
+    packet.payload.mission_time = millis;
+    
+    packet.payload.altimeter_altitude = 1078.15;
+    packet.payload.altimeter_temp = 2367;
+    
+    packet.payload.gps_utc_time = 1560301659;
+    packet.payload.gps_latitude = 453856;
+    packet.payload.gps_longitude = -756973;
+    packet.payload.gps_speed = 700;
+    packet.payload.gps_course = 1200;
+    
+    enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
+                                                       (uint8_t*)&packet,
+                                                       sizeof packet);
+    
+    if (result == RN2483_OP_SUCCESS) {
+        console_send_str(console, "Sending.\n");
+    } else if (result == RN2483_OP_BUSY) {
+        console_send_str(console, "Radio busy.\n");
+    } else if (result == RN2483_OP_TOO_LONG) {
+        console_send_str(console, "String too long to send.\n");
+    }
+}
+
+#define DEBUG_TELEM_PAUSE_NAME  "telem-pause"
+#define DEBUG_TELEM_PAUSE_HELP  "Pause automatic transmition of telemetry"
+
+static void debug_telem_pause (uint8_t argc, char **argv,
+                               struct console_desc_t *console)
+{
+    telemetry_paused = 1;
+}
+
+#define DEBUG_TELEM_RESUME_NAME  "telem-resume"
+#define DEBUG_TELEM_RESUME_HELP  "Resume automatic transmition of telemetry"
+
+static void debug_telem_resume (uint8_t argc, char **argv,
+                                struct console_desc_t *console)
+{
+    telemetry_paused = 0;
+}
+
+
+const uint8_t debug_commands_num_funcs = 19;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -1160,5 +1221,8 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME, .help_string = DEBUG_LORA_VERSION_HELP},
     {.func = debug_radio_send, .name = DEBUG_RADIO_SEND_NAME, .help_string = DEBUG_RADIO_SEND_HELP},
     {.func = debug_radio_count, .name = DEBUG_RADIO_COUNT_NAME, .help_string = DEBUG_RADIO_COUNT_HELP},
-    {.func = debug_radio_recv, .name = DEBUG_RADIO_RECV_NAME, .help_string = DEBUG_RADIO_RECV_HELP}
+    {.func = debug_radio_recv, .name = DEBUG_RADIO_RECV_NAME, .help_string = DEBUG_RADIO_RECV_HELP},
+    {.func = debug_telem_test, .name = DEBUG_TELEM_TEST_NAME, .help_string = DEBUG_TELEM_TEST_HELP},
+    {.func = debug_telem_pause, .name = DEBUG_TELEM_PAUSE_NAME, .help_string = DEBUG_TELEM_PAUSE_HELP},
+    {.func = debug_telem_resume, .name = DEBUG_TELEM_RESUME_NAME, .help_string = DEBUG_TELEM_RESUME_HELP}
 };
