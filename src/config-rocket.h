@@ -292,7 +292,11 @@ extern struct ms5611_desc_t altimeter_g;
 //  Telemetry service
 //
 //
-
+#ifdef ENABLE_LORA_RADIO
+/* Ground service enabled if defined */
+#define ENABLE_TELEMETRY_SERVICE
+#define TELEMETRY_RATE 5000
+#endif
 
 
 #endif /* config_rocket_h */
