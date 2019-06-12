@@ -32,6 +32,9 @@
 #include "ms5611.h"
 #include "rn2483.h"
 
+#include "ground.h"
+#include "telemetry.h"
+
 //MARK: Constants
 
 // MARK: Function prototypes
@@ -453,9 +456,8 @@ int main(void)
     gpio_set_output(DEBUG1_LED_PIN, 1);
     
     // Configure PA10 as an analog input
-    PORT->Group[0].PMUX[5].bit.PMUXE = 0x1;
-    PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
-    
+    //PORT->Group[0].PMUX[5].bit.PMUXE = 0x1;
+    //PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
     
     // LoRa Radio
 #ifdef ENABLE_LORA_RADIO
@@ -474,9 +476,14 @@ int main(void)
     init_ground_service(&ground_station_console_g, &rn2483_g);
 #endif
     
+    // Telemetry service
+#ifdef ENABLE_TELEMETRY_SERVICE
+    init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
+#endif
+    
     
     // Start Watchdog Timer
-    init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
+    //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
     // Main Loop
     for (;;) {
@@ -546,6 +553,10 @@ static void main_loop ()
     
 #ifdef ENABLE_GROUND_SERVICE
     ground_service();
+#endif
+    
+#ifdef ENABLE_TELEMETRY_SERVICE
+    telemetry_service();
 #endif
 }
 
