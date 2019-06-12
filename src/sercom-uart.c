@@ -109,7 +109,8 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     sercom->USART.CTRLA.bit.ENABLE = 0b1;
 }
 
-uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart, const char *str)
+uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart,
+                                const char *str)
 {
     uint16_t i = 0;
     for (; str[i] != '\0'; i++) {
@@ -161,6 +162,44 @@ void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
             i++;
             carriage_return = 0;
         }
+    }
+    
+    // Make sure that we start transmition right away if there is no transmition
+    // already in progress.
+    sercom_uart_service(uart);
+}
+
+uint16_t sercom_uart_put_bytes(struct sercom_uart_desc_t *uart,
+                               const uint8_t *bytes, uint16_t length)
+{
+    uint16_t i = 0;
+    for (; i < length; i++) {
+        if (circular_buffer_is_full(&uart->out_buffer)) {
+            break;
+        }
+        
+        circular_buffer_push(&uart->out_buffer, (uint8_t)bytes[i]);
+    }
+    
+    // Make sure that we start transmition right away if there is no transmition
+    // already in progress.
+    sercom_uart_service(uart);
+    
+    return i;
+}
+
+void sercom_uart_put_bytes_blocking(struct sercom_uart_desc_t *uart,
+                                    const uint8_t *bytes, uint16_t length)
+{
+    for (uint16_t i = 0; i < length; i++) {
+        // Wait for a character worth of space to become avaliable in the buffer
+        while (circular_buffer_is_full(&uart->out_buffer)) {
+            // Make sure that we aren't waiting for a transaction which is not
+            // in progress.
+            sercom_uart_service(uart);
+        }
+        
+        circular_buffer_push(&uart->out_buffer, bytes[i]);
     }
     
     // Make sure that we start transmition right away if there is no transmition

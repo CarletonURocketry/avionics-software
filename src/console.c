@@ -60,6 +60,34 @@ uint16_t console_send_str_async (struct console_desc_t *console,
     }
 }
 
+void console_send_bytes (struct console_desc_t *console,
+                         const uint8_t *data, uint16_t length)
+{
+    if (console->uart) {
+        // SERCOM UART
+        sercom_uart_put_bytes_blocking(console->uart, data, length);
+    } else {
+#ifdef ID_USB
+        // USB
+        usb_serial_put_bytes_blocking(data, length);
+#endif
+    }
+}
+
+uint16_t console_send_bytes_async (struct console_desc_t *console,
+                                          const uint8_t *data, uint16_t length)
+{
+    if (console->uart) {
+        // SERCOM UART
+        return sercom_uart_put_bytes(console->uart, data, length);
+    } else {
+#ifdef ID_USB
+        // USB
+        return usb_serial_put_bytes(data, length);
+#endif
+    }
+}
+
 void console_set_line_callback (struct console_desc_t *console,
                                 void (*line_callback)(char*,
                                                       struct console_desc_t*,

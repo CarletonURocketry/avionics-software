@@ -190,6 +190,42 @@ void usb_serial_put_string_blocking(const char *str)
     usb_serial_service();
 }
 
+uint16_t usb_serial_put_bytes(const uint8_t *bytes, uint16_t length)
+{
+    uint16_t i = 0;
+    for (; i < length; i++) {
+        if (circular_buffer_is_full(&tx_circ_buff_g)) {
+            break;
+        }
+        
+        circular_buffer_push(&tx_circ_buff_g, (uint8_t)bytes[i]);
+    }
+    
+    // Make sure that we start transmition right away if there is no transmition
+    // already in progress.
+    usb_serial_service();
+    
+    return i;
+}
+
+void usb_serial_put_bytes_blocking(const uint8_t *bytes, uint16_t length)
+{
+    for (uint16_t i = 0; i < length; i++) {
+        // Wait for a character worth of space to become avaliable in the buffer
+        while (circular_buffer_is_full(&tx_circ_buff_g)) {
+            // Make sure that we aren't waiting for a transaction which is not
+            // in progress.
+            usb_serial_service();
+        }
+        
+        circular_buffer_push(&tx_circ_buff_g, bytes[i]);
+    }
+    
+    // Make sure that we start transmition right away if there is no transmition
+    // already in progress.
+    usb_serial_service();
+}
+
 void usb_serial_put_char (const char c)
 {
     circular_buffer_push(&tx_circ_buff_g, (uint8_t)c);
