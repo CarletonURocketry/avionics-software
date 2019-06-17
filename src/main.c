@@ -18,6 +18,8 @@
 #include "sercom-spi.h"
 #include "sercom-i2c.h"
 
+#include "sd.h"
+
 #ifdef ID_USB
 #include "usb.h"
 #include "usb-cdc.h"
@@ -435,18 +437,18 @@ int main(void)
     // ADC Linearity bits 7:5
     linearity |= ((*((uint32_t *) ADC_FUSES_LINEARITY_1_ADDR) & ADC_FUSES_LINEARITY_1_Msk) >> ADC_FUSES_LINEARITY_1_Pos) << 5;
     ADC->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
-    
+
     // Disable automatic NVM write operations
     NVMCTRL->CTRLB.bit.MANW = 1;
-    
+
     // Enable Micro Trace Buffer (MTB) as described here:
     //      https://github.com/adafruit/gdb-micro-trace-buffer
     MTB->POSITION.reg = ((uint32_t) (mtb - REG_MTB_BASE)) & 0xFFFFFFF8;
     MTB->FLOW.reg = (((uint32_t) mtb - REG_MTB_BASE) + TRACE_BUFFER_SIZE_BYTES) & 0xFFFFFFF8;
     MTB->MASTER.reg = 0x80000000 + (TRACE_BUFFER_MAGNITUDE_PACKETS - 1);
-    
+
     init_io();
-    
+
     // Init DMA
 #ifdef ENABLE_DMA
     init_dmac();
@@ -454,7 +456,7 @@ int main(void)
     
     // Init SPI
 #ifdef SPI_SERCOM_INST
-    
+
 #ifndef SPI_RX_DMA_CHAN
 #define SPI_RX_DMA_CHAN -1
 #endif
@@ -465,21 +467,21 @@ int main(void)
     init_sercom_spi(&spi_g, SPI_SERCOM_INST, F_CPU, GCLK_CLKCTRL_GEN_GCLK0,
                     SPI_TX_DMA_CHAN, SPI_RX_DMA_CHAN);
 #endif
-    
+
     // Init I2C
 #ifdef I2C_SERCOM_INST
-    
+
 #ifndef I2C_DMA_CHAN
 #define I2C_DMA_CHAN -1
 #endif
-    
+
 #ifndef I2C_SPEED
 #define I2C_SPEED I2C_MODE_STANDARD
 #endif
     init_sercom_i2c(&i2c_g, I2C_SERCOM_INST, F_CPU, GCLK_CLKCTRL_GEN_GCLK0,
                     I2C_SPEED, I2C_DMA_CHAN);
 #endif
-    
+
     // Init UART 0
 #ifdef UART0_SERCOM_INST
 #ifndef UART0_DMA_CHAN
@@ -489,7 +491,7 @@ int main(void)
                      GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO,
                      UART0_TX_PIN_GROUP, UART0_TX_PIN_NUM);
 #endif
-    
+
     // Init UART 1
 #ifdef UART1_SERCOM_INST
 #ifndef UART1_DMA_CHAN
@@ -499,7 +501,7 @@ int main(void)
                      GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO,
                      UART1_TX_PIN_GROUP, UART1_TX_PIN_NUM);
 #endif
-    
+
     // Init UART 2
 #ifdef UART2_SERCOM_INST
 #ifndef UART2_DMA_CHAN
@@ -509,7 +511,7 @@ int main(void)
                      GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO,
                      UART2_TX_PIN_GROUP, UART2_TX_PIN_NUM);
 #endif
-    
+
     // Init UART 3
 #ifdef UART3_SERCOM_INST
 #ifndef UART3_DMA_CHAN
@@ -560,7 +562,7 @@ int main(void)
                                                 &usb_cdc_config_descriptor));
     usb_attach();
 #endif
-    
+
     // Console
 #ifdef ENABLE_CONSOLE
 #ifdef CONSOLE_UART
@@ -575,7 +577,7 @@ int main(void)
 #error Debugging console is configured to use USB, but USB is not enabled.
 #endif
 #endif
-    
+
     // Debug CLI
 #ifdef ENABLE_DEBUG_CLI
     init_cli(&cli_g, &console_g, "> ", debug_commands_funcs);
@@ -636,9 +638,11 @@ int main(void)
     init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
 #endif
     
-    
     // Start Watchdog Timer
     //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
+    
+    // Init SD Card
+    init_sd_card();
     
     // Main Loop
     for (;;) {
@@ -662,13 +666,21 @@ int main(void)
 
 static void main_loop (void)
 {
+    // SD Card Test
+    uint32_t blockaddr = 0x00000000;
+    uint8_t data[] = {0xfe, 0x48, 0x45, 0x4C, 0x4C, 0x4F};
+    write_block(blockaddr, data);
+    write_block(blockaddr, data);
+    write_block(blockaddr, data);
+    // END SD Card Test
+
     static uint32_t period = 1000;
     
     if ((millis - lastLed_g) >= period) {
         lastLed_g = millis;
         gpio_toggle_output(DEBUG0_LED_PIN);
     }
-    
+
     static uint32_t last_stat;
     if (((millis - last_stat) >= STAT_PERIOD)) {
         last_stat = millis;

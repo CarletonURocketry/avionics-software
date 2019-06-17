@@ -35,7 +35,53 @@
 
 #include "config.h"
 #include "sd.h"
-#include "sercom_spi.h"
+
+/**
+ * sd_send_cmd()
+ * @brief Sets up the buffer for sending commands to the SD card and then
+ * sends the data.
+ *
+ * @param cmd The single byte command to send to the SD card.
+ * @param arg The four byte argument to send to the SD card.
+ * @param crc The crc checksum to send (necessary during initialization,
+ *              otherwise optional).
+ * @param initFlag A simple flag which will tell the program whether or not to
+ *              set the CS pin (the CS pin must remain low when setting card
+ *              into SPI mode).
+ *
+ * @return The byte that the SD card sent in response.
+ */
+static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
+                                  uint8_t initFlag)
+{
+    uint8_t *transactionId = 0;
+    uint8_t receiveBuffer;
+    uint8_t sendBuffer[7];
+    uint16_t sendBufferLength = sizeof(sendBuffer);
+    uint16_t receiveBufferLength = sizeof(receiveBuffer);
+
+    sendBuffer[0] = cmd | 0x40; // Every command byte sent must have bit 6 set
+    sendBuffer[1] = arg >> 24;
+    sendBuffer[2] = arg >> 16;
+    sendBuffer[3] = arg >> 8;
+    sendBuffer[4] = arg;
+    sendBuffer[5] = crc; // Usually 0x00 during normal (i.e. not init) operation
+    // Provides 8 clock cycles necessary to allow the card to complete the
+    // operation according to the SD Card spec
+    sendBuffer[6] = 0xFF;
+
+    if (initFlag) {
+        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, 0xFF,
+                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
+                receiveBufferLength);
+    }
+    else {
+        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
+                receiveBufferLength);
+    }
+    return receiveBuffer;
+}
 
 /**
  * init()
@@ -43,7 +89,7 @@
  *
  * @return Either 0 (success) or 1 (failure)
  */
-uint8_t init()
+uint8_t init_sd_card()
 {
     uint8_t oldCardFlag = 0;
     uint8_t softResetCount = 0;
@@ -107,10 +153,10 @@ uint8_t init()
  *
  * @param blockAddr The address of the block to write to.
  * @param src A pointer to the data which will be written to the card.
- * 
+ *
  * @return 0 on success, 1 on error.
  */
-uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
+uint8_t write_block(uint32_t blockAddr, uint8_t* src)
 {
     /* NOTE: This may be difficult to do because the specification and
      * many of the resources I found required that we wait for responses
@@ -119,93 +165,48 @@ uint8_t write_block(uint32_t blockAddr, const uint8_t* src)
      * expects to have exclusive control of the SPI bus when it is being
      * commanded to do something.
      */
-    uint8_t *transactionId;
+    uint8_t *transactionId = 0;
     uint8_t response = 0xFF;
     uint16_t sendBufferLength = SD_BLOCKSIZE;
     uint16_t responseLength = sizeof(response);
-    
+    uint8_t dummyByte = 0xFF;
+    uint8_t writeBeginByte = 0xFE;
+
     // Send CMD24 (the single block write command)
     response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
     // If not immediately successful, exit because we can't afford keep
     // trying for a single write command.
     if (response != 0x00)
         return 1;
-    
+
     // Send one dummy byte before sending the data.
-    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, 0xFF, 1, &response,
+    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, &dummyByte, 1, &response,
                 responseLength);
-    
+
     // First byte sent MUST be 0xFE to enable writing of a single block.
-    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, 0xFE, 1, &response,
+    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                SD_CS_PIN_MASK, &writeBeginByte, 1, &response,
                 responseLength);
-    
+
     // Write the block.
-    sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, src, sendBufferLength, &response,
                 responseLength);
-    
+
     // Send two more dummy bytes after sending the data.
     for (uint8_t i = 0; i < 2; i++)
-        sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                    SD_CS_PIN_MASK, 0xFF, 1, &response,
+        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+                    SD_CS_PIN_MASK, &dummyByte, 1, &response,
                     responseLength);
-    
+
     // It is (apparently) mandatory to send CMD13 after every block write
     // presumably because this returns the status of the card.
-    response = sd_send_cmd(CMD13, 0x00000000, 0xFF, 0)
-    
+    response = sd_send_cmd(CMD13, 0x00000000, 0xFF, 0);
+
     // Check if write was successful.
     if (response == 0x00)
         return 0;
     else
         return 1;
-}
-
-/**
- * sd_send_cmd()
- * @brief Sets up the buffer for sending commands to the SD card and then
- * sends the data.
- *
- * @param cmd The single byte command to send to the SD card.
- * @param arg The four byte argument to send to the SD card.
- * @param crc The crc checksum to send (necessary during initialization,
- *              otherwise optional).
- * @param initFlag A simple flag which will tell the program whether or not to
- *              set the CS pin (the CS pin must remain low when setting card
- *              into SPI mode).
- *
- * @return The byte that the SD card sent in response.
- */
-static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
-                                  uint8_t initFlag)
-{
-    uint8_t *transactionId;
-    uint8_t receiveBuffer;
-    uint8_t sendBuffer[7];
-    uint16_t sendBufferLength = sizeof(sendBuffer);
-    uint16_t receiveBufferLength = sizeof(receiveBuffer);
-
-    sendBuffer[0] = cmd | 0x40; // Every command byte sent must have bit 6 set
-    sendBuffer[1] = arg >> 24;
-    sendBuffer[2] = arg >> 16;
-    sendBuffer[3] = arg >> 8;
-    sendBuffer[4] = arg;
-    sendBuffer[5] = crc; // Usually 0x00 during normal (i.e. not init) operation
-    // Provides 8 clock cycles necessary to allow the card to complete the
-    // operation according to the SD Card spec
-    sendBuffer[6] = 0xFF;
-
-    if (initFlag) {
-        sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, 0xFF,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
-                receiveBufferLength);
-    }
-    else {
-        sercom_spi_start(spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
-                receiveBufferLength);
-    }
-    return receiveBuffer;
 }
