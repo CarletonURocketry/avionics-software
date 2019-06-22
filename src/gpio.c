@@ -9,6 +9,8 @@
 
 #include "gpio.h"
 
+#define EIC_IRQ_PRIORITY   3
+
 /**
  *  SAMD21 external interrupt handlers
  */
@@ -128,6 +130,7 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
     }
     
     /* Enabled interrupts from EIC in NVIC */
+    NVIC_SetPriority(EIC_IRQn, EIC_IRQ_PRIORITY);
     NVIC_EnableIRQ(EIC_IRQn);
     
     /* Enable EIC */

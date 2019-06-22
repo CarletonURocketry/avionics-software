@@ -12,6 +12,7 @@
 
 #include "global.h"
 
+#define SERCOM_IRQ_PRIORITY     1
 
 #define SERCOM_DMA_RX_PRIORITY  2
 #define SERCOM_DMA_TX_PRIORITY  1

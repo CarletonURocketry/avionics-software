@@ -9,6 +9,8 @@
 
 #include "dma.h"
 
+#define DMA_IRQ_PRIORITY    2
+
 
 static DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
 static DmacDescriptor dmacWriteBack_g[DMAC_CH_NUM];
@@ -38,6 +40,7 @@ void init_dmac(void)
                       DMAC_CTRL_LVLEN3);
     
     /* Enable DMAC interupts */
+    NVIC_SetPriority (DMAC_IRQn, DMA_IRQ_PRIORITY);
     NVIC_EnableIRQ(DMAC_IRQn);
 
     /* Enable DMA module */

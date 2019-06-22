@@ -277,6 +277,7 @@ int main(void)
 {
     init_clocks();
     SysTick_Config(48000); // Enable SysTick for an interupt every millisecond
+    NVIC_SetPriority (SysTick_IRQn, 0); // Give SysTick highest priority
     
     // Load ADC factory calibration values
     // ADC Bias Calibration
