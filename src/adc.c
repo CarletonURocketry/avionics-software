@@ -13,6 +13,8 @@
 #include "evsys.h"
 #include "tc.h"
 
+#define ADC_IRQ_PRIORITY    3
+
 #define ADC_DMA_PRIORITY    0
 
 // Max ADC clock freq, see datasheet section 7.11.4
@@ -236,6 +238,7 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
         // Enable interrupt when result is ready to be read
         ADC->INTENSET.bit.RESRDY = 1;
         // Enable ADC interrupt in NVIC
+        NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
         NVIC_EnableIRQ(ADC_IRQn);
     }
     

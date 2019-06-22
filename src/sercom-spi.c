@@ -72,6 +72,7 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
         .state = (void*)descriptor
     };
     
+    NVIC_SetPriority(sercom_get_irq_num(instance_num), SERCOM_IRQ_PRIORITY);
     NVIC_EnableIRQ(sercom_get_irq_num(instance_num));
     
     /* Setup Descriptor */

@@ -79,6 +79,7 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
         .state = (void*)descriptor
     };
 
+    NVIC_SetPriority(sercom_get_irq_num(instance_num), SERCOM_IRQ_PRIORITY);
     NVIC_EnableIRQ(sercom_get_irq_num(instance_num));
     
     /* Setup Descriptor */
