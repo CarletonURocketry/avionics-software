@@ -224,11 +224,6 @@ struct cli_desc_t cli_g;
 
 static inline void init_io (void)
 {
-    // Debug LED
-    PORT->Group[DEBUG_LED_GROUP_NUM].DIRSET.reg = DEBUG_LED_MASK;
-    //PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[30].bit.DRVSTR = 0b1;
-    PORT->Group[DEBUG_LED_GROUP_NUM].PINCFG[15].bit.DRVSTR = 0b1;
-    
     // SPI
     PORT->Group[1].PMUX[6].bit.PMUXE = 0x2;     // MOSI (Pad 0)
     PORT->Group[1].PINCFG[12].bit.PMUXEN = 0b1;

@@ -10,6 +10,11 @@
 #ifndef config_h
 #define config_h
 
+/* MCU Board Pinout Configuration */
+#include "pins-rev-a.h"
+//#include "pins-rev-b.h"
+
+/* Peripheral/Software configuration= */
 //#include "config-test.h"
 #include "config-rocket.h"
 //#include "config-ground.h"
