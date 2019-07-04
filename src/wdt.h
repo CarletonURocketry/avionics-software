@@ -53,10 +53,15 @@ extern uint8_t init_wdt_window(uint32_t core_clock_mask, uint8_t closed,
 
 /**
  *  Pat the Watchdog Timer
+ *
+ *  @note If the watchdog timer is being syncronized (probably because it is
+ *        currently in the process of being patted) it will not be cleared
  */
 static inline void wdt_pat(void)
 {
-    WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
+    if (!WDT->STATUS.bit.SYNCBUSY) {
+        WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
+    }
 }
 
 
