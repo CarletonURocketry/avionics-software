@@ -485,12 +485,8 @@ int main(void)
     // Main Loop
     for (;;) {
         
-        // Pat the watchdog (at most once per millisecond)
-        if (millis != last_wdt) {
-            wdt_pat();
-            millis = last_wdt;
-
-        }
+        // Pat the watchdog
+        wdt_pat();
         
         // Run the main loop
         main_loop();
