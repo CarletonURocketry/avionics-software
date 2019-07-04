@@ -481,12 +481,20 @@ int main(void)
     // Start Watchdog Timer
     //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
+    uint32_t last_wdt = 0;
     // Main Loop
     for (;;) {
-        // Pat the watchdog
-        wdt_pat();
+        
+        // Pat the watchdog (at most once per millisecond)
+        if (millis != last_wdt) {
+            wdt_pat();
+            millis = last_wdt;
+
+        }
+        
         // Run the main loop
         main_loop();
+        
         // Sleep if sleep is not inhibited
         if (!inhibit_sleep_g) {
             __WFI();

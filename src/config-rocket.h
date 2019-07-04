@@ -105,7 +105,7 @@ extern struct sercom_uart_desc_t uart1_g;
 #define UART2_BAUD 115200UL
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
-#define UART2_ECHO 1
+#define UART2_ECHO 0
 /* UART Instance */
 extern struct sercom_uart_desc_t uart2_g;
 
@@ -115,10 +115,10 @@ extern struct sercom_uart_desc_t uart2_g;
 /* DMA Channel used for UART TX, DMA not used if not defined or defined as -1 */
 #define UART3_DMA_CHAN 10
 /* Baud rate for UART */
-#define UART3_BAUD 9600UL
+#define UART3_BAUD 115200UL
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
-#define UART3_ECHO 0
+#define UART3_ECHO 1
 /* UART Instance */
 extern struct sercom_uart_desc_t uart3_g;
 
