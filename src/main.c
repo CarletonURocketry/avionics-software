@@ -481,7 +481,6 @@ int main(void)
     // Start Watchdog Timer
     //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
-    uint32_t last_wdt = 0;
     // Main Loop
     for (;;) {
         
