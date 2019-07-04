@@ -310,28 +310,13 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
 {
     struct sercom_uart_desc_t *uart = (struct sercom_uart_desc_t*)state;
 
-    // TX
-    if (sercom->USART.INTENSET.bit.DRE && sercom->USART.INTFLAG.bit.DRE) {
-        uint8_t c = '\0';
-        uint8_t empty = circular_buffer_pop(&uart->out_buffer, &c);
-        
-        if (!empty) {
-            // Send next char
-            sercom->USART.DATA.reg = c;
-        } else {
-            // All chars sent, disable DRE interupt
-            sercom->USART.INTENCLR.bit.DRE = 0b1;
-        }
-    }
-
     // RX
     if (sercom->USART.INTFLAG.bit.RXC) {
         uint8_t data = sercom->USART.DATA.reg;
-        uint8_t full = 0;
         
         if (!iscntrl(data) || (data == '\r')) {
             // Should add byte to input buffer
-            full = circular_buffer_try_push(&uart->in_buffer, data);
+            uint8_t full = circular_buffer_try_push(&uart->in_buffer, data);
 
             if (uart->echo) {
                 if (!full && isprint(data)) {
@@ -349,6 +334,20 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
             if (!empty) {
                 sercom_uart_put_string(uart, "\x1B[1D\x1B[K");
             }
+        }
+    }
+    
+    // TX
+    if (sercom->USART.INTENSET.bit.DRE && sercom->USART.INTFLAG.bit.DRE) {
+        uint8_t c = '\0';
+        uint8_t empty = circular_buffer_pop(&uart->out_buffer, &c);
+        
+        if (!empty) {
+            // Send next char
+            sercom->USART.DATA.reg = c;
+        } else {
+            // All chars sent, disable DRE interupt
+            sercom->USART.INTENCLR.bit.DRE = 0b1;
         }
     }
 
