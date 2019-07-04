@@ -563,7 +563,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         // There is a pending transaction but the bus is not idle... eek
         i2c_inst->wait_for_idle = 1;
         // Keep checking if the bus has become idle as often as possible
-        inhibit_sleep();
+        //inhibit_sleep();
     }
     
     i2c_inst->service_lock = 0;
