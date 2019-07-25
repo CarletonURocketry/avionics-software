@@ -2,9 +2,9 @@
  * @file cli.c
  * @desc Provides a CLI on a console for debugging purposes.
  * @author Samuel Dewan
- * @date 2019-09-21
+ * @date 2019-01-21
  * Last Author: Samuel Dewan
- * Last Edited On: 2019-09-23
+ * Last Edited On: 2019-08-25
  */
 
 #include "cli.h"
@@ -61,7 +61,8 @@ static void cli_line_callback (char *line, struct console_desc_t *console,
     }
     
     /* Create a an array of pointers to each token */
-    char *args[num_args];
+    // Array is one larger to leave room for NULL pointer
+    char *args[num_args + 1];
     for (uint16_t i = 0; (args[i] = strsep(&line, " ")) != NULL; i++);
    
     /* Call the specified function */
