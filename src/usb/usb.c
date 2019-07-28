@@ -256,7 +256,7 @@ uint16_t usb_cb_get_descriptor(uint8_t type, uint8_t index,
                     address = samd_serial_number_string_descriptor();
                     break;
             }
-            size = (((USB_StringDescriptor*)address))->bLength;
+            size = (((const USB_StringDescriptor*)address))->bLength;
             break;
     }
     

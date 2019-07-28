@@ -208,7 +208,8 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
         if (spi_inst->tx_use_dma && s->out_length) {
             // Use DMA to transmit out buffer
             dma_start_buffer_to_static(spi_inst->tx_dma_chan, s->out_buffer,
-                            s->out_length,(uint8_t*)&spi_inst->sercom->SPI.DATA,
+                            s->out_length,
+                            (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
                             SERCOM_DMA_TX_PRIORITY);
         } else if (spi_inst->tx_use_dma) {
@@ -261,7 +262,8 @@ static inline void sercom_spi_start_reception (
     if (spi_inst->rx_use_dma) {
         // Start DMA transaction to receive data
         dma_start_static_to_buffer(spi_inst->rx_dma_chan, s->in_buffer,
-                        s->in_length, (uint8_t*)&spi_inst->sercom->SPI.DATA,
+                        s->in_length,
+                        (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
                         sercom_get_dma_rx_trigger(spi_inst->sercom_instnum),
                         SERCOM_DMA_RX_PRIORITY);
     } else {
@@ -276,7 +278,7 @@ static inline void sercom_spi_start_reception (
         dma_start_static_to_static(
                             spi_inst->tx_dma_chan, &spi_dummy_byte,
                             s->in_length,
-                            (uint8_t*)&spi_inst->sercom->SPI.DATA,
+                            (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
                             SERCOM_DMA_TX_PRIORITY);
     } else {

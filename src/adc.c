@@ -139,7 +139,8 @@ static enum adc_scan_range adc_conf_scan (void)
     
         dma_start_static_to_buffer_hword(adc_state_g.dma_chan, buffer,
                                          (1 + last - first),
-                                         (uint16_t*)(&ADC->RESULT.reg),
+                                         ((volatile const uint16_t*)
+                                          (&ADC->RESULT.reg)),
                                          ADC_DMAC_ID_RESRDY, ADC_DMA_PRIORITY);
     } else {
         adc_state_g.chan_num = first;

@@ -292,7 +292,7 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
         dma_start_circular_buffer_to_static(
                                 &uart->dma_tran, uart->dma_chan,
                                 &uart->out_buffer,
-                                (uint8_t*)&uart->sercom->USART.DATA,
+                                (volatile uint8_t*)&uart->sercom->USART.DATA,
                                 sercom_get_dma_tx_trigger(uart->sercom_instnum),
                                 SERCOM_DMA_TX_PRIORITY);
     } else if (!uart->use_dma && !uart->sercom->USART.INTENSET.bit.DRE) {
