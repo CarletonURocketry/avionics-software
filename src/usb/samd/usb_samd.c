@@ -14,7 +14,7 @@
 
 #define USB_GCLK_GEN                    0
 
-void usb_init(){
+void usb_init(void) {
 	uint32_t pad_transn, pad_transp, pad_trim;
 
 	PM->APBBMASK.reg |= PM_APBBMASK_USB;
@@ -74,7 +74,7 @@ void usb_init(){
 #define USB_EPTYPE_INTERRUPT 4
 #define USB_EPTYPE_DUAL_BANK 5
 
-void usb_reset(){
+void usb_reset(void) {
 	usb_endpoints[0].DeviceDescBank[0].ADDR.reg = (uint32_t) &ep0_buf_out;
 	usb_endpoints[0].DeviceDescBank[0].PCKSIZE.bit.SIZE=USB_EP_size_to_gc(USB_EP0_SIZE);
 	usb_endpoints[0].DeviceDescBank[1].ADDR.reg = (uint32_t) &ep0_buf_in;
@@ -211,7 +211,7 @@ void usb_set_speed(USB_Speed speed) {
         USB->DEVICE.CTRLB.bit.SPDCONF = USB_DEVICE_CTRLB_SPDCONF_LS_Val;
     }
 }
-USB_Speed usb_get_speed() {
+USB_Speed usb_get_speed(void) {
 	if (USB->DEVICE.STATUS.bit.SPEED == 0) {
 		return USB_SPEED_LOW;
 	} else {
@@ -219,7 +219,7 @@ USB_Speed usb_get_speed() {
 	}
 }
 
-void USB_Handler() {
+void USB_Handler(void) {
 	uint32_t summary = USB->DEVICE.EPINTSMRY.reg;
 	uint32_t status = USB->DEVICE.INTFLAG.reg;
 
