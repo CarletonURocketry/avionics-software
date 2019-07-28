@@ -15,7 +15,7 @@
 #include "transaction-queue.h"
 
 // The minimum length for a transaction to use DMA
-#define I2C_DMA_THREASHOLD  0
+#define I2C_DMA_THREASHOLD  1
 // The maximum length for an I2C DMA transaction
 #define I2C_DMA_MAX  255
 
