@@ -15,8 +15,8 @@
 //#include "pins-rev-b.h"
 
 /* Peripheral/Software configuration= */
-//#include "config-test.h"
-#include "config-rocket.h"
+#include "config-test.h"
+//#include "config-rocket.h"
 //#include "config-ground.h"
 
 #endif /* config_h */

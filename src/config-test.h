@@ -161,7 +161,7 @@ extern struct mcp23s17_desc_t io_expander_g;
 //
 
 /* ADC enabled if defined */
-#define ENABLE_ADC
+//#define ENABLE_ADC
 /* Period between ADC sweeps in milliseconds */
 #define ADC_PERIOD 2000
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
@@ -237,6 +237,6 @@ extern struct ms5611_desc_t altimeter_g;
 /* GNSS enabled if defined */
 #define ENABLE_GNSS
 /* UART used to communicate with GNSS */
-#define GNSS_UART uart3_g
+#define GNSS_UART uart2_g
 
 #endif /* config_test_h */

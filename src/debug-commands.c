@@ -1390,8 +1390,179 @@ static void debug_telem_resume (uint8_t argc, char **argv,
     telemetry_paused = 0;
 }
 
+#define DEBUG_ADC_INIT_NAME  "adc-init"
+#define DEBUG_ADC_INIT_HELP  "Initialize ADC"
 
-const uint8_t debug_commands_num_funcs = 19;
+static void debug_adc_init (uint8_t argc, char **argv,
+                            struct console_desc_t *console)
+{
+#ifdef ENABLE_ADC
+    console_send_str(console, "ADC driver is enabled. Use \"analog\" command "
+                     "instead\n");
+#endif
+    
+    /* Enable the APBC clock for the ADC */
+    PM->APBCMASK.reg |= PM_APBCMASK_ADC;
+    
+    /* Select the core clock for the ADC */
+    GCLK->CLKCTRL.reg = (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK3 | GCLK_CLKCTRL_ID_ADC);
+    // Wait for synchronization
+    while (GCLK->STATUS.bit.SYNCBUSY);
+    
+    /* Reset ADC */
+    ADC->CTRLA.bit.SWRST = 1;
+    // Wait for reset to complete
+    while (ADC->CTRLA.bit.SWRST | ADC->STATUS.bit.SYNCBUSY);
+    
+    /* Use internal 1.0 V reference with reference buffer offset compensation */
+    ADC->REFCTRL.reg = ADC_REFCTRL_REFCOMP | ADC_REFCTRL_REFSEL_INT1V;
+    
+    /* 256x oversampling and decimation for 16 bit effective resolution */
+    ADC->AVGCTRL.reg = ADC_AVGCTRL_SAMPLENUM_256 | ADC_AVGCTRL_ADJRES(0);
+    
+    /* Configure Control B register */
+    // Calculate prescaler value
+    uint32_t prescaler = 30 - __builtin_clz((8000000UL - 1) / 2100000UL);
+    // Make sure prescaler is at most 512
+    prescaler &= 0x1FF;
+    
+    // Set prescaler, 16 bit output, freerunning mode
+    ADC->CTRLB.reg = (ADC_CTRLB_PRESCALER(prescaler) |
+                      ADC_CTRLB_RESSEL_16BIT |
+                      ADC_CTRLB_FREERUN);
+    // Wait for synchronization
+    while (ADC->STATUS.bit.SYNCBUSY);
+    
+    /* Enable temparature reference */
+    SYSCTRL->VREF.reg |= SYSCTRL_VREF_TSEN;
+    
+    // Set channel
+    ADC->INPUTCTRL.reg = (ADC_INPUTCTRL_GAIN_1X |
+                          ADC_INPUTCTRL_INPUTOFFSET(0) |
+                          ADC_INPUTCTRL_INPUTSCAN(0) |
+                          ADC_INPUTCTRL_MUXNEG_GND |
+                          ADC_INPUTCTRL_MUXPOS_TEMP);
+                          //ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC);
+    
+    /* Enable ADC */
+    ADC->CTRLA.bit.ENABLE = 1;
+    // Wait for synchronization
+    while (ADC->STATUS.bit.SYNCBUSY);
+}
+
+#define DEBUG_ADC_READ_NAME  "adc-read"
+#define DEBUG_ADC_READ_HELP  "Read ADC"
+
+static void debug_adc_read (uint8_t argc, char **argv,
+                            struct console_desc_t *console)
+{
+#ifdef ENABLE_ADC
+    console_send_str(console, "ADC driver is enabled. Use \"analog\" command "
+                     "instead\n");
+#endif
+    
+    ADC->SWTRIG.bit.START = 0b1;
+    
+    while (!ADC->INTFLAG.bit.RESRDY) {
+        wdt_pat();
+    }
+    
+    uint16_t adc_m_val = ADC->RESULT.reg;
+    
+    char str[8];
+    
+    console_send_str(console, "Result: 0x");
+    utoa(adc_m_val, str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+    
+//    /* Read values from Temperature Log Row */
+//    // Room temperature (in hundred nanodegrees celsius)
+//    uint8_t room_temp_val_int = (uint8_t)(((*((uint32_t*)
+//                                              NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_ADDR)) &
+//                                           NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Msk) >>
+//                                          NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Pos);
+//    uint8_t room_temp_val_dec = (uint8_t)(((*((uint32_t*)
+//                                              NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_ADDR)) &
+//                                           NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Msk) >>
+//                                          NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Pos);
+//    int32_t temp_r = ((room_temp_val_int * 10000000) +
+//                      (room_temp_val_dec * 1000000));
+//
+//    // Hot temperature (in nanodegrees celsius)
+//    uint8_t hot_temp_val_int = (uint8_t)(((*((uint32_t*)
+//                                             NVMCTRL_FUSES_HOT_TEMP_VAL_INT_ADDR)) &
+//                                          NVMCTRL_FUSES_HOT_TEMP_VAL_INT_Msk) >>
+//                                         NVMCTRL_FUSES_HOT_TEMP_VAL_INT_Pos);
+//    uint8_t hot_temp_val_dec = (uint8_t)(((*((uint32_t*)
+//                                             NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_ADDR)) &
+//                                          NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Msk) >>
+//                                         NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Pos);
+//    int32_t temp_h = ((hot_temp_val_int * 10000000) +
+//                      (hot_temp_val_dec * 1000000));
+//
+//    // 1 V reference actual voltage for room temperature measurment
+//    int16_t int1v_r = 1000 - ((int8_t)(((*((uint32_t*)
+//                                           NVMCTRL_FUSES_ROOM_INT1V_VAL_ADDR)) &
+//                                        NVMCTRL_FUSES_ROOM_INT1V_VAL_Msk) >>
+//                                       NVMCTRL_FUSES_ROOM_INT1V_VAL_Pos));
+//
+//    // 1 V reference actual voltage for hot temperature measurment
+//    int16_t int1v_h = 1000 - ((int8_t)(((*((uint32_t*)
+//                                           NVMCTRL_FUSES_HOT_INT1V_VAL_ADDR)) &
+//                                        NVMCTRL_FUSES_HOT_INT1V_VAL_Msk) >>
+//                                       NVMCTRL_FUSES_HOT_INT1V_VAL_Pos));
+//
+//    // ADC value for room temperature measurment
+//    uint16_t adc_r_val = (uint16_t)(((*((uint32_t*)
+//                                        NVMCTRL_FUSES_ROOM_ADC_VAL_ADDR)) &
+//                                     NVMCTRL_FUSES_ROOM_ADC_VAL_Msk) >>
+//                                    NVMCTRL_FUSES_ROOM_ADC_VAL_Pos);
+//
+//    // ADC value for hot temperature measurment
+//    uint16_t adc_h_val = (uint16_t)(((*((uint32_t*)
+//                                        NVMCTRL_FUSES_HOT_ADC_VAL_ADDR)) &
+//                                     NVMCTRL_FUSES_HOT_ADC_VAL_Msk) >>
+//                                    NVMCTRL_FUSES_HOT_ADC_VAL_Pos);
+//
+//    /* Compute coefficients to convert ADC values to hundred nanovolts */
+//    uint32_t adc_r_co = ((10000 * int1v_r) + 2048) / 4095;
+//    uint32_t adc_h_co = ((10000 * int1v_h) + 2048) / 4095;
+//    uint32_t adc_m_course_co = ((10000 * 1000) + 32768) / 65535;
+//
+//    /* Compute voltages (in hundred nanovolts) */
+//    uint32_t v_adc_r = adc_r_val * adc_r_co;
+//    uint32_t v_adc_h = adc_h_val * adc_h_co;
+//    uint32_t v_adc_m_course = adc_m_val * adc_m_course_co;
+//
+//    /* Compute course temp (in hundred nanodegrees celsius) */
+//    int32_t denominator = v_adc_h - v_adc_r;
+//    int32_t delta_v_course = v_adc_m_course - v_adc_r;
+//    int32_t delta_t = temp_h - temp_r;
+//
+//    int64_t numerator_course = (int64_t)delta_v_course * delta_t;
+//    int32_t temp_c = temp_r + (numerator_course / denominator);
+//
+//    /* Estimate 1 V reference actual voltage (in hundred nanovolts) */
+//    int16_t delta_int1v = int1v_h - int1v_r;
+//    int16_t int1v_m = (delta_int1v * (temp_c - temp_r)) / delta_t;
+//
+//    /* Compute new coefficient for measured temp ADC value */
+//    uint32_t adc_m_fine_co = ((10000 * int1v_m) + 32768) / 65535;
+//
+//    /* Compute new measured ACD voltage (in hundred nanovolts) */
+//    uint32_t v_adc_m_fine = adc_m_val * adc_m_fine_co;
+//
+//    /* Compute fine temp (in hundred nanodegrees celsius) */
+//    int32_t delta_v_fine = v_adc_m_fine - v_adc_r;
+//    int64_t numerator_fine = (int64_t)delta_v_fine * delta_t;
+//    int32_t temp_f = temp_r + (numerator_fine / denominator);
+//
+//    debug_analog_print_channel(console, 0, temp_f, 100, "Temperature", "C");
+}
+
+
+const uint8_t debug_commands_num_funcs = 21;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -1411,5 +1582,7 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_radio_recv, .name = DEBUG_RADIO_RECV_NAME, .help_string = DEBUG_RADIO_RECV_HELP},
     {.func = debug_telem_test, .name = DEBUG_TELEM_TEST_NAME, .help_string = DEBUG_TELEM_TEST_HELP},
     {.func = debug_telem_pause, .name = DEBUG_TELEM_PAUSE_NAME, .help_string = DEBUG_TELEM_PAUSE_HELP},
-    {.func = debug_telem_resume, .name = DEBUG_TELEM_RESUME_NAME, .help_string = DEBUG_TELEM_RESUME_HELP}
+    {.func = debug_telem_resume, .name = DEBUG_TELEM_RESUME_NAME, .help_string = DEBUG_TELEM_RESUME_HELP},
+    {.func = debug_adc_init, .name = DEBUG_ADC_INIT_NAME, .help_string = DEBUG_ADC_INIT_HELP},
+    {.func = debug_adc_read, .name = DEBUG_ADC_READ_NAME, .help_string = DEBUG_ADC_READ_HELP},
 };
