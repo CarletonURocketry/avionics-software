@@ -107,8 +107,8 @@ float get_altitude(void)
    
     //Calculate altitude from the pressure
     float temp_altitude_data = (float)altitude_data/101326;
-    float temp2_altitude_data = 1 - powf(temp_altitude_data, 0.1902632);
-    float new_altitude_data = ((temp2_altitude_data)*44330.77)+(float)offset;
+    float temp2_altitude_data = 1 - powf(temp_altitude_data, 0.1902632f);
+    float new_altitude_data = ((temp2_altitude_data)*44330.77f)+(float)offset;
     
     return new_altitude_data;
 }

@@ -146,15 +146,15 @@ static void do_calculations (struct ms5611_desc_t *inst)
     inst->pressure = ((((inst->d1 * sensitivity) / 2097152) - offset) / 32768);
     // Set p0 if it has not already been set
     if (!inst->p0_set) {
-        inst->p0 = ((float)inst->pressure) / 100.0;
+        inst->p0 = ((float)inst->pressure) / 100.0f;
         inst->p0_set = 1;
     }
     // Calculate altitude
     if (inst->calc_altitude) {
         float t = ((float)(inst->temperature + 27315)) / 100;
         float p = ((float)inst->pressure) / 100;
-        inst->altitude = (((powf((inst->p0 / p), 0.1902225604) - 1.0) * t) /
-                          0.0065);
+        inst->altitude = (((powf((inst->p0 / p), 0.1902225604f) - 1.0f) * t) /
+                          0.0065f);
     }
 }
 

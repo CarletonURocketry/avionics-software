@@ -22,17 +22,17 @@
 // Target frequencies and high to low ratios for various modes
 // ratio = fraction of time spend with SCL high
 #define I2C_FREQ_STANDARD       100000UL
-#define I2C_RATIO_STANDARD      0.5
-#define I2C_RISE_STANDARD       0.0000003 // (300 ns worst case)
+#define I2C_RATIO_STANDARD      0.5f
+#define I2C_RISE_STANDARD       0.0000003f // (300 ns worst case)
 #define I2C_FREQ_FAST           400000UL
-#define I2C_RATIO_FAST          0.33
-#define I2C_RISE_FAST           0.0000003 // (300 ns worst case)
+#define I2C_RATIO_FAST          0.33f
+#define I2C_RISE_FAST           0.0000003f // (300 ns worst case)
 #define I2C_FREQ_FAST_PLUS      1000000UL
-#define I2C_RATIO_FAST_PLUS     0.33
-#define I2C_RISE_FAST_PLUS      0.0000001 // (100 ns worst case)
+#define I2C_RATIO_FAST_PLUS     0.33f
+#define I2C_RISE_FAST_PLUS      0.0000001f // (100 ns worst case)
 #define I2C_FREQ_HIGH_SPEED     3400000UL
-#define I2C_RATIO_HIGH_SPEED    0.33
-#define I2C_RISE_HIGH_SPEED     0.00000004 // (40 ns worst case)
+#define I2C_RATIO_HIGH_SPEED    0.33f
+#define I2C_RISE_HIGH_SPEED     0.00000004f // (40 ns worst case)
 
 
 static void sercom_i2c_isr (Sercom *sercom, uint8_t inst_num, void *state);

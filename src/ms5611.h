@@ -169,7 +169,7 @@ static inline void ms5611_set_period (struct ms5611_desc_t *inst,
  */
 static inline void ms5611_tare_now (struct ms5611_desc_t *inst)
 {
-    inst->p0 = ((float)inst->pressure) / 100.0;
+    inst->p0 = ((float)inst->pressure) / 100.0f;
 }
 
 /**

@@ -1350,7 +1350,7 @@ static void debug_telem_test (uint8_t argc, char **argv,
     
     packet.payload.mission_time = millis;
     
-    packet.payload.altimeter_altitude = 1078.15;
+    packet.payload.altimeter_altitude = 1078.15f;
     packet.payload.altimeter_temp = 2367;
     
     packet.payload.gps_utc_time = 1560301659;
