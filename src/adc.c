@@ -478,7 +478,7 @@ static void adc_dma_callback (uint8_t chan, void *state)
     enum adc_scan_range next_range = adc_conf_scan();
 
     if (((next_range == ADC_RANGE_B) && (adc_state_g.channel_mask & ADC_RANGE_A_MASK)) ||
-        ((next_range == ADC_RANGE_INTERNAL) && (adc_state_g.channel_mask && (~ADC_RANGE_INT_MASK)))) {
+        ((next_range == ADC_RANGE_INTERNAL) && (adc_state_g.channel_mask & (~ADC_RANGE_INT_MASK)))) {
         // The next range is B and range A is selected or the next scan range is
         // internal and A or B is selected
         adc_start_scan();
