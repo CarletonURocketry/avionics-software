@@ -139,7 +139,8 @@ static enum adc_scan_range adc_conf_scan (void)
     
         dma_start_static_to_buffer_hword(adc_state_g.dma_chan, buffer,
                                          (1 + last - first),
-                                         (uint16_t*)(&ADC->RESULT.reg),
+                                         ((volatile const uint16_t*)
+                                          (&ADC->RESULT.reg)),
                                          ADC_DMAC_ID_RESRDY, ADC_DMA_PRIORITY);
     } else {
         adc_state_g.chan_num = first;
@@ -478,7 +479,7 @@ static void adc_dma_callback (uint8_t chan, void *state)
     enum adc_scan_range next_range = adc_conf_scan();
 
     if (((next_range == ADC_RANGE_B) && (adc_state_g.channel_mask & ADC_RANGE_A_MASK)) ||
-        ((next_range == ADC_RANGE_INTERNAL) && (adc_state_g.channel_mask && (~ADC_RANGE_INT_MASK)))) {
+        ((next_range == ADC_RANGE_INTERNAL) && (adc_state_g.channel_mask & (~ADC_RANGE_INT_MASK)))) {
         // The next range is B and range A is selected or the next scan range is
         // internal and A or B is selected
         adc_start_scan();

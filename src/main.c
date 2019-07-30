@@ -501,7 +501,7 @@ int main(void)
 
 #define STAT_PERIOD 1500
 
-static void main_loop ()
+static void main_loop (void)
 {
     static uint32_t period = 1000;
     

@@ -64,7 +64,7 @@ static void gnss_parse_coordinates (char *lat, char *north_south, char *lon,
     
     // East/West
     if (east_west[0] == 'W') {
-        desc->longitude *= -1.0;
+        desc->longitude *= -1;
     }
 }
 

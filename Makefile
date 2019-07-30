@@ -97,16 +97,31 @@ ARCHFLAGS += -mcpu=cortex-m0plus -mthumb
 CFLAGS += $(CDEFS) $(CINCS)
 CFLAGS += -O$(OPT) -g3
 CFLAGS += $(ARCHFLAGS)
-CFLAGS += -funsigned-char -funsigned-bitfields
-CFLAGS += -fno-strict-aliasing -ffunction-sections -fdata-sections -mlong-calls
+CFLAGS += -funsigned-char -funsigned-bitfields -fno-strict-aliasing
+CFLAGS += -ffunction-sections -fdata-sections -mlong-calls
 CFLAGS += --param max-inline-insns-single=500
 CFLAGS += -gstrict-dwarf
 
-CFLAGS += -Wall -Wstrict-prototypes -Wmissing-prototypes -Werror-implicit-function-declaration -Wpointer-arith
-CFLAGS += -Wchar-subscripts -Wcomment -Wformat=2 -Wimplicit-int -Wmain -Wparentheses -Wsequence-point -Wreturn-type
-CFLAGS += -Wswitch -Wtrigraphs -Wunused -Wuninitialized -Wunknown-pragmas -Wfloat-equal -Wundef -Wshadow -Wbad-function-cast
-CFLAGS += -Wwrite-strings -Wsign-compare -Waggregate-return -Wmissing-declarations -Wformat -Wmissing-format-attribute
-CFLAGS += -Wno-deprecated-declarations -Wpacked -Wredundant-decls -Wnested-externs -Wlong-long -Wunreachable-code -Wcast-align
+# Enable many usefull warnings
+# (see https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Warning-Options.html)
+CFLAGS += -Wall -Wextra -Wshadow -Wundef -Wformat=2 -Wtrampolines -Wfloat-equal
+CFLAGS += -Wbad-function-cast -Waggregate-return -Wstrict-prototypes -Wpacked
+CFLAGS += -Wno-aggressive-loop-optimizations -Wmissing-prototypes -Winit-self
+CFLAGS += -Wmissing-declarations -Wmissing-format-attribute -Wunreachable-code
+CFLAGS += -Wshift-overflow=2 -Wduplicated-cond -Wpointer-arith -Wwrite-strings
+CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls -Wlong-long
+CFLAGS += -Werror=implicit-function-declaration -Wlogical-not-parentheses
+CFLAGS += -Wlogical-op -Wold-style-definition -Wcast-qual -Wdouble-promotion
+CFLAGS += -Wunsuffixed-float-constants
+CLFAGS += -Wmissing-include-dirs -Wnormalized -Wdisabled-optimization
+
+# These warning may be usefull in some cases, but cause too many false positives
+# to be enabled all of the time: -Winline -Wpadded -Wvla -Wpedantic -Wconversion
+# -Wnull-dereference -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn
+# -Wsuggest-attribute=const -Wstack-usage=256
+
+# Disable some anoying warnings
+CFLAGS += -Wno-unused-parameter
 
 CFLAGS += -Wa,-adhlns=$(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.lst,$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
@@ -267,7 +282,7 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
-	$(COMPILE.c) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
+	$(COMPILE.c) "$(abspath $<)" -o $@
 
 # Assemble: create object files from assembler source files.
 $(OBJDIR)/%.o:    $(SRCDIR)/%.s
@@ -278,7 +293,7 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(shell mkdir -p $(@D) >/dev/null)
 	@echo
 	@echo $(MSG_COMPILING) $<
-	$(COMPILE.cpp) $(OUTPUT_OPTION) "$(abspath $<)" -o $@
+	$(COMPILE.cpp) "$(abspath $<)" -o $@
 
 $(OBJDIR)/.depend:  $(SRC)
 	$(COMPILE.c) -MM $^  | \
