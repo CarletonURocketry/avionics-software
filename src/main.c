@@ -384,7 +384,7 @@ int main(void)
                           (1 << ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC) |
                           (1 << ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC));
     init_adc(GCLK_CLKCTRL_GEN_GCLK3, 8000000UL, chan_mask, ADC_PERIOD,
-             ADC_DMA_CHAN, ADC_TC, ADC_EVENT_CHAN);
+             ADC_SOURCE_IMPEDENCE, ADC_DMA_CHAN);
 #endif
     
     // Init Altimeter
@@ -450,10 +450,6 @@ int main(void)
     
     gpio_set_output(STAT_G_LED_PIN, 1);
     gpio_set_output(DEBUG1_LED_PIN, 1);
-    
-    // Configure PA10 as an analog input
-    //PORT->Group[0].PMUX[5].bit.PMUXE = 0x1;
-    //PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
     
     // LoRa Radio
 #ifdef ENABLE_LORA_RADIO

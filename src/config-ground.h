@@ -169,12 +169,8 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
  as -1 */
 #define ADC_DMA_CHAN 11
-/* Timer Counter used for ADC timing, TC not used if not defined or if NULL */
-#define ADC_TC NULL
-/* Event Channel used for ADC timing, EVSYS not used if not defined or defined
- as -1, must be defined as a valid channel if TC is defined as a value other
- than NULL */
-#define ADC_EVENT_CHAN -1
+/* Maximum impedence of source in ohms, see figure 37-5 in SAMD21 datasheet */
+#define ADC_SOURCE_IMPEDENCE 100000
 
 //
 //

@@ -208,8 +208,8 @@ static inline void adc_start_scan (void)
 }
 
 uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
-                  uint32_t channel_mask, uint32_t sweep_period, int8_t dma_chan,
-                  Tc *tc, int8_t event_chan)
+                  uint32_t channel_mask, uint32_t sweep_period,
+                  uint32_t max_source_impedance, int8_t dma_chan)
 {
     if (!channel_mask) {
         // Give up if no channels are enabled
@@ -260,6 +260,23 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
                       ADC_CTRLB_RESSEL_16BIT);
     // Wait for synchronization
     while (ADC->STATUS.bit.SYNCBUSY);
+    
+    /* Calculate sample time for target source impedance */
+    // See SAMD21 datasheet sections 37.11.4.3 and 33.8.4 for details
+    // The constants used in this formula assume 16 bit accuracy
+    
+    // Add R_SAMPLE to target maximum source impedence and multiply by
+    // 2 * C_SAMPLE * (n + 1) * ln(2), where n = 16 is the accuracy
+    // Since C_SAMPLE is so small, we scale the constant up by 10e15
+    uint64_t samplen = (uint64_t)(max_source_impedance + 3500) * 82485;
+    // Divide by the ADC clock frequecy
+    samplen *= clock_freq / (1 << (prescaler + 2));
+    
+    // Divide by 10e15 to remove scaling factor and or with 0x3F to ensure that
+    // the result is at most 63
+    // The 64 bit constant for 10e15 is written as a product of two 32 bit
+    // constants to avoid a extraneous warning
+    ADC->SAMPCTRL.bit.SAMPLEN = (samplen / (1000000000UL * 1000000UL)) & 0x3F;
     
     /* Enable bandgap and temparature references if requested */
     uint8_t bg = !!(channel_mask & (1 << ADC_INPUTCTRL_MUXPOS_BANDGAP_Val));
