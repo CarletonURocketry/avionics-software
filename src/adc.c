@@ -39,7 +39,6 @@ static void adc_dma_callback (uint8_t chan, void *state);
 #define ADC_RANGE_INT_MASK      0x1F000000
 #define ADC_RANGE_INT_BIT       31
 
-
 enum adc_scan_range {
     /* Scan from channels 1 to 10 */
     ADC_RANGE_A,
@@ -89,28 +88,47 @@ static enum adc_scan_range adc_conf_scan (void)
     
     /* Find the next range */
     if (ADC->INPUTCTRL.bit.MUXPOS <= ADC_RANGE_A_LAST) {
-        // Last scan was over range A, next scan over B
-        scan_mask = adc_state_g.channel_mask & ADC_RANGE_B_MASK;
-        range = ADC_RANGE_B;
-    } else if (ADC->INPUTCTRL.bit.MUXPOS <= ADC_RANGE_B_LAST) {
-        // Last scan was over range B, next scan over Internal
-        scan_mask = adc_state_g.channel_mask & ADC_RANGE_INT_MASK;
-        range = ADC_RANGE_INTERNAL;
-    } else {
-        // Last scan was over internal inputs, next scan over A
-        scan_mask = adc_state_g.channel_mask & ADC_RANGE_A_MASK;
-        range = ADC_RANGE_B;
-    }
-    
-    /* Skip any ranges without enabled channels */
-    while (!scan_mask) {
-        if (scan_mask == (adc_state_g.channel_mask & ADC_RANGE_INT_MASK)) {
-            scan_mask = adc_state_g.channel_mask & ADC_RANGE_A_MASK;
-            range = ADC_RANGE_A;
-        } else if (scan_mask == (adc_state_g.channel_mask & ADC_RANGE_A_MASK)) {
+        // Last scan was over range A
+        if (adc_state_g.channel_mask & ADC_RANGE_B_MASK) {
+            // Next scan over B
             scan_mask = adc_state_g.channel_mask & ADC_RANGE_B_MASK;
             range = ADC_RANGE_B;
-        } else if (scan_mask == (adc_state_g.channel_mask & ADC_RANGE_B_MASK)) {
+        } else if (adc_state_g.channel_mask & ADC_RANGE_INT_MASK) {
+            // Next scan over Internal
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_INT_MASK;
+            range = ADC_RANGE_INTERNAL;
+        } else {
+            // Next scan over A
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_A_MASK;
+            range = ADC_RANGE_A;
+        }
+    } else if (ADC->INPUTCTRL.bit.MUXPOS <= ADC_RANGE_B_LAST) {
+        // Last scan was over range B
+        if (adc_state_g.channel_mask & ADC_RANGE_INT_MASK) {
+            // Next scan over Internal
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_INT_MASK;
+            range = ADC_RANGE_INTERNAL;
+        } else if (adc_state_g.channel_mask & ADC_RANGE_A_MASK) {
+            // Next scan over A
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_A_MASK;
+            range = ADC_RANGE_A;
+        } else {
+            // Next scan over B
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_B_MASK;
+            range = ADC_RANGE_B;
+        }
+    } else {
+        // Last scan was over internal inputs
+        if (adc_state_g.channel_mask & ADC_RANGE_A_MASK) {
+            // Next scan over A
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_A_MASK;
+            range = ADC_RANGE_A;
+        } else if (adc_state_g.channel_mask & ADC_RANGE_B_MASK) {
+            // Next scan over B
+            scan_mask = adc_state_g.channel_mask & ADC_RANGE_B_MASK;
+            range = ADC_RANGE_B;
+        } else {
+            // Next scan over Internal
             scan_mask = adc_state_g.channel_mask & ADC_RANGE_INT_MASK;
             range = ADC_RANGE_INTERNAL;
         }
@@ -131,8 +149,7 @@ static enum adc_scan_range adc_conf_scan (void)
     
     /* Configure DMA or interrupts */
     if (adc_state_g.use_dma) {
-        uint16_t *buffer = ((scan_mask ==
-                             (adc_state_g.channel_mask & ADC_RANGE_INT_MASK)) ?
+        uint16_t *buffer = ((scan_mask & ADC_RANGE_INT_MASK) ?
                             (adc_state_g.adc_in_buffer_internal +
                              (first - ADC_RANGE_INT_FIRST)) :
                             (adc_state_g.adc_in_buffer_pins + first));
@@ -188,7 +205,7 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
     
     /* 256x oversampling and decimation for 16 bit effective resolution */
     ADC->AVGCTRL.reg = ADC_AVGCTRL_SAMPLENUM_256 | ADC_AVGCTRL_ADJRES(0);
-    
+
     /* Configure Control B register */
     // Calculate prescaler value
     // Division factor (rounded up to ensure maximum frequency is not exceeded)
@@ -219,7 +236,7 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
     adc_state_g.channel_mask = channel_mask;
     adc_state_g.sweep_period = sweep_period;
     
-    // Set in mask to indicate which ranges are used
+    // Set bits in mask to indicate which ranges are used
     channel_mask |= ((!!(channel_mask & ADC_RANGE_A_MASK) << ADC_RANGE_A_BIT) |
                      (!!(channel_mask & ADC_RANGE_B_MASK) << ADC_RANGE_B_BIT) |
                      (!!(channel_mask & ADC_RANGE_INT_MASK) << ADC_RANGE_INT_BIT)
@@ -466,7 +483,7 @@ void ADC_Handler (void)
         uint8_t index = adc_state_g.chan_num++;
         adc_state_g.adc_in_buffer_pins[index] = ADC->RESULT.reg;
     }
-    
+
     // If we have reached the end of a sweep, run the DMA callback function
     if (adc_state_g.chan_num > adc_state_g.last_chan) {
         adc_dma_callback(255, NULL);
