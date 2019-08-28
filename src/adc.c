@@ -10,8 +10,6 @@
 #include "adc.h"
 
 #include "dma.h"
-#include "evsys.h"
-#include "tc.h"
 
 #define ADC_IRQ_PRIORITY    3
 
@@ -51,11 +49,7 @@ enum adc_scan_range {
 struct {
     uint32_t channel_mask;
     uint32_t last_sweep_time;
-    
-    union {
-        uint32_t sweep_period;
-        Tc *tc;
-    };
+    uint32_t sweep_period;
     
     uint16_t adc_in_buffer_pins[20];
     uint16_t adc_in_buffer_internal[5];
@@ -68,8 +62,6 @@ struct {
         };
     };
     
-    uint8_t event_chan:4;
-    uint8_t use_tc:1;
     uint8_t use_dma:1;
 } adc_state_g;
 
@@ -260,55 +252,29 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
         NVIC_EnableIRQ(ADC_IRQn);
     }
     
-    /* Configure timer and event system (if requested) */
-    if (sweep_period && (tc != NULL)) {
-        adc_state_g.use_tc = 1;
-        adc_state_g.tc = tc;
-        adc_state_g.event_chan = event_chan;
-        
-        // Initilize TC to provide events at the sweep period
-        uint8_t r = init_tc_periodic_event(tc, sweep_period, clock_mask,
-                                           clock_freq);
-        if (r) {
-            // TC could not be initilized
-            return 1;
-        }
-        
-        // Configure the ADC event user MUX to accept events from the correct
-        // channel
-        evsys_configure_user_mux(EVSYS_ID_USER_ADC_START, event_chan);
-        // Configure the EVSYS channel to source events from the TC
-        evsys_configure_channel(event_chan, tc_get_evsys_gen_ovf_id(tc),
-                                clock_mask, EVSYS_PATH_ASYNCHRONOUS,
-                                EVSYS_EDGE_RISING);
-        // Configure ADC to start sweep on event
-        ADC->EVCTRL.bit.STARTEI = 1;
-    }
-    
     // Set up for first sweep
     adc_conf_scan();
-    
-    /* Enable ADC */
-    ADC->CTRLA.bit.ENABLE = 1;
-    // Wait for synchronization
-    while (ADC->STATUS.bit.SYNCBUSY);
     
     return 0;
 }
 
 void adc_service (void)
 {
-    if ((!adc_state_g.use_tc) &&
-        ((millis - adc_state_g.last_sweep_time) > adc_state_g.sweep_period)) {
-        adc_state_g.last_sweep_time = millis;
+    if ((millis - adc_state_g.last_sweep_time) > adc_state_g.sweep_period) {
+        /* Enable ADC */
+        ADC->CTRLA.bit.ENABLE = 1;
+        // Wait for synchronization
+        while (ADC->STATUS.bit.SYNCBUSY);
+        
         // Start next scan
+        adc_state_g.last_sweep_time = millis;
         adc_start_scan();
     }
 }
 
 uint16_t adc_get_value (uint8_t channel)
 {
-    if (adc_state_g.chan_num >= ADC_RANGE_INT_FIRST) {
+    if (channel >= ADC_RANGE_INT_FIRST) {
         return adc_state_g.adc_in_buffer_internal[channel - ADC_RANGE_INT_FIRST];
     } else {
         return adc_state_g.adc_in_buffer_pins[channel];
@@ -471,7 +437,7 @@ uint32_t adc_get_channel_mask (void)
     return adc_state_g.channel_mask;
 }
 
-
+#ifdef ENABLE_ADC
 void ADC_Handler (void)
 {
     // Store result
@@ -489,6 +455,8 @@ void ADC_Handler (void)
         adc_dma_callback(255, NULL);
     }
 }
+#endif
+
 
 static void adc_dma_callback (uint8_t chan, void *state)
 {
@@ -507,6 +475,9 @@ static void adc_dma_callback (uint8_t chan, void *state)
         if (adc_state_g.sweep_period == 0) {
             // Next sweep should be started right away
             adc_start_scan();
+        } else {
+            // Disable the ADC
+            ADC->CTRLA.bit.ENABLE = 0;
         }
     }
 }
