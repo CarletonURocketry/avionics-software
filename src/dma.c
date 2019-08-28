@@ -338,7 +338,7 @@ void dma_start_static_to_buffer_hword(uint8_t chan, uint16_t *buffer,
     
     // Set source and destination addresses
     dmacDescriptors_g[chan].SRCADDR.reg = (uint32_t)source;
-    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)buffer + length;
+    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)buffer + (length * 2);
     
     // Select block transfer count
     dmacDescriptors_g[chan].BTCNT.reg = length;
