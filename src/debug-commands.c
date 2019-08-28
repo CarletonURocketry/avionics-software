@@ -30,6 +30,30 @@
 #include "telemetry-format.h"
 #include "telemetry.h"
 
+static void print_fixed_point (struct console_desc_t *console, int32_t value,
+                               uint8_t decimal_places)
+{
+    int32_t scale = pow(10, decimal_places);
+    
+    char str[10];
+    int32_t whole = value / scale;
+    
+    if ((whole == 0) && (value < 0)) {
+        console_send_str(console, "-0.");
+    } else {
+        itoa(whole, str, 10);
+        console_send_str(console, str);
+        console_send_str(console, ".");
+    }
+    
+    int32_t frac = abs(value - (whole * scale));
+    itoa(frac, str, 10);
+    for (int i = strlen(str); i < decimal_places; i++) {
+        console_send_str(console, "0");
+    }
+    console_send_str(console, str);
+}
+
 
 #define DEBUG_VERSION_NAME  "version"
 #define DEBUG_VERSION_HELP  "Get software version information.\n"
@@ -511,25 +535,26 @@ static void debug_temp (uint8_t argc, char **argv,
 
 #define DEBUG_ANALOG_NAME  "analog"
 #define DEBUG_ANALOG_HELP  "Print values of analog inputs.\nUsage: analog "\
-                           "[pin numbering]\nPin numbering should be one of"\
-                           "internal or header.\n"
+                           "[pin numbering]\nPin numbering should be one of "\
+                           "internal or header."
 
 static void debug_analog_print_channel (struct console_desc_t *console,
                                         uint8_t channel, int32_t parsed_value,
-                                        uint32_t scale, const char *name,
+                                        uint8_t decimals, const char *name,
                                         const char *unit)
 {
     char str[10];
     
     if (*name == '\0') {
-        if (channel < 10) {
-            console_send_str(console, "  ");
-        } else {
+        utoa(channel, str, 10);
+        for (uint8_t i = strlen(str); i < 16; i++) {
             console_send_str(console, " ");
         }
-        utoa(channel, str, 10);
         console_send_str(console, str);
     } else {
+        for (uint8_t i = strlen(name); i < 16; i++) {
+            console_send_str(console, " ");
+        }
         console_send_str(console, name);
     }
     console_send_str(console, ": 0x");
@@ -539,11 +564,9 @@ static void debug_analog_print_channel (struct console_desc_t *console,
     
     if (*unit != '\0') {
         console_send_str(console, " (");
-        itoa(parsed_value / scale, str, 10);
-        console_send_str(console, str);
-        console_send_str(console, ".");
-        utoa(abs(parsed_value % scale), str, 10);
-        console_send_str(console, str);
+        
+        print_fixed_point(console, parsed_value, decimals);
+        
         console_send_str(console, " ");
         console_send_str(console, unit);
         console_send_str(console, ")\n");
@@ -555,50 +578,50 @@ static void debug_analog_print_channel (struct console_desc_t *console,
 static void debug_analog (uint8_t argc, char **argv,
                           struct console_desc_t *console)
 {
-    uint8_t numbering = 0;
-    if ((argc == 2) && !strcasecmp(argv[1], "internal")) {
-        numbering = 1;
-    } else if ((argc == 2) && !strcasecmp(argv[1], "header")) {
-        numbering = 0;
-    } else if (argc != 1) {
-        console_send_str(console, DEBUG_ANALOG_HELP);
-        return;
-    }
+    char str[16];
+    
+    console_send_str(console, "Last sweep was at ");
+    utoa(adc_get_last_sweep_time(), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(millis - adc_get_last_sweep_time(), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " milliseconds ago)\n");
     
     uint32_t channel_mask = adc_get_channel_mask();
     
-    if (numbering) {
-        // Use internal pin numbers
-        
-        // Iterate over all enabled external channels
-        uint32_t int_chans = channel_mask & 0xFFFFF;
-        
-        while (int_chans != 0) {
-            uint32_t t = int_chans & -int_chans;
-            
-            uint8_t i = __builtin_ctzl(int_chans);
-            uint16_t volts = adc_get_value_millivolts(i);
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000, "",
-                                       "V");
-            
-            int_chans ^= t;
-            
-            wdt_pat();
-        }
-    } else {
+    if (channel_mask & ~0x1F000000) {
         // Use header pin numbers
         uint8_t analog_header_chans[] = HEADER_ANALOG_PINS;
         // Iterate over all of the analog header pins
         for (uint8_t i = 0; i < NUM_ANALOG_HEADER_PINS; i++) {
-            uint16_t volts = adc_get_value_millivolts(analog_header_chans[i]);
-            debug_analog_print_channel(console, analog_header_chans[i],
-                                       (uint32_t)volts, 1000, "", "V");
+            uint8_t chan = analog_header_chans[i];
             
-            wdt_pat();
+            if (channel_mask & (1 << chan)) {
+                uint16_t volts = adc_get_value_millivolts(
+                                                        analog_header_chans[i]);
+                
+                utoa(i, str , 10);
+                uint8_t p = strlen(str);
+                if (chan < 10) {
+                    str[p] = ' ';
+                    p++;
+                }
+                str[p] = ' ';
+                str[p + 1] = '(';
+                utoa(chan, str + p + 2, 10);
+                p = strlen(str);
+                str[p] = ')';
+                str[p + 1] = '\0';
+                
+                debug_analog_print_channel(console, analog_header_chans[i],
+                                           (uint32_t)volts, 3, str, "V");
+            }
         }
+        
+        wdt_pat();
+        console_send_str(console, "\n");
     }
-    
-    
     // Iterate over enabled internal channels
     channel_mask &= 0x1F000000;
     
@@ -608,27 +631,27 @@ static void debug_analog (uint8_t argc, char **argv,
         
         if (i == ADC_INPUTCTRL_MUXPOS_TEMP_Val) {
             int16_t temp = adc_get_temp_fine();
-            debug_analog_print_channel(console, i, (uint32_t)temp, 100,
+            debug_analog_print_channel(console, i, (uint32_t)temp, 2,
                                        "Temperature", "C");
         } else if (i == ADC_INPUTCTRL_MUXPOS_BANDGAP_Val) {
             uint16_t volts = adc_get_value_millivolts(i);
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+            debug_analog_print_channel(console, i, (uint32_t)volts, 3,
                                        "Bandgap", "V");
         } else if (i == ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val) {
             int16_t volts = adc_get_core_vcc();
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+            debug_analog_print_channel(console, i, (uint32_t)volts, 3,
                                        "Core VCC", "V");
         } else if (i == ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC_Val) {
             int16_t volts = adc_get_io_vcc();
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+            debug_analog_print_channel(console, i, (uint32_t)volts, 3,
                                        "IO VCC", "V");
         } else if (i == ADC_INPUTCTRL_MUXPOS_DAC_Val) {
             uint16_t volts = adc_get_value_millivolts(i);
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000,
+            debug_analog_print_channel(console, i, (uint32_t)volts, 3,
                                        "DAC", "V");
         } else {
             uint16_t volts = adc_get_value_millivolts(i);
-            debug_analog_print_channel(console, i, (uint32_t)volts, 1000, "",
+            debug_analog_print_channel(console, i, (uint32_t)volts, 3, "",
                                        "V");
         }
         
@@ -639,30 +662,6 @@ static void debug_analog (uint8_t argc, char **argv,
 
 #define DEBUG_ALT_NAME  "alt-test"
 #define DEBUG_ALT_HELP  "Print most recent values from altimeter."
-
-static void print_fixed_point (struct console_desc_t *console, int32_t value,
-                               uint8_t decimal_places)
-{
-    int32_t scale = pow(10, decimal_places);
-    
-    char str[10];
-    int32_t whole = value / scale;
-    
-    if ((whole == 0) && (value < 0)) {
-        console_send_str(console, "-0.");
-    } else {
-        itoa(whole, str, 10);
-        console_send_str(console, str);
-        console_send_str(console, ".");
-    }
-    
-    int32_t frac = abs(value - (whole * scale));
-    itoa(frac, str, 10);
-    for (int i = strlen(str); i < decimal_places; i++) {
-        console_send_str(console, "0");
-    }
-    console_send_str(console, str);
-}
 
 static void debug_alt (uint8_t argc, char **argv,
                        struct console_desc_t *console)
