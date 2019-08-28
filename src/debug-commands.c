@@ -475,18 +475,10 @@ static void debug_temp (uint8_t argc, char **argv,
     
     console_send_str(console, "Temperature (course): ");
     int16_t t_course = adc_get_temp_course();
-    itoa(t_course / 100, str, 10);
-    console_send_str(console, str);
-    console_send_str(console, ".");
-    utoa(abs(t_course % 100), str, 10);
-    console_send_str(console, str);
+    print_fixed_point(console, t_course, 2);
     console_send_str(console, " C\nTemperature (fine): ");
     int16_t t_fine = adc_get_temp_fine();
-    itoa(t_fine / 100, str, 10);
-    console_send_str(console, str);
-    console_send_str(console, ".");
-    utoa(abs(t_fine % 100), str, 10);
-    console_send_str(console, str);
+    print_fixed_point(console, t_fine, 2);
     
     wdt_pat();
     

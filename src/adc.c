@@ -370,8 +370,8 @@ static int16_t adc_get_temp (uint8_t fine)
                                         NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_ADDR)) &
                                         NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Msk) >>
                                           NVMCTRL_FUSES_ROOM_TEMP_VAL_DEC_Pos);
-    int32_t temp_r = ((room_temp_val_int * 10000000) +
-                      (room_temp_val_dec * 1000000));
+    int64_t temp_r = (((uint64_t)room_temp_val_int * 100000000UL) +
+                      ((uint64_t)room_temp_val_dec * 10000000UL));
     
     // Hot temperature (in nanodegrees celsius)
     uint8_t hot_temp_val_int = (uint8_t)(((*((uint32_t*)
@@ -382,8 +382,8 @@ static int16_t adc_get_temp (uint8_t fine)
                                         NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_ADDR)) &
                                           NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Msk) >>
                                          NVMCTRL_FUSES_HOT_TEMP_VAL_DEC_Pos);
-    int32_t temp_h = ((hot_temp_val_int * 10000000) +
-                      (hot_temp_val_dec * 1000000));
+    int64_t temp_h = (((uint64_t)hot_temp_val_int * 100000000UL) +
+                      ((uint64_t)hot_temp_val_dec * 10000000UL));
     
     // 1 V reference actual voltage for room temperature measurment
     int16_t int1v_r = 1000 - ((int8_t)(((*((uint32_t*)
@@ -413,46 +413,48 @@ static int16_t adc_get_temp (uint8_t fine)
     uint16_t adc_m_val = adc_state_g.adc_in_buffer_internal[
                         ADC_INPUTCTRL_MUXPOS_TEMP_Val - ADC_RANGE_INT_FIRST];
     
-    /* Compute coefficients to convert ADC values to hundred nanovolts */
-    uint32_t adc_r_co = ((10000 * int1v_r) + 2048) / 4095;
-    uint32_t adc_h_co = ((10000 * int1v_h) + 2048) / 4095;
-    uint32_t adc_m_course_co = ((10000 * 1000) + 32768) / 65535;
+    /* Compute coefficients to convert ADC values to nanovolts */
+    uint32_t adc_r_co = ((100000 * (uint32_t)int1v_r) + 2048) / 4095;
+    uint32_t adc_h_co = ((100000 * (uint32_t)int1v_h) + 2048) / 4095;
+    uint32_t adc_m_course_co = ((100000 * (uint32_t)1000) + 32768) / 65535;
     
-    /* Compute voltages (in hundred nanovolts) */
+    /* Compute voltages (in nanovolts) */
     uint32_t v_adc_r = adc_r_val * adc_r_co;
     uint32_t v_adc_h = adc_h_val * adc_h_co;
     uint32_t v_adc_m_course = adc_m_val * adc_m_course_co;
     
-    /* Compute course temp (in hundred nanodegrees celsius) */
+    /* Compute course temp (in nanodegrees celsius) */
     int32_t denominator = v_adc_h - v_adc_r;
     int32_t delta_v_course = v_adc_m_course - v_adc_r;
-    int32_t delta_t = temp_h - temp_r;
-
+    int64_t delta_t = temp_h - temp_r;
+    
     int64_t numerator_course = (int64_t)delta_v_course * delta_t;
-    int32_t temp_c = temp_r + (numerator_course / denominator);
+    int64_t temp_c = temp_r + (numerator_course / denominator);
     
     if (!fine) {
         // Return course value
-        return (int16_t)(temp_c / 100000);
+        return (int16_t)(temp_c / 1000000);
     }
     
-    /* Estimate 1 V reference actual voltage (in hundred nanovolts) */
+    /* Estimate 1 V reference actual voltage (in nanovolts) */
     int16_t delta_int1v = int1v_h - int1v_r;
-    int16_t int1v_m = (delta_int1v * (temp_c - temp_r)) / delta_t;
-    
+    int32_t delta_t_s = delta_t / 100000;
+    int32_t int1v_r_s = 100000 * int1v_r;
+    int32_t int1v_m = int1v_r_s + (delta_int1v * (temp_c - temp_r) / delta_t_s);
+
     /* Compute new coefficient for measured temp ADC value */
-    uint32_t adc_m_fine_co = ((10000 * int1v_m) + 32768) / 65535;
+    uint32_t adc_m_fine_co = (int1v_m + 32768) / 65535;
     
-    /* Compute new measured ACD voltage (in hundred nanovolts) */
+    /* Compute new measured ACD voltage (in nanovolts) */
     uint32_t v_adc_m_fine = adc_m_val * adc_m_fine_co;
     
-    /* Compute fine temp (in hundred nanodegrees celsius) */
+    /* Compute fine temp (in nanodegrees celsius) */
     int32_t delta_v_fine = v_adc_m_fine - v_adc_r;
     int64_t numerator_fine = (int64_t)delta_v_fine * delta_t;
-    int32_t temp_f = temp_r + (numerator_fine / denominator);
+    int64_t temp_f = temp_r + (numerator_fine / denominator);
     
     // Return fine value
-    return temp_f;
+    return (int16_t)(temp_f / 1000000);
 }
 
 int16_t adc_get_temp_course (void)
