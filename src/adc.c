@@ -65,6 +65,45 @@ struct {
     uint8_t use_dma:1;
 } adc_state_g;
 
+struct pin_t {
+    uint8_t num:5;
+    uint8_t port:1;
+};
+
+static const struct pin_t adc_pins[] = {
+    {.port = 0, .num = 2},  // AIN[0]
+    {.port = 0, .num = 3},  // AIN[1]
+    {.port = 1, .num = 8},  // AIN[2]
+    {.port = 1, .num = 9},  // AIN[3]
+    {.port = 0, .num = 4},  // AIN[4]
+    {.port = 0, .num = 5},  // AIN[5]
+    {.port = 0, .num = 6},  // AIN[6]
+    {.port = 0, .num = 7},  // AIN[7]
+    {.port = 1, .num = 0},  // AIN[8]
+    {.port = 1, .num = 1},  // AIN[9]
+    {.port = 1, .num = 2},  // AIN[10]
+    {.port = 1, .num = 3},  // AIN[11]
+    {.port = 1, .num = 4},  // AIN[12]
+    {.port = 1, .num = 5},  // AIN[13]
+    {.port = 1, .num = 6},  // AIN[14]
+    {.port = 1, .num = 7},  // AIN[15]
+    {.port = 0, .num = 8},  // AIN[16]
+    {.port = 0, .num = 9},  // AIN[17]
+    {.port = 0, .num = 10}, // AIN[18]
+    {.port = 0, .num = 11}  // AIN[19]
+};
+
+static void adc_set_pmux (uint8_t channel)
+{
+    struct pin_t pin = adc_pins[channel];
+    
+    if ((pin.num % 2) == 0) {
+        PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXE = 0x1;
+    } else {
+        PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXO = 0x1;
+    }
+    PORT->Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0b1;
+}
 
 /**
  *  Configure the ADC and supporting peripherals to be ready for the next scan.
@@ -177,6 +216,13 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
     if (!channel_mask) {
         // Give up if no channels are enabled
         return 1;
+    }
+    
+    /* Configure all enabled pins as analog inputs */
+    for (uint8_t i = 0; i < ADC_RANGE_B_LAST; i++) {
+        if (channel_mask & (1 << i)) {
+            adc_set_pmux(i);
+        }
     }
     
     /* Enable the APBC clock for the ADC */
