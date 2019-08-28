@@ -56,7 +56,7 @@ static void print_fixed_point (struct console_desc_t *console, int32_t value,
 
 
 #define DEBUG_VERSION_NAME  "version"
-#define DEBUG_VERSION_HELP  "Get software version information.\n"
+#define DEBUG_VERSION_HELP  "Get software version information."
 
 static void debug_version (uint8_t argc, char **argv,
                            struct console_desc_t *console)
@@ -70,7 +70,7 @@ static void debug_version (uint8_t argc, char **argv,
 
 
 #define DEBUG_DID_NAME  "did"
-#define DEBUG_DID_HELP  "Get device identification information.\n"
+#define DEBUG_DID_HELP  "Get device identification information."
 
 static void debug_did (uint8_t argc, char **argv,
                        struct console_desc_t *console)
@@ -133,7 +133,7 @@ static void debug_did (uint8_t argc, char **argv,
 
 
 #define DEBUG_I2C_SCAN_NAME  "i2c-scan"
-#define DEBUG_I2C_SCAN_HELP  "Scan for devices on the I2C bus.\n"
+#define DEBUG_I2C_SCAN_HELP  "Scan for devices on the I2C bus."
 
 static void debug_i2c_scan (uint8_t argc, char **argv,
                            struct console_desc_t *console)
@@ -193,7 +193,7 @@ static void debug_i2c_scan (uint8_t argc, char **argv,
 
 
 #define DEBUG_ALT_PROM_NAME  "alt-prom"
-#define DEBUG_ALT_PROM_HELP  "Read data from altimeter PROM.\n"
+#define DEBUG_ALT_PROM_HELP  "Read data from altimeter PROM."
 
 static void debug_alt_prom (uint8_t argc, char **argv,
                             struct console_desc_t *console)
@@ -306,7 +306,7 @@ static void debug_alt_prom (uint8_t argc, char **argv,
 
 
 #define DEBUG_IMU_WAI_NAME  "imu-wai"
-#define DEBUG_IMU_WAI_HELP  "Read IMU Who Am I register.\n"
+#define DEBUG_IMU_WAI_HELP  "Read IMU Who Am I register."
 
 static void debug_imu_wai (uint8_t argc, char **argv,
                            struct console_desc_t *console)
@@ -330,7 +330,7 @@ static void debug_imu_wai (uint8_t argc, char **argv,
 
 #define DEBUG_IO_EXP_REGS_NAME  "io-exp-regs"
 #define DEBUG_IO_EXP_REGS_HELP  "Read MCP23S17 registers.\n"\
-                                "Usage: io-exp-regs [address]\n"
+                                "Usage: io-exp-regs [address]"
 
 static void debug_print_byte_with_pad (struct console_desc_t *console,
                                        const char *line_start, uint8_t byte,
@@ -431,7 +431,7 @@ static void debug_io_exp_regs (uint8_t argc, char **argv,
 
 #define DEBUG_TEMP_NAME  "temp"
 #define DEBUG_TEMP_HELP  "Read internal temperature sensor and the NVM "\
-                         "temperature log row.\n"
+                         "temperature log row."
 
 static void debug_temp (uint8_t argc, char **argv,
                         struct console_desc_t *console)
@@ -1193,7 +1193,7 @@ static void debug_radio_send (uint8_t argc, char **argv,
 
 #define DEBUG_RADIO_COUNT_NAME  "radio-count"
 #define DEBUG_RADIO_COUNT_HELP  "Send counts at an interval with the RN2483"\
-                                " radio.\nUsage: radio-count [max] [interval]\n"
+                                " radio.\nUsage: radio-count [max] [interval]"
 
 static void debug_radio_count (uint8_t argc, char **argv,
                                struct console_desc_t *console)
@@ -1256,7 +1256,7 @@ static void debug_radio_count (uint8_t argc, char **argv,
 
 #define DEBUG_RADIO_RECV_NAME  "radio-receive"
 #define DEBUG_RADIO_RECV_HELP  "Receive a message with the RN2483 radio.\n"\
-                               "Usage: radio-receive [count] [window]\n"
+                               "Usage: radio-receive [count] [window]"
 
 struct radio_recv_context {
     struct console_desc_t *console;

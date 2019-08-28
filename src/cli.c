@@ -31,6 +31,7 @@ static void cli_help (uint8_t argc, char **argv, struct console_desc_t *console,
         for (uint8_t i = 0; i < cli->num_functions; i++) {
             if (!strcasecmp(argv[1], cli->functions[i].name)) {
                 console_send_str(console, cli->functions[i].help_string);
+                console_send_str(console, "\n");
                 return;
             }
         }
