@@ -203,10 +203,8 @@ static enum adc_scan_range adc_conf_scan (void)
  */
 static inline void adc_start_scan (void)
 {
-    /** Trigger ADC scan */
-    ADC->SWTRIG.bit.START = 0b1;
-    // Wait for synchronization
-    while (ADC->STATUS.bit.SYNCBUSY);
+    /** Start free running input scan */
+    ADC->CTRLB.bit.FREERUN = 0b1;
 }
 
 uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
@@ -238,8 +236,8 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
     // Wait for reset to complete
     while (ADC->CTRLA.bit.SWRST | ADC->STATUS.bit.SYNCBUSY);
     
-    /* Use internal 1.0 V reference with reference buffer offset compensation */
-    ADC->REFCTRL.reg = ADC_REFCTRL_REFCOMP | ADC_REFCTRL_REFSEL_INT1V;
+    /* Use internal 1.0 V reference */
+    ADC->REFCTRL.reg = ADC_REFCTRL_REFSEL_INT1V;
     
     /* 256x oversampling and decimation for 16 bit effective resolution */
     ADC->AVGCTRL.reg = ADC_AVGCTRL_SAMPLENUM_256 | ADC_AVGCTRL_ADJRES(0);
@@ -257,10 +255,9 @@ uint8_t init_adc (uint32_t clock_mask, uint32_t clock_freq,
     // only thing wrong)
     prescaler &= 0x1FF;
     
-    // Set prescaler, 16 bit output, freerunning mode
+    // Set prescaler, 16 bit output
     ADC->CTRLB.reg = (ADC_CTRLB_PRESCALER(prescaler) |
-                      ADC_CTRLB_RESSEL_16BIT |
-                      ADC_CTRLB_FREERUN);
+                      ADC_CTRLB_RESSEL_16BIT);
     // Wait for synchronization
     while (ADC->STATUS.bit.SYNCBUSY);
     
@@ -506,6 +503,10 @@ void ADC_Handler (void)
 
 static void adc_dma_callback (uint8_t chan, void *state)
 {
+    // Stop freerunning mode
+    ADC->CTRLB.bit.FREERUN = 0;
+    ADC->SWTRIG.bit.FLUSH = 1;
+    
     // Configure the next sweep
     enum adc_scan_range next_range = adc_conf_scan();
 
