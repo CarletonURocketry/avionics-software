@@ -59,7 +59,7 @@ struct sercom_uart_desc_t {
  *                         core clock;
  *  @param dma_channel The DMA channel to be used for transmition or a negative
  *                     value for interupt driven communication.
- *  @param echo If true bytes recieved will be trated as characters and
+ *  @param echo If true bytes recieved will be treated as characters and
  *              echoed and simple line editing (backspace) will be possible.
  */
 extern void init_sercom_uart(struct sercom_uart_desc_t *descriptor,
