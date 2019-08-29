@@ -586,7 +586,7 @@ static void debug_analog (uint8_t argc, char **argv,
         // Use header pin numbers
         uint8_t analog_header_chans[] = HEADER_ANALOG_PINS;
         // Iterate over all of the analog header pins
-        for (uint8_t i = 0; i < NUM_ANALOG_HEADER_PINS; i++) {
+        for (uint8_t i = 0; i < NUM_ANALOG_PINS; i++) {
             uint8_t chan = analog_header_chans[i];
             
             if (channel_mask & (1 << chan)) {
