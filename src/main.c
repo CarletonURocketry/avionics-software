@@ -574,13 +574,18 @@ void HardFault_Handler(void)
     // loop below.
     MTB->MASTER.reg = 0x00000000;
     
+    uint8_t port = DEBUG0_LED_PIN.internal.port;
+    uint32_t mask = (1 << DEBUG0_LED_PIN.internal.pin);
+    
     for (;;) {
-        PORT->Group[DEBUG_LED_GROUP_NUM].OUTSET.reg = DEBUG_LED_MASK;
+        
+        
+        PORT->Group[port].OUTSET.reg = mask;
         uint64_t n = 1000000;
         while (n--) {
             asm volatile ("");
         }
-        PORT->Group[DEBUG_LED_GROUP_NUM].OUTCLR.reg = DEBUG_LED_MASK;
+        PORT->Group[port].OUTCLR.reg = mask;
         n = 10000000;
         while (n--) {
             asm volatile ("");

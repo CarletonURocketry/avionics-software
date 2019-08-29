@@ -20,11 +20,6 @@
 #define VERSION_STRING "CU InSpace 2019 Avionics Software\n"
 #define BUILD_STRING "Built "__DATE__" at "__TIME__" with arm-none-eabi-gcc "__VERSION__"\n"
 
-
-#define DEBUG_LED_GROUP_NUM 1
-//#define DEBUG_LED_MASK       PORT_PB30  // Xplained Pro
-#define DEBUG_LED_MASK       PORT_PB15  // CU InSpace Board
-
 /**
  *  Number of milliseconds ellapsed since system was reset
  */
