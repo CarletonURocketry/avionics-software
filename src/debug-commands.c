@@ -13,17 +13,19 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "global.h"
 #include "config.h"
 
 #include "wdt.h"
+#include "adc.h"
+#include "dac.h"
 
 #include "sercom-i2c.h"
 #include "sercom-spi.h"
-#include "mcp23s17-registers.h"
-#include "adc.h"
 
+#include "mcp23s17-registers.h"
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 
@@ -1526,6 +1528,7 @@ static void debug_adc_read (uint8_t argc, char **argv,
     
     if ((argc < 2) || (argc > 3)) {
         console_send_str(console, DEBUG_ADC_READ_HELP);
+        console_send_str(console, "\n");
         return;
     }
     
@@ -1534,6 +1537,7 @@ static void debug_adc_read (uint8_t argc, char **argv,
     uint32_t scan_start = strtoul(argv[1], &end, 0);
     if ((*end != '\0') || (scan_start > 0x1C)) {
         console_send_str(console, DEBUG_ADC_READ_HELP);
+        console_send_str(console, "\n");
         return;
     }
     
@@ -1542,6 +1546,7 @@ static void debug_adc_read (uint8_t argc, char **argv,
         scan_end = strtoul(argv[2], &end, 0);
         if ((*end != '\0') || (scan_end > 0x1C) || (scan_end < scan_start)) {
             console_send_str(console, DEBUG_ADC_READ_HELP);
+            console_send_str(console, "\n");
             return;
         }
     } else {
@@ -1585,7 +1590,146 @@ void ADC_Handler (void)
 #endif
 
 
-const uint8_t debug_commands_num_funcs = 21;
+#define DEBUG_DAC_NAME  "dac"
+#define DEBUG_DAC_HELP  "Control DAC.\nUsage: dac [value] [volts/raw]"
+
+enum debug_dac_mode {
+    DEBUG_DAC_MODE_VOLTS,
+    DEBUG_DAC_MODE_RAW
+};
+
+static uint16_t parse_value(char *str, char **end, uint8_t *has_decimal)
+{
+    uint16_t value = (uint16_t)strtoul(str, end, 0);
+    
+    if (**end == '.') {
+        // Number has decimal
+        *has_decimal = 1;
+        value *= 1000;
+        
+        char *s = *end + 1;
+        
+        if (s == '\0') {
+            return 0;
+        }
+        
+        for (uint16_t weight = 100; weight != 0; weight /= 10) {
+            if (isdigit(*s)) {
+                value += weight * (*s - '0');
+            } else {
+                break;
+            }
+            s++;
+        }
+        *end = s;
+    }
+    
+    return value;
+}
+
+static void debug_dac (uint8_t argc, char **argv,
+                       struct console_desc_t *console)
+{
+    static uint8_t dac_initialized;
+    
+    uint8_t has_decimal = 0;
+    uint16_t value = 0;
+    enum debug_dac_mode mode = DEBUG_DAC_MODE_RAW;
+    
+    if (!dac_initialized && (argc != 3)) {
+        console_send_str(console, "DAC not initialize, run 'dac init 1V' or "\
+                                  "'dac init 3.3V'.\n");
+        return;
+    }
+    
+    if (argc == 2) {
+        // One argument provided, it should be a value
+        
+        char* end;
+        value = parse_value(argv[1], &end, &has_decimal);
+        
+        if (!strcasecmp(end, "v")) {
+            mode = DEBUG_DAC_MODE_VOLTS;
+        } else if (*end != '\0') {
+            console_send_str(console, DEBUG_DAC_HELP);
+            console_send_str(console, "\n");
+            return;
+        }
+    } else if (argc == 3) {
+        if (!strncasecmp(argv[1], "init", 4)) {
+            if (!strcasecmp(argv[2], "1v")) {
+                init_dac(GCLK_CLKCTRL_GEN_GCLK0, DAC_REF_1V, 1, 1);
+            } else if (!strcasecmp(argv[2], "3.3v")) {
+                init_dac(GCLK_CLKCTRL_GEN_GCLK0, DAC_REF_AVCC, 1, 1);
+            } else {
+                console_send_str(console, "DAC not initialize, run 'dac init "\
+                                          "1V' or 'dac init 3.3V'.\n");
+                return;
+            }
+            dac_initialized = 1;
+            return;
+        } else if (dac_initialized) {
+            // Two arguments provided, the first should be a value and the
+            // second should be a unit
+            char* end;
+            value = parse_value(argv[1], &end, &has_decimal);
+            
+            if (*end != '\0') {
+                console_send_str(console, DEBUG_DAC_HELP);
+                console_send_str(console, "\n");
+                return;
+            }
+            
+            if (!strcasecmp(argv[2], "v") || !strcasecmp(argv[2], "volts")) {
+                mode = DEBUG_DAC_MODE_VOLTS;
+            } else if (!strcasecmp(argv[2], "raw")) {
+                mode = DEBUG_DAC_MODE_RAW;
+            } else {
+                console_send_str(console, DEBUG_DAC_HELP);
+                console_send_str(console, "\n");
+                return;
+            }
+        } else {
+            console_send_str(console, "DAC not initialize, run 'dac init 1V' "\
+                             "or 'dac init 3.3V'.\n");
+            return;
+        }
+    } else if (argc > 3) {
+        console_send_str(console, DEBUG_DAC_HELP);
+        return;
+    }
+    
+    // Check that if a value with a decimal was provided, it is a voltage
+    if (has_decimal && (mode == DEBUG_DAC_MODE_RAW)) {
+        console_send_str(console, "Raw value must be an integer.\n");
+        return;
+    }
+    
+    // Update DAC Value
+    if (argc != 1) {
+        if (mode == DEBUG_DAC_MODE_VOLTS) {
+            if (!has_decimal) {
+                value *= 1000;
+            }
+            dac_set_millivolts(value);
+        } else if (mode == DEBUG_DAC_MODE_RAW) {
+            dac_set(value);
+        }
+    }
+    
+    char str[8];
+    
+    // Print current DAC value
+    console_send_str(console, "DAC value: ");
+    utoa(dac_get_value(), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    print_fixed_point(console, dac_get_value_millivolts(), 3);
+    console_send_str(console, ")\n");
+}
+
+
+const uint8_t debug_commands_num_funcs = 22;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -1608,4 +1752,5 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_telem_resume, .name = DEBUG_TELEM_RESUME_NAME, .help_string = DEBUG_TELEM_RESUME_HELP},
     {.func = debug_adc_init, .name = DEBUG_ADC_INIT_NAME, .help_string = DEBUG_ADC_INIT_HELP},
     {.func = debug_adc_read, .name = DEBUG_ADC_READ_NAME, .help_string = DEBUG_ADC_READ_HELP},
+    {.func = debug_dac, .name = DEBUG_DAC_NAME, .help_string = DEBUG_DAC_HELP}
 };

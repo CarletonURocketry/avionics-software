@@ -66,6 +66,8 @@
 #define GPIO_23  MCP23S17_PIN_FOR(MCP23S17_PORT_B, 0)
 
 /* Analog */
+#define DAC_OUT GPIO_PIN_FOR(PIN_PA02)
+
 // ADC header pin channels
 #define ANALOG_A0   18
 #define ANALOG_A1   17
