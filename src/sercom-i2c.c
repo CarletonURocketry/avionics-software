@@ -327,7 +327,7 @@ uint8_t sercom_i2c_clear_transaction(struct sercom_i2c_desc_t *i2c_inst,
                             transaction_queue_get(&i2c_inst->queue, trans_id));
 }
 
-uint8_t sercom_i2c_device_avaliable(struct sercom_i2c_desc_t *i2c_inst,
+uint8_t sercom_i2c_device_available(struct sercom_i2c_desc_t *i2c_inst,
                                     uint8_t trans_id, uint8_t address)
 {
     struct transaction_t *t = transaction_queue_get(&i2c_inst->queue, trans_id);

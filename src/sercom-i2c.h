@@ -312,7 +312,7 @@ extern uint8_t sercom_i2c_clear_transaction(struct sercom_i2c_desc_t *i2c_inst,
  *
  *  @return 0 If the device is not avaliable, a possitive number otherwise
  */
-extern uint8_t sercom_i2c_device_avaliable(struct sercom_i2c_desc_t *i2c_inst,
+extern uint8_t sercom_i2c_device_available(struct sercom_i2c_desc_t *i2c_inst,
                                            uint8_t trans_id, uint8_t address);
 
 /**

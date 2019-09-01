@@ -171,7 +171,7 @@ static void debug_i2c_scan (uint8_t argc, char **argv,
     
     console_send_str(console, "Avaliable Devices:\n");
     for (int i = 0; i < 128; i++) {
-        if (sercom_i2c_device_avaliable(&i2c_g, i2c_t_id, i)) {
+        if (sercom_i2c_device_available(&i2c_g, i2c_t_id, i)) {
             console_send_str(console, "0b");
             utoa(i, str, 2);
             for (int j = strlen(str); j < 7; j++) {
