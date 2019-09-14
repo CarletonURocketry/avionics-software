@@ -295,8 +295,8 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	@echo $(MSG_COMPILING) $<
 	$(COMPILE.cpp) "$(abspath $<)" -o $@
 
-$(OBJDIR)/.depend:  $(SRC)
-	$(COMPILE.c) -MM $^  | \
+$(OBJDIR)/.depend:  $(SRC) $(OBJDIR)
+	$(COMPILE.c) -MM $(SRC)  | \
 	sed -E 's#^(.*\.o: *)$(SRCDIR)/(.*/)?(.*\.(c|cpp|S))#$(OBJDIR)/\2\1$(SRCDIR)/\2\3#' > $@
 
 include $(OBJDIR)/.depend
