@@ -54,7 +54,7 @@
 static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
                                   uint8_t initFlag)
 {
-    uint8_t *transactionId = 0;
+    uint8_t transactionId;
     uint8_t receiveBuffer;
     uint8_t sendBuffer[7];
     uint16_t sendBufferLength = sizeof(sendBuffer);
@@ -71,14 +71,16 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
     sendBuffer[6] = 0xFF;
 
     if (initFlag) {
-        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, 0xFF,
+        sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, 0xFF,
                 SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
                 receiveBufferLength);
+        while (!sercom_spi_transaction_done(&spi_g, transactionId));
     }
     else {
-        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+        sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
                 receiveBufferLength);
+        while (!sercom_spi_transaction_done(&spi_g, transactionId));
     }
     return receiveBuffer;
 }
@@ -89,7 +91,7 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
  *
  * @return Either 0 (success) or 1 (failure)
  */
-uint8_t init_sd_card()
+uint8_t init_sd_card(void)
 {
     uint8_t oldCardFlag = 0;
     uint8_t softResetCount = 0;
@@ -137,7 +139,7 @@ uint8_t init_sd_card()
     if (response == 0x00) {
         // Set the R/W block size to 512 bytes with CMD16
         // Try 3 times, if success return 0 immediately
-        for(uint8_t i = 0; i < 3; i++) {
+        for (uint8_t i = 0; i < 3; i++) {
             response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF, 0);
             if (response == 0x00)
                 return 0;
@@ -165,7 +167,7 @@ uint8_t write_block(uint32_t blockAddr, uint8_t* src)
      * expects to have exclusive control of the SPI bus when it is being
      * commanded to do something.
      */
-    uint8_t *transactionId = 0;
+    uint8_t transactionId;
     uint8_t response = 0xFF;
     uint16_t sendBufferLength = SD_BLOCKSIZE;
     uint16_t responseLength = sizeof(response);
@@ -176,29 +178,35 @@ uint8_t write_block(uint32_t blockAddr, uint8_t* src)
     response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
     // If not immediately successful, exit because we can't afford keep
     // trying for a single write command.
-    if (response != 0x00)
+    if (response != 0x00) {
         return 1;
+    }
 
     // Send one dummy byte before sending the data.
-    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, &dummyByte, 1, &response,
                 responseLength);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
 
     // First byte sent MUST be 0xFE to enable writing of a single block.
-    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, &writeBeginByte, 1, &response,
                 responseLength);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
 
     // Write the block.
-    sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                 SD_CS_PIN_MASK, src, sendBufferLength, &response,
                 responseLength);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
 
     // Send two more dummy bytes after sending the data.
-    for (uint8_t i = 0; i < 2; i++)
-        sercom_spi_start(&spi_g, transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+    for (uint8_t i = 0; i < 2; i++) {
+        sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
                     SD_CS_PIN_MASK, &dummyByte, 1, &response,
                     responseLength);
+        while (!sercom_spi_transaction_done(&spi_g, transactionId));
+    }
 
     // It is (apparently) mandatory to send CMD13 after every block write
     // presumably because this returns the status of the card.

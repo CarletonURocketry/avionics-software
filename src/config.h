@@ -11,8 +11,8 @@
 #define config_h
 
 /* MCU Board Pinout Configuration */
-#include "pins-rev-a.h"
-//#include "pins-rev-b.h"
+/* #include "pins-rev-a.h" */
+#include "pins-rev-b.h"
 
 /* Peripheral/Software configuration= */
 #include "config-test.h"
