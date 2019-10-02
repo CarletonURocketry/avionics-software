@@ -72,37 +72,37 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
                uint16_t mcp23s17_int_pin)
 {
     gpio_mcp23s17_g = mcp23s17;
-    
+
     /* Configure External Interrupt Controller */
-    
+
     // CLK_EIC_APB is enabled by default, so we will not enable it here
     /* Select a core clock for the EIC to allow edge detection and filtering */
     GCLK->CLKCTRL.reg = (GCLK_CLKCTRL_CLKEN | eic_clock_mask |
                          GCLK_CLKCTRL_ID_EIC);
-    
+
     /* Reset EIC */
     EIC->CTRL.bit.SWRST = 1;
     // Wait for reset to complete
     while (EIC->CTRL.bit.SWRST);
-    
+
     /* Ensure that NMI is disabled */
     EIC->NMICTRL.bit.NMISENSE = 0;
-    
+
     /* Ensure that all events and interrupts start disabled and cleared */
     EIC->EVCTRL.reg = 0;
     EIC->INTENCLR.reg = 0xFFFF;
     EIC->INTFLAG.reg = 0xFFFF;
-    
+
     /* Ensure that no external interupts will wake the CPU except for the
        MCP23S17 interrupt */
     EIC->WAKEUP.reg = (1 << gpio_pin_interrupts[mcp23s17_int_pin]);
-    
+
     /* Configure MCP23S17 interrupt pin */
     if (mcp23s17 != NULL) {
         union gpio_pin_t mcp23s17_gpio = GPIO_PIN_FOR(mcp23s17_int_pin);
-        
+
         gpio_int_callbacks[gpio_pin_interrupts[mcp23s17_int_pin]] = &gpio_mcp23s17_int_cb;
-        
+
         // Enable input
         PORT->Group[mcp23s17_gpio.internal.port].PINCFG[mcp23s17_gpio.internal.pin].bit.INEN = 1;
         // Set PMUX to interrupt (function A)
@@ -113,26 +113,26 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
         }
         // Enable PMUX
         PORT->Group[mcp23s17_gpio.internal.port].PINCFG[mcp23s17_gpio.internal.pin].bit.PMUXEN = 1;
-        
+
         // Set sense for interrupt to falling edge with filter
         EIC->CONFIG[gpio_pin_interrupts[mcp23s17_int_pin] >> 3].reg |=
                         ((EIC_CONFIG_FILTEN0 <<
                           (4 * (gpio_pin_interrupts[mcp23s17_int_pin] & 0x7))) |
                          (EIC_CONFIG_SENSE0_FALL <<
                           (4 * (gpio_pin_interrupts[mcp23s17_int_pin] & 0x7))));
-        
+
         // Enable interrupt for MCP23S17 interrupt pin
         EIC->INTENSET.reg = (1 << gpio_pin_interrupts[mcp23s17_int_pin]);
-        
+
         // Set MCP23S17 interrupt callback
         mcp23s17_set_interrupt_callback(gpio_mcp23s17_g,
                                         gpio_mcp23s17_interrupt_occured);
     }
-    
+
     /* Enabled interrupts from EIC in NVIC */
     NVIC_SetPriority(EIC_IRQn, EIC_IRQ_PRIORITY);
     NVIC_EnableIRQ(EIC_IRQn);
-    
+
     /* Enable EIC */
     EIC->CTRL.bit.ENABLE = 1;
 }
@@ -150,7 +150,7 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
                 // Output circuitry should be disabled, clear DIR
                 PORT->Group[pin.internal.port].DIRCLR.reg = (1 << pin.internal.pin);
             }
-            
+
             // Write to INEN, PULLEN and DRVSTR
             PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN =
                                             (mode == GPIO_PIN_INPUT);
@@ -160,7 +160,8 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
                                             (mode == GPIO_PIN_OUTPUT_STRONG);
             return 0;
         case GPIO_MCP23S17_PIN:
-            if (mode == GPIO_PIN_OUTPUT_TOTEM) {
+            if ((mode == GPIO_PIN_OUTPUT_TOTEM) ||
+                (mode == GPIO_PIN_OUTPUT_STRONG)) {
                 // Output
                 mcp23s17_set_pin_mode(gpio_mcp23s17_g, pin.mcp23s17,
                                       MCP23S17_MODE_OUTPUT);
@@ -238,11 +239,11 @@ uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull)
                 // Set pull direction to down
                 PORT->Group[pin.internal.port].OUTCLR.reg = (1 << pin.internal.pin);
             }
-            
+
             // Enable or disable pull resistors
             PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN =
                                                     (pull != GPIO_PULL_NONE);
-            
+
             return 0;
         case GPIO_MCP23S17_PIN:
             if (pull == GPIO_PULL_NONE) {
@@ -350,13 +351,13 @@ static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
             // Since interrupts are avliable on multiple pins, we have to check
             // if the interrupt is actually enabled on this pin
             pin->internal.raw = i;
-            
+
             if (!PORT->Group[pin->internal.port].PINCFG[pin->internal.pin].bit.PMUXEN) {
                 // pinmux is not enabled for this pin, it could not have been
                 // the source of the interrupt
                 continue;
             }
-            
+
             if (pin->internal.pin & 1) {
                 // Odd numbered pin
                 if (!PORT->Group[pin->internal.port].PMUX[pin->internal.pin >> 1].bit.PMUXO) {
@@ -383,27 +384,27 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
         case GPIO_INTERNAL_PIN:
             ;
             int8_t int_num = gpio_pin_interrupts[pin.internal.raw];
-            
+
             if (int_num < 0) {
                 // This pin cannot be used with the EIC (or doesn't exist)
                 return 1;
             }
-            
+
             if (gpio_get_pin_mode(pin) != GPIO_PIN_INPUT) {
                 // This pin is not configured as an input
                 return 1;
             }
-            
+
             union gpio_pin_t pin_temp;
             if (!get_pin_for_interrupt(int_num, &pin_temp)) {
                 // The EIC line for this pin is already in use (by another pin
                 // or this one)
                 return 1;
             }
-            
+
             // Set callback function
             gpio_int_callbacks[int_num] = callback;
-            
+
             // Set PMUX to interrupt (function A)
             if (pin.internal.pin & 1) {
                 PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXO = 0;
@@ -412,7 +413,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
             }
             // Enable PMUX
             PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 1;
-            
+
             // Set sense for interrupt
             switch (trigger) {
                 case GPIO_INTERRUPT_RISING_EDGE:
@@ -436,18 +437,18 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
                                                       (4 * (int_num & 0x7)));
                     break;
             }
-            
+
             // Enable filter if requested
             if (filter) {
                 EIC->CONFIG[int_num >> 3].reg |= (EIC_CONFIG_FILTEN0 <<
                                                   (4 * (int_num & 0x7)));
             }
-            
+
             // Enable waking from interrupt
             EIC->WAKEUP.reg |= (1 << int_num);
             // Enable interrup
             EIC->INTENSET.reg = (1 << int_num);
-            
+
             return 0;
         case GPIO_MCP23S17_PIN:
             for (uint8_t i = 0; i < GPIO_MAX_EXTERNAL_IO_INTERRUPTS; i++) {
@@ -456,7 +457,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
                 } else {
                     gpio_ext_io_ints[i].callback = callback;
                     gpio_ext_io_ints[i].pin = pin;
-                    
+
                     if (trigger == GPIO_INTERRUPT_FALLING_EDGE) {
                         mcp23s17_enable_interrupt(gpio_mcp23s17_g, pin.mcp23s17,
                                                   MCP23S17_INT_LOW);
@@ -469,7 +470,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
                     } else {
                         break;
                     }
-                    
+
                     return 0;
                 }
             }
@@ -496,9 +497,9 @@ uint8_t gpio_disable_interupt(union gpio_pin_t pin)
                        (!PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXE)) {
                 PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 0;
             }
-            
+
             int8_t int_num = gpio_pin_interrupts[pin.internal.raw];
-            
+
             union gpio_pin_t enabled_pin;
             if (get_pin_for_interrupt(int_num, &enabled_pin) ||
                 (enabled_pin.raw != pin.raw)) {
@@ -506,15 +507,15 @@ uint8_t gpio_disable_interupt(union gpio_pin_t pin)
                 // not the pin which is currently enabled for this interrupt
                 return 0;
             }
-            
+
             // Disable the interrupt in the EIC
             EIC->INTENCLR.reg = (1 << int_num);
             // Ensure that the interrupt will not wake the CPU
             EIC->WAKEUP.reg &= ~(1 << int_num);
-            
+
             // Remove handler function
             gpio_int_callbacks[int_num] = 0;
-            
+
             return 0;
         case GPIO_MCP23S17_PIN:
             for (uint8_t i = 0; i < GPIO_MAX_EXTERNAL_IO_INTERRUPTS; i++) {
