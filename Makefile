@@ -162,8 +162,7 @@ LDFLAGS += --specs=$(SPECS) $(MATH_LIB)
 
 # Debugging port used to communicate between GDB / openocd.
 OPENOCD_PORT = 4444
-GDB_PORT = 3333
-#GDB_PORT = 2331
+GDB_PORT = 2331
 
 # Debugging host used to communicate between GDB / openocd, normally
 #     just set to localhost unless doing some sort of crazy debugging when 
