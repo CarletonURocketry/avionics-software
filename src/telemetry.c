@@ -48,6 +48,14 @@ void telemetry_service (void)
         packet_g.payload.altimeter_temp = ms5611_get_temperature(telemetry_altimeter_g);
         packet_g.payload.altimeter_altitude = ms5611_get_altitude(telemetry_altimeter_g);
         
+        packet_g.payload.gps_utc_time = gnss_xa1110_descriptor.utc_time;
+        packet_g.payload.gps_latitude = gnss_xa1110_descriptor.latitude;
+        packet_g.payload.gps_longitude = gnss_xa1110_descriptor.longitude;
+        packet_g.payload.gps_altitude = gnss_xa1110_descriptor.altitude;
+        packet_g.payload.gps_speed = gnss_xa1110_descriptor.speed;
+        packet_g.payload.gps_course = gnss_xa1110_descriptor.course;
+        packet_g.payload.flags.gps_data_valid = gnss_xa1110_descriptor.last_fix != 0;
+        
         rn2483_send(telemetry_radio_g, (uint8_t*)(&packet_g), sizeof packet_g);
     }
 }

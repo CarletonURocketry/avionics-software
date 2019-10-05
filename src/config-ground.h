@@ -143,7 +143,7 @@ extern struct sercom_uart_desc_t uart3_g;
 #define ENABLE_CONSOLE
 /* UART instance to be used for console, USB is used if not defined (and USB is
  enabled) */
-//#define CONSOLE_UART uart3_g
+#define CONSOLE_UART uart3_g
 
 //
 //
@@ -224,7 +224,7 @@ extern struct rn2483_desc_t rn2483_g;
 #define ENABLE_GROUND_SERVICE
 /* UART instance to be used for ground service, USB is used if not defined
    (and USB is enabled) */
-#define GROUND_UART uart3_g
+//#define GROUND_UART uart3_g
 #endif
 
 #endif /* config_ground_h */
