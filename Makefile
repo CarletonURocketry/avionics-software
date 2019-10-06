@@ -180,6 +180,8 @@ DEBUG_HOST = localhost
 # to make
 
 SHELL = sh
+ifdef CORTEX_TOOLCHAIN_BIN
+# If a toolchain path is provided, use it
 CC = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
 LD = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gcc
 AS = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-as
@@ -188,7 +190,24 @@ OBJDUMP = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-objdump
 SIZE = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-size
 NM = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-nm
 GDB = $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb
-OPENOCD = /usr/local/bin/openocd
+else
+# If no toolchain path was provided, try to find a toolchain on the PATH
+CC = arm-none-eabi-gcc
+LD = arm-none-eabi-gcc
+AS = arm-none-eabi-as
+OBJCOPY = arm-none-eabi-objcopy
+OBJDUMP = arm-none-eabi-objdump
+SIZE = arm-none-eabi-size
+NM = arm-none-eabi-nm
+GDB = arm-none-eabi-gdb
+endif
+ifdef OPENOCD_PATH
+# Use provided OpenOCD
+OPENOCD = $(OPENOCD_PATH)
+else
+# No OpenOCD provided, use OpenOCD on PATH
+OPENOCD = openocd
+endif
 TELNET = /usr/bin/nc
 REMOVE = rm -f
 COPY = cp
@@ -224,6 +243,24 @@ ALL_ASFLAGS = -D$(PTYPE) -I. -x assembler-with-cpp $(ASFLAGS)
 COMPILE.c = $(CC) $(ALL_CFLAGS) -c
 COMPILE.cpp = $(CC) $(ALL_CFLAGS) -c
 
+# Select OpenOCD configuration
+ifeq ($(OPENOCD_INTERFACE),cmsis)
+OPENOCD_CONFIG=openocd.cfg
+else
+ifeq ($(OPENOCD_INTERFACE),jlink)
+OPENOCD_CONFIG=openocd-jlink.cfg
+endif
+endif
+
+# Define GDB command
+ifdef OPENOCD_INTERFACE
+# Lauch OpenOCD from GDB with pipe
+GDB_CMD = $(GDB) -iex "target extended-remote | $(OPENOCD) -f $(OPENOCD_CONFIG) -l /dev/null" $(OBJDIR)/$(TARGET).elf
+else
+# Use external GDB server over TCP
+GDB_CMD = $(GDB) -iex "target extended-remote $(DEBUG_HOST):$(GDB_PORT)" $(OBJDIR)/$(TARGET).elf
+endif
+
 # Default target.
 all: gccversion clean build program
 
@@ -245,26 +282,28 @@ info:
 	@echo OBJ=$(OBJ)
 
 # Program the device.  
-program: | upload reset
+program: upload reset
 
-# Upload to target withh GDB
+# Upload to target with GDB
 upload: $(OBJDIR)/$(TARGET).elf
 	@echo
 	@echo $(MSG_PROGRAMMING)
-	echo load | $(GDB) -q -iex "target extended-remote $(DEBUG_HOST):$(GDB_PORT)" $(OBJDIR)/$(TARGET).elf
+	echo load | $(GDB_CMD)
 
 # Reset the device.
 reset:
 	@echo
 	@echo $(MSG_RESET)
-	(echo reset run; sleep 0.5) | $(TELNET) $(DEBUG_HOST) $(OPENOCD_PORT)
+	$(OPENOCD) -f $(OPENOCD_CONFIG) &
+	sleep 0.5
+	printf "reset run\nshutdown\n" | $(TELNET) $(DEBUG_HOST) $(OPENOCD_PORT)
 	@echo
 
 # Launch a debugging session.
 debug: $(OBJDIR)/$(TARGET).elf
 	@echo
 	@echo $(MSG_DEBUGGING)
-	$(GDB) -iex "target extended-remote $(DEBUG_HOST):$(GDB_PORT)" $(OBJDIR)/$(TARGET).elf
+	$(GDB_CMD)
 
 
 # Link: create ELF output file from object files.
