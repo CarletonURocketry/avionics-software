@@ -39,7 +39,6 @@
 
 // MARK: Function prototypes
 static void main_loop(void);
-static void test_ext_int(union gpio_pin_t pin, uint8_t value);
 
 // MARK: Variable Definitions
 volatile uint32_t millis;
@@ -225,52 +224,52 @@ struct cli_desc_t cli_g;
 static inline void init_io (void)
 {
     // SPI
-    PORT->Group[1].PMUX[6].bit.PMUXE = 0x2;     // MOSI (Pad 0)
-    PORT->Group[1].PINCFG[12].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[6].bit.PMUXO = 0x2;     // SCK (Pad 1)
-    PORT->Group[1].PINCFG[13].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[7].bit.PMUXE = 0x2;     // MISO (Pad 2)
-    PORT->Group[1].PINCFG[14].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[1].PMUX[6].bit.PMUXE = 0x2;     // MOSI (Pad 0)
+    PORT_IOBUS->Group[1].PINCFG[12].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[1].PMUX[6].bit.PMUXO = 0x2;     // SCK (Pad 1)
+    PORT_IOBUS->Group[1].PINCFG[13].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[1].PMUX[7].bit.PMUXE = 0x2;     // MISO (Pad 2)
+    PORT_IOBUS->Group[1].PINCFG[14].bit.PMUXEN = 0b1;
     
     // I2C
-    PORT->Group[1].PMUX[8].bit.PMUXE = 0x2;     // SDA (Pad 0)
-    PORT->Group[1].PINCFG[16].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[8].bit.PMUXO = 0x2;     // SCL (Pad 1)
-    PORT->Group[1].PINCFG[17].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[1].PMUX[8].bit.PMUXE = 0x2;     // SDA (Pad 0)
+    PORT_IOBUS->Group[1].PINCFG[16].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[1].PMUX[8].bit.PMUXO = 0x2;     // SCL (Pad 1)
+    PORT_IOBUS->Group[1].PINCFG[17].bit.PMUXEN = 0b1;
     
     // UART 0
-    PORT->Group[0].PMUX[2].bit.PMUXE = 0x3;     // TX Sercom 0 Pad 0
-    PORT->Group[0].PINCFG[4].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[2].bit.PMUXO = 0x3;     // RX Sercom 0 Pad 1
-    PORT->Group[0].PINCFG[5].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[2].bit.PMUXE = 0x3;     // TX Sercom 0 Pad 0
+    PORT_IOBUS->Group[0].PINCFG[4].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[2].bit.PMUXO = 0x3;     // RX Sercom 0 Pad 1
+    PORT_IOBUS->Group[0].PINCFG[5].bit.PMUXEN = 0b1;
     
     // UART 1
-    PORT->Group[0].PMUX[8].bit.PMUXE = 0x2;     // TX Sercom 1 Pad 0
-    PORT->Group[0].PINCFG[16].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[8].bit.PMUXO = 0x2;     // RX Sercom 1 Pad 1
-    PORT->Group[0].PINCFG[17].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[8].bit.PMUXE = 0x2;     // TX Sercom 1 Pad 0
+    PORT_IOBUS->Group[0].PINCFG[16].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[8].bit.PMUXO = 0x2;     // RX Sercom 1 Pad 1
+    PORT_IOBUS->Group[0].PINCFG[17].bit.PMUXEN = 0b1;
     
     // UART 2
-    PORT->Group[0].PMUX[6].bit.PMUXE = 0x2;     // TX Sercom 2 Pad 0
-    PORT->Group[0].PINCFG[12].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[6].bit.PMUXO = 0x2;     // RX Sercom 2 Pad 1
-    PORT->Group[0].PINCFG[13].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[6].bit.PMUXE = 0x2;     // TX Sercom 2 Pad 0
+    PORT_IOBUS->Group[0].PINCFG[12].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[6].bit.PMUXO = 0x2;     // RX Sercom 2 Pad 1
+    PORT_IOBUS->Group[0].PINCFG[13].bit.PMUXEN = 0b1;
     
     // UART 3
-    PORT->Group[0].PMUX[11].bit.PMUXE = 0x2;    // TX Sercom 3 Pad 0
-    PORT->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[11].bit.PMUXO = 0x2;    // RX Sercom 3 Pad 1
-    PORT->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[11].bit.PMUXE = 0x2;    // TX Sercom 3 Pad 0
+    PORT_IOBUS->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[11].bit.PMUXO = 0x2;    // RX Sercom 3 Pad 1
+    PORT_IOBUS->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
     
     // USB
-    PORT->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
-    PORT->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
-    PORT->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
+    PORT_IOBUS->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
+    PORT_IOBUS->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
+    PORT_IOBUS->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
     
     // IO Expander CS pin
-    PORT->Group[IO_EXPANDER_CS_PIN_GROUP].DIRSET.reg = IO_EXPANDER_CS_PIN_MASK;
-    PORT->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
+    PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].DIRSET.reg = IO_EXPANDER_CS_PIN_MASK;
+    PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
 }
 
 int main(void)
@@ -436,20 +435,7 @@ int main(void)
     gpio_set_pin_mode(STAT_R_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_G_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     
-    gpio_set_pin_mode(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7), GPIO_PIN_INPUT);
-    gpio_set_pull(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7), GPIO_PULL_HIGH);
-
-    gpio_enable_interupt(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7),
-                         GPIO_INTERRUPT_FALLING_EDGE, 0, test_ext_int);
-    
-//    gpio_set_pin_mode(GPIO_PIN_FOR(PIN_PB30), GPIO_PIN_INPUT);
-//    gpio_set_pull(GPIO_PIN_FOR(PIN_PB30), GPIO_PULL_HIGH);
-//
-//    gpio_enable_interupt(GPIO_PIN_FOR(PIN_PB30), GPIO_INTERRUPT_LOW, 1,
-//                         test_ext_int);
-    
     gpio_set_output(STAT_G_LED_PIN, 1);
-    gpio_set_output(DEBUG1_LED_PIN, 1);
     
     // LoRa Radio
 #ifdef ENABLE_LORA_RADIO
@@ -512,7 +498,6 @@ static void main_loop (void)
         gpio_toggle_output(STAT_R_LED_PIN);
         gpio_toggle_output(STAT_G_LED_PIN);
     }
-    //gpio_set_output(DEBUG1_LED_PIN, gpio_get_input(MCP23S17_PIN_FOR(MCP23S17_PORT_B, 7)));
     
 #ifdef ENABLE_CONSOLE
     console_service(&console_g);
@@ -553,12 +538,6 @@ static void main_loop (void)
 #ifdef ENABLE_TELEMETRY_SERVICE
     telemetry_service();
 #endif
-}
-
-
-static void test_ext_int(union gpio_pin_t pin, uint8_t value)
-{
-    
 }
 
 

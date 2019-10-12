@@ -104,15 +104,17 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
         gpio_int_callbacks[gpio_pin_interrupts[mcp23s17_int_pin]] = &gpio_mcp23s17_int_cb;
 
         // Enable input
-        PORT->Group[mcp23s17_gpio.internal.port].PINCFG[mcp23s17_gpio.internal.pin].bit.INEN = 1;
+        PORT_IOBUS->Group[mcp23s17_gpio.internal.port].PINCFG[
+                                    mcp23s17_gpio.internal.pin].bit.INEN = 1;
         // Set PMUX to interrupt (function A)
         if (mcp23s17_int_pin & 1) {
-            PORT->Group[mcp23s17_gpio.internal.port].PMUX[mcp23s17_gpio.internal.pin >> 1].bit.PMUXO = 0x0;
+            PORT_IOBUS->Group[mcp23s17_gpio.internal.port].PMUX[mcp23s17_gpio.internal.pin >> 1].bit.PMUXO = 0x0;
         } else {
-            PORT->Group[mcp23s17_gpio.internal.port].PMUX[mcp23s17_gpio.internal.pin >> 1].bit.PMUXE = 0x0;
+            PORT_IOBUS->Group[mcp23s17_gpio.internal.port].PMUX[mcp23s17_gpio.internal.pin >> 1].bit.PMUXE = 0x0;
         }
         // Enable PMUX
-        PORT->Group[mcp23s17_gpio.internal.port].PINCFG[mcp23s17_gpio.internal.pin].bit.PMUXEN = 1;
+        PORT_IOBUS->Group[mcp23s17_gpio.internal.port].PINCFG[
+                                    mcp23s17_gpio.internal.pin].bit.PMUXEN = 1;
 
         // Set sense for interrupt to falling edge with filter
         EIC->CONFIG[gpio_pin_interrupts[mcp23s17_int_pin] >> 3].reg |=
@@ -145,18 +147,18 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
             if ((mode == GPIO_PIN_OUTPUT_TOTEM) ||
                 (mode == GPIO_PIN_OUTPUT_STRONG)) {
                 // Output circuitry should be enabled, set DIR
-                PORT->Group[pin.internal.port].DIRSET.reg = (1 << pin.internal.pin);
+                PORT_IOBUS->Group[pin.internal.port].DIRSET.reg = (1 << pin.internal.pin);
             } else {
                 // Output circuitry should be disabled, clear DIR
-                PORT->Group[pin.internal.port].DIRCLR.reg = (1 << pin.internal.pin);
+                PORT_IOBUS->Group[pin.internal.port].DIRCLR.reg = (1 << pin.internal.pin);
             }
 
             // Write to INEN, PULLEN and DRVSTR
-            PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN =
+            PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN =
                                             (mode == GPIO_PIN_INPUT);
-            PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN =
+            PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN =
                                             (mode == GPIO_PIN_OUTPUT_PULL);
-            PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.DRVSTR =
+            PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.DRVSTR =
                                             (mode == GPIO_PIN_OUTPUT_STRONG);
             return 0;
         case GPIO_MCP23S17_PIN:
@@ -190,15 +192,15 @@ enum gpio_pin_mode gpio_get_pin_mode(union gpio_pin_t pin)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
-            if (PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
+            if (PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
                 // Input
                 return GPIO_PIN_INPUT;
-            } else if (PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN) {
+            } else if (PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN) {
                 // Weak output
                 return GPIO_PIN_OUTPUT_PULL;
-            } else if (PORT->Group[pin.internal.port].DIR.reg & (1<<pin.internal.pin)) {
+            } else if (PORT_IOBUS->Group[pin.internal.port].DIR.reg & (1<<pin.internal.pin)) {
                 // Output
-                if (PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.DRVSTR) {
+                if (PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.DRVSTR) {
                     // Extra drive strength
                     return GPIO_PIN_OUTPUT_STRONG;
                 } else {
@@ -234,14 +236,14 @@ uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull)
         case GPIO_INTERNAL_PIN:
             if (pull == GPIO_PULL_HIGH) {
                 // Set pull direction to up
-                PORT->Group[pin.internal.port].OUTSET.reg = (1 << pin.internal.pin);
+                PORT_IOBUS->Group[pin.internal.port].OUTSET.reg = (1 << pin.internal.pin);
             } else if (pull == GPIO_PULL_LOW) {
                 // Set pull direction to down
-                PORT->Group[pin.internal.port].OUTCLR.reg = (1 << pin.internal.pin);
+                PORT_IOBUS->Group[pin.internal.port].OUTCLR.reg = (1 << pin.internal.pin);
             }
 
             // Enable or disable pull resistors
-            PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN =
+            PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PULLEN =
                                                     (pull != GPIO_PULL_NONE);
 
             return 0;
@@ -271,7 +273,7 @@ uint8_t gpio_get_input(union gpio_pin_t pin)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
-            return !!(PORT->Group[pin.internal.port].IN.reg & (1 << pin.internal.pin));
+            return !!(PORT_IOBUS->Group[pin.internal.port].IN.reg & (1 << pin.internal.pin));
         case GPIO_MCP23S17_PIN:
             return mcp23s17_get_input(gpio_mcp23s17_g, pin.mcp23s17);
         case GPIO_RN2483_PIN:
@@ -288,11 +290,11 @@ uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
-            if (!PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
+            if (!PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
                 if (value) {
-                    PORT->Group[pin.internal.port].OUTSET.reg = (1<<pin.internal.pin);
+                    PORT_IOBUS->Group[pin.internal.port].OUTSET.reg = (1<<pin.internal.pin);
                 } else {
-                    PORT->Group[pin.internal.port].OUTCLR.reg = (1<<pin.internal.pin);
+                    PORT_IOBUS->Group[pin.internal.port].OUTCLR.reg = (1<<pin.internal.pin);
                 }
             } else {
                 // pin is input
@@ -316,8 +318,8 @@ uint8_t gpio_toggle_output(union gpio_pin_t pin)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
-            if (!PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
-                PORT->Group[pin.internal.port].OUTTGL.reg = (1 << pin.internal.pin);
+            if (!PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
+                PORT_IOBUS->Group[pin.internal.port].OUTTGL.reg = (1 << pin.internal.pin);
             } else {
                 // pin is input
                 return 1;
@@ -352,7 +354,7 @@ static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
             // if the interrupt is actually enabled on this pin
             pin->internal.raw = i;
 
-            if (!PORT->Group[pin->internal.port].PINCFG[pin->internal.pin].bit.PMUXEN) {
+            if (!PORT_IOBUS->Group[pin->internal.port].PINCFG[pin->internal.pin].bit.PMUXEN) {
                 // pinmux is not enabled for this pin, it could not have been
                 // the source of the interrupt
                 continue;
@@ -360,13 +362,13 @@ static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
 
             if (pin->internal.pin & 1) {
                 // Odd numbered pin
-                if (!PORT->Group[pin->internal.port].PMUX[pin->internal.pin >> 1].bit.PMUXO) {
+                if (!PORT_IOBUS->Group[pin->internal.port].PMUX[pin->internal.pin >> 1].bit.PMUXO) {
                     pin->type = GPIO_INTERNAL_PIN;
                     return 0;
                 }
             } else {
                 // Even numbered pin
-                if (!PORT->Group[pin->internal.port].PMUX[pin->internal.pin >> 1].bit.PMUXE) {
+                if (!PORT_IOBUS->Group[pin->internal.port].PMUX[pin->internal.pin >> 1].bit.PMUXE) {
                     pin->type = GPIO_INTERNAL_PIN;
                     return 0;
                 }
@@ -407,12 +409,12 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
 
             // Set PMUX to interrupt (function A)
             if (pin.internal.pin & 1) {
-                PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXO = 0;
+                PORT_IOBUS->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXO = 0;
             } else {
-                PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXE = 0;
+                PORT_IOBUS->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXE = 0;
             }
             // Enable PMUX
-            PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 1;
+            PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 1;
 
             // Set sense for interrupt
             switch (trigger) {
@@ -491,11 +493,11 @@ uint8_t gpio_disable_interupt(union gpio_pin_t pin)
         case GPIO_INTERNAL_PIN:
             // Ensure that this pin is not configured to control the EIC line
             if ((pin.internal.pin & 1) &&
-                (!PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXO)) {
-                PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 0;
+                (!PORT_IOBUS->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXO)) {
+                PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 0;
             } else if (!(pin.internal.pin & 1) &&
-                       (!PORT->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXE)) {
-                PORT->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 0;
+                       (!PORT_IOBUS->Group[pin.internal.port].PMUX[pin.internal.pin >> 1].bit.PMUXE)) {
+                PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 0;
             }
 
             int8_t int_num = gpio_pin_interrupts[pin.internal.raw];
