@@ -1,6 +1,6 @@
 /**
  * @file sercom-spi.c
- * @desc SERCOM SPI mode driver which allows interupt or DMA driven transfers.
+ * @desc SERCOM SPI mode driver which allows interrupt or DMA driven transfers.
  * @author Samuel Dewan
  * @date 2019-01-02
  * Last Author:
@@ -66,7 +66,7 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
     // Wait for synchronization
     while (sercom->SPI.SYNCBUSY.bit.CTRLB);
     
-    /* Configure interupts */
+    /* Configure interrupts */
     sercom_handlers[instance_num] = (struct sercom_handler_t) {
         .handler = sercom_spi_isr,
         .state = (void*)descriptor
@@ -165,7 +165,7 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
     
     /* Acquire service function lock */
     if (spi_inst->service_lock) {
-        // Could not accuire lock, service is already being run
+        // Could not acquire lock, service is already being run
         return;
     } else {
         spi_inst->service_lock = 1;
@@ -204,7 +204,7 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
         /* Assert CS line */
         PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
         
-        /* Begin transmition */
+        /* Begin transmission */
         if (spi_inst->tx_use_dma && s->out_length) {
             // Use DMA to transmit out buffer
             dma_start_buffer_to_static(spi_inst->tx_dma_chan, s->out_buffer,
@@ -213,10 +213,10 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
                             SERCOM_DMA_TX_PRIORITY);
         } else if (spi_inst->tx_use_dma) {
-            // Simulate DMA transmition of out buffer having completed
+            // Simulate DMA transmission of out buffer having completed
             sercom_spi_dma_callback(spi_inst->tx_dma_chan, (void*)spi_inst);
         } else {
-            // Use interupts
+            // Use interrupts
             spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
         }
     }
@@ -234,14 +234,14 @@ static inline void sercom_spi_end_transaction (
     t->done = 1;
     t->active = 0;
     
-    // Disable DRE and RXC interutps
+    // Disable DRE and RXC interrupts
     spi_inst->sercom->SPI.INTENCLR.reg = (SERCOM_SPI_INTENCLR_DRE |
                                           SERCOM_SPI_INTENCLR_RXC);
     
     // Deassert the CS pin
     PORT->Group[s->cs_pin_group].OUTSET.reg = s->cs_pin_mask;
     
-    // Disable Reciever and SERCOM
+    // Disable Receiver and SERCOM
     spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b0;
     spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b0;
     
@@ -267,7 +267,7 @@ static inline void sercom_spi_start_reception (
                         sercom_get_dma_rx_trigger(spi_inst->sercom_instnum),
                         SERCOM_DMA_RX_PRIORITY);
     } else {
-        // Enable receive complete interupt
+        // Enable receive complete interrupt
         spi_inst->sercom->SPI.INTENSET.bit.RXC = 0b1;
     }
     
@@ -282,7 +282,7 @@ static inline void sercom_spi_start_reception (
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
                             SERCOM_DMA_TX_PRIORITY);
     } else {
-        // Re-enable the data register empty interupt
+        // Re-enable the data register empty interrupt
         spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
     }
 }
@@ -306,7 +306,7 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
         }  else if ((s->bytes_in < s->in_length) ||
                     (s->bytes_in < (s->in_length - 1))) {
             if (!s->rx_started) {
-                /* Let the transmition end and start reception in the TXC ISR */
+                /* Let the transmission end and start reception in the TXC ISR */
                 // Disable DRE ISR so that we don't get stuck in it infinitely
                 sercom->SPI.INTENCLR.bit.DRE = 0b1;
                 // Enable TXC ISR
@@ -315,13 +315,13 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
                 // Send dummy byte
                 sercom->SPI.DATA.reg = spi_dummy_byte;
                 // If DMA is being used for reception, the bytes in count must
-                // be inceremented here
+                // be incremented here
                 if (spi_inst->rx_use_dma) {
                     s->bytes_in++;
                 }
             }
         } else {
-            // No more bytes to be sent, disable data register empty interupt
+            // No more bytes to be sent, disable data register empty interrupt
             sercom->SPI.INTENCLR.bit.DRE = 0b0;
         }
     }
@@ -340,7 +340,7 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
     
     // Receive Complete
     if (sercom->SPI.INTENSET.bit.RXC && sercom->SPI.INTFLAG.bit.RXC) {
-        // Get the recieved byte
+        // Get the received byte
         s->in_buffer[s->bytes_in] = sercom->SPI.DATA.reg;
         s->bytes_in++;
         
@@ -348,9 +348,9 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
             // Transaction done
             sercom_spi_end_transaction(spi_inst, t);
         } else if (!spi_inst->rx_use_dma) {
-            // For some reason the RXC interupt seems to get disabled every time
-            // the interupt service routine runs. Not clear why this happens, it
-            // is not mentioned in the datasheet.
+            // For some reason the RXC interrupt seems to get disabled every
+            // time the interrupt service routine runs. Not clear why this
+            // happens, it is not mentioned in the datasheet.
             sercom->SPI.INTENSET.bit.RXC = 0b1;
         }
     }

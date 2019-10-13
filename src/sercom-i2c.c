@@ -125,7 +125,7 @@ void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor, Sercom *sercom,
             break;
         default:
             // Standard mode: 100 kHz
-            // Ideally, Tlow = Thigh = 5 micoseconds
+            // Ideally, Tlow = Thigh = 5 microseconds
             // BAUD should equal 235
             sercom->I2CM.BAUD.bit.BAUD = I2C_BAUD_HIGH(I2C_FREQ_STANDARD,
                                                        core_freq,
@@ -135,7 +135,7 @@ void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor, Sercom *sercom,
             break;
     }
     
-    /* Configure interupts */
+    /* Configure interrupts */
     sercom_handlers[instance_num] = (struct sercom_handler_t) {
         .handler = sercom_i2c_isr,
         .state = (void*)descriptor
@@ -378,7 +378,7 @@ static inline void sercom_i2c_begin_generic (
                                     SERCOM_I2CM_ADDR_ADDR(state->dev_address)
                                            );
     } else {
-        /* Start transaction interupt driven */
+        /* Start transaction interrupt driven */
         i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENCLR_MB |
                                                SERCOM_I2CM_INTENCLR_SB);
         i2c_inst->sercom->I2CM.ADDR.bit.ADDR = state->dev_address |
@@ -410,7 +410,7 @@ static inline void sercom_i2c_begin_register (
                                     SERCOM_I2CM_ADDR_ADDR(state->dev_address)
                                            );
     } else {
-        /* Start transaction interupt driven */
+        /* Start transaction interrupt driven */
         i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENCLR_MB |
                                                SERCOM_I2CM_INTENCLR_SB);
         i2c_inst->sercom->I2CM.ADDR.bit.ADDR = state->dev_address | 0;
@@ -424,7 +424,7 @@ static inline void sercom_i2c_end_transaction (
     t->done = 1;
     t->active = 0;
     
-    // Disable MB and SM interutps
+    // Disable MB and SM interrupts
     i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |
                                            SERCOM_I2CM_INTENCLR_SB |
                                            SERCOM_I2CM_INTENCLR_ERROR);
@@ -484,7 +484,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
                 // Begin reading bytes with DMA
                 sercom_i2c_begin_in_dma(i2c_inst, s);
             } else {
-                // Begin reading bytes interupt driven
+                // Begin reading bytes interrupt driven
                 i2c_inst->sercom->I2CM.INTENSET.reg = (
                                                     SERCOM_I2CM_INTENCLR_MB |
                                                     SERCOM_I2CM_INTENCLR_SB);
@@ -503,7 +503,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
             t->done = 1;
             t->active = 0;
             
-            // Disable MB and SM interutps
+            // Disable MB and SM interrupts
             i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |
                                                    SERCOM_I2CM_INTENCLR_SB |
                                                    SERCOM_I2CM_INTENCLR_ERROR);
@@ -622,7 +622,7 @@ void sercom_i2c_isr (Sercom *sercom, uint8_t inst_num, void *state)
                         // Begin reading bytes with DMA
                         sercom_i2c_begin_in_dma(i2c_inst, s);
                     } else {
-                        // Begin reading bytes interupt driven
+                        // Begin reading bytes interrupt driven
                         s->state = I2C_STATE_RX;
                         i2c_inst->sercom->I2CM.ADDR.bit.ADDR = (s->dev_address |
                                                                 1);
@@ -665,7 +665,7 @@ void sercom_i2c_isr (Sercom *sercom, uint8_t inst_num, void *state)
                     // Begin reading bytes with DMA
                     sercom_i2c_begin_in_dma(i2c_inst, s);
                 } else {
-                    // Begin reading bytes interupt driven
+                    // Begin reading bytes interrupt driven
                     i2c_inst->sercom->I2CM.ADDR.bit.ADDR = s->dev_address | 1;
                 }
             } else {
@@ -675,7 +675,7 @@ void sercom_i2c_isr (Sercom *sercom, uint8_t inst_num, void *state)
             }
         }
         
-        // Clear master on bus interupt and error interupt
+        // Clear master on bus interrupt and error interrupt
         i2c_inst->sercom->I2CM.INTFLAG.reg |= (SERCOM_I2CM_INTFLAG_MB |
                                                SERCOM_I2CM_INTFLAG_ERROR);
     }
@@ -726,13 +726,13 @@ void sercom_i2c_isr (Sercom *sercom, uint8_t inst_num, void *state)
             while (i2c_inst->sercom->I2CM.SYNCBUSY.bit.SYSOP);
         }
         
-        // Clear slave on bus interupt
+        // Clear slave on bus interrupt
         i2c_inst->sercom->I2CM.INTFLAG.reg |= (SERCOM_I2CM_INTFLAG_SB);
     }
     
     // Error
     if (sercom->I2CM.INTFLAG.bit.ERROR) {
-        /* An error has occured during a DMA driven transaction */
+        /* An error has occurred during a DMA driven transaction */
         // Abort DMA transaction
         dma_abort_transaction(i2c_inst->dma_chan);
         
@@ -765,7 +765,7 @@ void sercom_i2c_dma_callback (uint8_t chan, void *state)
             if (s->state == I2C_STATE_TX) {
                 // TX Complete
                 if (s->generic.bytes_in) {
-                    // Wait for bus to become idle so that we can start recieve
+                    // Wait for bus to become idle so that we can start receive
                     // stage
                     s->state = I2C_STATE_WAIT_FOR_RX;
                 } else {
@@ -773,7 +773,7 @@ void sercom_i2c_dma_callback (uint8_t chan, void *state)
                     s->state = I2C_STATE_WAIT_FOR_DONE;
                 }
                 // Inhibit sleep as the delay before the bus is idle may be much
-                // less than the time that the CPU normaly spends sleeping
+                // less than the time that the CPU normally spends sleeping
                 inhibit_sleep();
                 break;
             }
@@ -788,7 +788,7 @@ void sercom_i2c_dma_callback (uint8_t chan, void *state)
             // Need to wait for the bus to become idle before ending transaction
             s->state = I2C_STATE_WAIT_FOR_DONE;
             // Inhibit sleep as the delay before the bus is idle may be much
-            // less than the time that the CPU normaly spends sleeping
+            // less than the time that the CPU normally spends sleeping
             inhibit_sleep();
             break;
         default:

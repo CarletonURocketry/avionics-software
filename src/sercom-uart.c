@@ -1,6 +1,6 @@
 /**
  * @file sercom-uart.c
- * @desc SERCOM UART mode driver which allows interupt or DMA driven transfers.
+ * @desc SERCOM UART mode driver which allows interrupt or DMA driven transfers.
  * @author Samuel Dewan
  * @date 2018-12-27
  * Last Author:
@@ -64,14 +64,14 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     /* Set baudrate */
     sercom->USART.BAUD.USARTFP.BAUD = baud;
     /* Configure CTRL Reg B */
-    // 8 bit chars, one stop bit, enable reciever and transmitter
+    // 8 bit chars, one stop bit, enable receiver and transmitter
     sercom->USART.CTRLB.reg = (SERCOM_USART_CTRLB_CHSIZE(0x0) |
                                SERCOM_USART_CTRLB_RXEN |
                                SERCOM_USART_CTRLB_TXEN);
     // Wait for synchronization
     while(sercom->USART.SYNCBUSY.bit.CTRLB);
     
-    /* Configure interupts */
+    /* Configure interrupts */
     sercom->USART.INTENSET.bit.RXC = 0b1; // RX Complete
     
     sercom_handlers[instance_num] = (struct sercom_handler_t) {
@@ -128,8 +128,8 @@ uint16_t sercom_uart_put_string(struct sercom_uart_desc_t *uart,
         }
     }
     
-    // Make sure that we start transmition right away if there is no transmition
-    // already in progress.
+    // Make sure that we start transmission right away if there is no
+    // transmission already in progress.
     sercom_uart_service(uart);
     
     return i;
@@ -141,7 +141,7 @@ void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
     uint8_t carriage_return = 0;
     
     for (const char *i = str; *i != '\0';) {
-        // Wait for a character worth of space to become avaliable in the buffer
+        // Wait for a character worth of space to become available in the buffer
         while (circular_buffer_is_full(&uart->out_buffer)) {
             // Make sure that we aren't waiting for a transaction which is not
             // in progress.
@@ -165,8 +165,8 @@ void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
         }
     }
     
-    // Make sure that we start transmition right away if there is no transmition
-    // already in progress.
+    // Make sure that we start transmission right away if there is no
+    // transmission already in progress.
     sercom_uart_service(uart);
 }
 
@@ -182,8 +182,8 @@ uint16_t sercom_uart_put_bytes(struct sercom_uart_desc_t *uart,
         circular_buffer_push(&uart->out_buffer, (uint8_t)bytes[i]);
     }
     
-    // Make sure that we start transmition right away if there is no transmition
-    // already in progress.
+    // Make sure that we start transmission right away if there is no
+    // transmission already in progress.
     sercom_uart_service(uart);
     
     return i;
@@ -193,7 +193,7 @@ void sercom_uart_put_bytes_blocking(struct sercom_uart_desc_t *uart,
                                     const uint8_t *bytes, uint16_t length)
 {
     for (uint16_t i = 0; i < length; i++) {
-        // Wait for a character worth of space to become avaliable in the buffer
+        // Wait for a character worth of space to become available in the buffer
         while (circular_buffer_is_full(&uart->out_buffer)) {
             // Make sure that we aren't waiting for a transaction which is not
             // in progress.
@@ -203,8 +203,8 @@ void sercom_uart_put_bytes_blocking(struct sercom_uart_desc_t *uart,
         circular_buffer_push(&uart->out_buffer, bytes[i]);
     }
     
-    // Make sure that we start transmition right away if there is no transmition
-    // already in progress.
+    // Make sure that we start transmission right away if there is no
+    // transmission already in progress.
     sercom_uart_service(uart);
 }
 
@@ -214,12 +214,12 @@ void sercom_uart_put_char (struct sercom_uart_desc_t *uart, char c)
     
     if (uart->echo && (c == '\n')) {
         // Add carriage return as some terminal emulators seem to think that
-        // they are typewriters (backwards compatability has gone too far).
+        // they are typewriters.
         circular_buffer_push(&uart->out_buffer, (uint8_t)'\r');
     }
     
-    // Make sure that we start transmition right away if there is no transmition
-    // already in progress.
+    // Make sure that we start transmission right away if there is no
+    // transmission already in progress.
     sercom_uart_service(uart);
 }
 
@@ -276,7 +276,7 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
 {
     /* Acquire service function lock */
     if (uart->service_lock) {
-        // Could not accuire lock, service is already being run
+        // Could not acquire lock, service is already being run
         return;
     } else {
         uart->service_lock = 1;
@@ -296,8 +296,8 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
                                 sercom_get_dma_tx_trigger(uart->sercom_instnum),
                                 SERCOM_DMA_TX_PRIORITY);
     } else if (!uart->use_dma && !uart->sercom->USART.INTENSET.bit.DRE) {
-        // A interupt driven write operation is not in progress
-        // Start data register empty interupts.
+        // A interrupt driven write operation is not in progress
+        // Start data register empty interrupts.
         uart->sercom->USART.INTENSET.bit.DRE = 0b1;
     }
     
@@ -346,13 +346,13 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
             // Send next char
             sercom->USART.DATA.reg = c;
         } else {
-            // All chars sent, disable DRE interupt
+            // All chars sent, disable DRE interrupt
             sercom->USART.INTENCLR.bit.DRE = 0b1;
         }
     }
 
-    // For some reason the RXC interupt seems to get disabled every time the
-    // interupt service routine runs. Not clear why this happens, it is not
+    // For some reason the RXC interrupt seems to get disabled every time the
+    // interrupt service routine runs. Not clear why this happens, it is not
     // mentioned in the datasheet.
     sercom->USART.INTENSET.bit.RXC = 0b1;
 }

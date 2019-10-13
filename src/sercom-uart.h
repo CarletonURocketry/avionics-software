@@ -1,6 +1,6 @@
 /**
  * @file sercom-uart.h
- * @desc SERCOM UART mode driver which allows interupt or DMA driven transfers.
+ * @desc SERCOM UART mode driver which allows interrupt or DMA driven transfers.
  * @author Samuel Dewan
  * @date 2018-12-27
  * Last Author:
@@ -29,13 +29,13 @@ struct sercom_uart_desc_t {
     /** Circular buffer for data to be transmitted */
     char out_buffer_mem[SERCOM_UART_OUT_BUFFER_LEN];
     struct circular_buffer_t out_buffer;
-    /** Circular buffer for recieved data */
+    /** Circular buffer for received data */
     char in_buffer_mem[SERCOM_UART_IN_BUFFER_LEN];
     struct circular_buffer_t in_buffer;
     
     uint8_t sercom_instnum;
     
-    /** DMA channel for data transmition */
+    /** DMA channel for data transmission */
     uint8_t dma_chan:4;
     uint8_t use_dma:1;
     
@@ -49,7 +49,7 @@ struct sercom_uart_desc_t {
 };
 
 /**
- *  Initilize a SERCOM instance for use as a serial console
+ *  Initialize a SERCOM instance for use as a serial console
  *
  *  @param descriptor The descriptor to be populated for this console instance.
  *  @param sercom Pointer to the SERCOM instance's registers.
@@ -57,9 +57,9 @@ struct sercom_uart_desc_t {
  *  @param core_freq The frequency of the core clock for the SERCOM instance.
  *  @param core_clock_mask The mask for the generator to be used for the SERCOM
  *                         core clock;
- *  @param dma_channel The DMA channel to be used for transmition or a negative
- *                     value for interupt driven communication.
- *  @param echo If true bytes recieved will be treated as characters and
+ *  @param dma_channel The DMA channel to be used for transmission or a negative
+ *                     value for interrupt driven communication.
+ *  @param echo If true bytes received will be treated as characters and
  *              echoed and simple line editing (backspace) will be possible.
  */
 extern void init_sercom_uart(struct sercom_uart_desc_t *descriptor,
@@ -93,7 +93,7 @@ extern void sercom_uart_put_string_blocking(struct sercom_uart_desc_t *uart,
  *
  *  @param uart The UART to which the array should be written.
  *  @param bytes The array to be written
- *  @param length The number of bytes to be writen
+ *  @param length The number of bytes to be written
  *
  *  @return The number of bytes which could be added to the queue.
  */
@@ -106,7 +106,7 @@ extern uint16_t sercom_uart_put_bytes(struct sercom_uart_desc_t *uart,
  *
  *  @param uart The UART to which the string should be written.
  *  @param bytes The array to be written
- *  @param length The number of bytes to be writen
+ *  @param length The number of bytes to be written
  */
 extern void sercom_uart_put_bytes_blocking(struct sercom_uart_desc_t *uart,
                                            const uint8_t *bytes,
@@ -131,23 +131,24 @@ extern void sercom_uart_get_string (struct sercom_uart_desc_t *uart, char *str,
                                     uint16_t len);
 
 /**
- *  Determine if there is a full line avaliable to be read from the UART
+ *  Determine if there is a full line available to be read from the UART
  *  buffer.
  *
  *  @param uart The UART for which the availability of a line should be
  *         determined.
- *  @param delim The delemiter for new lines (ie. '\n').
+ *  @param delim The delimiter for new lines (ie. '\n').
  *
- *  @return 0 if there is no line avaliable, 1 if a line is avaliable.
+ *  @return 0 if there is no line available, 1 if a line is available.
  */
 extern uint8_t sercom_uart_has_line (struct sercom_uart_desc_t *uart,
                                      char delim);
 
 /**
- *  Read a string from the input buffer up to the next occurance of a delimiter.
+ *  Read a string from the input buffer up to the next occurrence of a
+ *  delimiter.
  *
  *  @param uart The UART from which the line should be retrieved.
- *  @param delim The delemiter for new lines (ie. '\n').
+ *  @param delim The delimiter for new lines (ie. '\n').
  *  @param str The string in which the data should be stored.
  *  @param len The maximum number of chars to be read from the input buffer.
  */
@@ -159,7 +160,7 @@ extern void sercom_uart_get_line (struct sercom_uart_desc_t *uart, char delim,
  *
  *  @param uart The UART from which the character should be retrieved.
  *
- *  @return The least recently recieved character in the input buffer
+ *  @return The least recently received character in the input buffer
  */
 extern char sercom_uart_get_char (struct sercom_uart_desc_t *uart);
 

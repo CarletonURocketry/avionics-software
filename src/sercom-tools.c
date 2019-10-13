@@ -64,7 +64,7 @@ int8_t sercom_get_inst_num (Sercom *const inst)
 }
 
 /*
- *  Interupt service routines
+ *  Interrupt service routines
  *  These ISRs allow some context (the sercom instance) to be injected in to an
  *  a more generic handler function.
  */

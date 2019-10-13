@@ -67,7 +67,7 @@ enum i2c_transaction_state {
     I2C_STATE_REG_ADDR,
     /** Transmitting data to slave */
     I2C_STATE_TX,
-    /** Waiting for the bus to become idle before starting recieve stage */
+    /** Waiting for the bus to become idle before starting receive stage */
     I2C_STATE_WAIT_FOR_RX,
     /** Receiving data from slave */
     I2C_STATE_RX,
@@ -75,7 +75,7 @@ enum i2c_transaction_state {
     I2C_STATE_WAIT_FOR_DONE,
     /** Transaction finished */
     I2C_STATE_DONE,
-    /** Error occured on I2C bus, transaction aborted */
+    /** Error occurred on I2C bus, transaction aborted */
     I2C_STATE_BUS_ERROR,
     /** Lost arbitration on I2C bus, transaction aborted */
     I2C_STATE_ARBITRATION_LOST,
@@ -91,20 +91,20 @@ struct sercom_i2c_transaction_t {
     /** Description of data to be send or received. */
     union {
         /** Data for a generic transaction with arbitrary length transmit and
-         *  recieve stages */
+         *  receive stages */
         struct {
             /** The buffer from which data is sent. */
             uint8_t const* out_buffer;
-            /** The buffer into which recieved data is placed. */
+            /** The buffer into which received data is placed. */
             uint8_t *in_buffer;
             /** The number of bytes to be sent. */
             uint16_t out_length;
-            /** The number of bytes to be recieved. */
+            /** The number of bytes to be received. */
             uint16_t in_length;
             
             /** The number of bytes which have been sent. */
             uint16_t bytes_out;
-            /** The number of bytes which have been recieved. */
+            /** The number of bytes which have been received. */
             uint16_t bytes_in;
         } generic;
         
@@ -113,7 +113,7 @@ struct sercom_i2c_transaction_t {
             /** The buffer from/to which data is sent or received. */
             uint8_t *buffer;
             
-            /** The number of bytes to be sent or recieved. */
+            /** The number of bytes to be sent or received. */
             uint16_t data_length;
             /** The number of bytes which have been sent or received. */
             uint16_t position;
@@ -135,7 +135,7 @@ struct sercom_i2c_transaction_t {
     
     /** Whether DMA should be used for the transmit stage of this transaction */
     uint8_t dma_out:1;
-    /** Whether DMA should be used for the recieve stage of this transaction */
+    /** Whether DMA should be used for the receive stage of this transaction */
     uint8_t dma_in:1;
     
     /** The type of this transaction */
@@ -184,7 +184,7 @@ struct sercom_i2c_desc_t {
 
 
 /**
- *  Initilize a SERCOM instance for use as an I2C master.
+ *  Initialize a SERCOM instance for use as an I2C master.
  *
  *  @param descriptor The descriptor to be populated for this I2C instance.
  *  @param sercom Pointer to the SERCOM instance's registers.
@@ -193,7 +193,7 @@ struct sercom_i2c_desc_t {
  *                         core clock;
  *  @param mode The speed mode for the I2C interface
  *  @param dma_channel The DMA channel to be used or a negative value for
- *                     interupt driven transactions.
+ *                     interrupt driven transactions.
  */
 extern void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor,
                             Sercom *sercom, uint32_t core_freq,
@@ -201,18 +201,18 @@ extern void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor,
                             int8_t dma_channel);
 
 /**
- *  Send and recieve data on the I2C bus.
+ *  Send and receive data on the I2C bus.
  *
  *  @param i2c_inst The I2C instance to use.
- *  @param trans_id The identifer for the created transaction will be
+ *  @param trans_id The identifier for the created transaction will be
  *                  placed here.
- *  @param dev_address The address of the peripheral to comunicate with.
+ *  @param dev_address The address of the peripheral to communicate with.
  *  @param out_buffer The buffer from which data should be sent.
  *  @param out_length The number of bytes to be sent.
- *  @param in_buffer The buffer where recieved data will be placed.
- *  @param in_length The number of bytes to be recieved.
+ *  @param in_buffer The buffer where received data will be placed.
+ *  @param in_length The number of bytes to be received.
  *
- *  @return 0 if transaction is successfuly queued.
+ *  @return 0 if transaction is successfully queued.
  */
 extern uint8_t sercom_i2c_start_generic(struct sercom_i2c_desc_t *i2c_inst,
                                         uint8_t *trans_id, uint8_t dev_address,
@@ -224,14 +224,14 @@ extern uint8_t sercom_i2c_start_generic(struct sercom_i2c_desc_t *i2c_inst,
  *  Write a register on a peripheral on the I2C bus.
  *
  *  @param i2c_inst The I2C instance to use.
- *  @param trans_id The identifer for the created transaction will be
+ *  @param trans_id The identifier for the created transaction will be
  *                  placed here.
- *  @param dev_address The address of the peripheral to comunicate with.
- *  @param register_address The address of the register to be writen
+ *  @param dev_address The address of the peripheral to communicate with.
+ *  @param register_address The address of the register to be written
  *  @param data The buffer from which data should be sent.
  *  @param length The number of bytes to be sent.
  *
- *  @return 0 if transaction is successfuly queued.
+ *  @return 0 if transaction is successfully queued.
  */
 extern uint8_t sercom_i2c_start_reg_write(struct sercom_i2c_desc_t *i2c_inst,
                                           uint8_t *trans_id,
@@ -243,14 +243,14 @@ extern uint8_t sercom_i2c_start_reg_write(struct sercom_i2c_desc_t *i2c_inst,
  *  Read a register on a peripheral on the I2C bus.
  *
  *  @param i2c_inst The I2C instance to use.
- *  @param trans_id The identifer for the created transaction will be
+ *  @param trans_id The identifier for the created transaction will be
  *                  placed here.
- *  @param dev_address The address of the peripheral to comunicate with.
+ *  @param dev_address The address of the peripheral to communicate with.
  *  @param register_address The address of the register to be read
- *  @param data The buffer where recieved data will be placed.
- *  @param length The number of bytes to be recieved.
+ *  @param data The buffer where received data will be placed.
+ *  @param length The number of bytes to be received.
  *
- *  @return 0 if transaction is successfuly queued.
+ *  @return 0 if transaction is successfully queued.
  */
 extern uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
                                          uint8_t *trans_id, uint8_t dev_address,
@@ -261,10 +261,10 @@ extern uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
  *  Scan to determine all of the attached addresses on the I2C bus.
  *
  *  @param i2c_inst The I2C instance to use.
- *  @param trans_id The identifer for the created transaction will be
+ *  @param trans_id The identifier for the created transaction will be
  *                  placed here.
  *
- *  @return 0 if transaction is successfuly queued.
+ *  @return 0 if transaction is successfully queued.
  */
 extern uint8_t sercom_i2c_start_scan(struct sercom_i2c_desc_t *i2c_inst,
                                      uint8_t *trans_id);
@@ -275,7 +275,7 @@ extern uint8_t sercom_i2c_start_scan(struct sercom_i2c_desc_t *i2c_inst,
  *  @param i2c_inst The I2C instance from which the queue should be used.
  *  @param trans_id The ID of the transaction to check.
  *
- *  @return A non-zero value if the tranaction has finished, 0 otherwise.
+ *  @return A non-zero value if the transaction has finished, 0 otherwise.
  */
 extern uint8_t sercom_i2c_transaction_done(struct sercom_i2c_desc_t *i2c_inst,
                                            uint8_t trans_id);
@@ -298,7 +298,7 @@ extern enum i2c_transaction_state sercom_i2c_transaction_state(
  *  @param i2c_inst The I2C instance from which the queue should be used.
  *  @param trans_id The ID of the transaction to clear.
  *
- *  @return 0 if transaction was successfuly cleared.
+ *  @return 0 if transaction was successfully cleared.
  */
 extern uint8_t sercom_i2c_clear_transaction(struct sercom_i2c_desc_t *i2c_inst,
                                             uint8_t trans_id);
@@ -310,7 +310,7 @@ extern uint8_t sercom_i2c_clear_transaction(struct sercom_i2c_desc_t *i2c_inst,
  *  @param trans_id The ID of a complete, uncleared scan transaction.
  *  @param address The address to check for.
  *
- *  @return 0 If the device is not avaliable, a possitive number otherwise
+ *  @return 0 If the device is not available, a positive number otherwise
  */
 extern uint8_t sercom_i2c_device_available(struct sercom_i2c_desc_t *i2c_inst,
                                            uint8_t trans_id, uint8_t address);

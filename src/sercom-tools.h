@@ -19,10 +19,10 @@
 
 
 /**
- *  Abstraction over sercom interupt handlers which allows a callback to be
- *  specified for each interupt which is provided context about the SERCOM
+ *  Abstraction over sercom interrupt handlers which allows a callback to be
+ *  specified for each interrupt which is provided context about the SERCOM
  *  instance as well as a pointer to any other context information.
- *  This allows the same function to be used as an interupt handler on any
+ *  This allows the same function to be used as an interrupt handler on any
  *  SERCOM instance.
  */
 extern struct sercom_handler_t {
@@ -37,7 +37,8 @@ extern struct sercom_handler_t {
  *  @param baudrate The target baudrate
  *  @param clock The speed of the SERCOMs core clock
  *  @param baud Location where the calculated baud value will be stored
- *  @param sampr Location where the calulated sample rate setting will be stored
+ *  @param sampr Location where the calculated sample rate setting will be
+ *               stored
  *
  *  @return 0 if successful, 1 if baud rate not supported
  */
