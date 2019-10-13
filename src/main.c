@@ -104,11 +104,11 @@ static void init_clocks (void)
     // See section 37.12 of datasheet (NVM Characteristics)
     NVMCTRL->CTRLB.bit.RWS = NVMCTRL_CTRLB_RWS_HALF_Val;
     
-    // Ensure that interface clock for generic clock controler is enabled
+    // Ensure that interface clock for generic clock controller is enabled
     PM->APBAMASK.reg |= PM_APBAMASK_GCLK;
     
     /* Enable external 32.768 KHz oscillator */
-    // 1000092μs (32768 OSCULP32K cycles) startupt time, enable crystal,
+    // 1000092μs (32768 OSCULP32K cycles) startup time, enable crystal,
     // enable 32.768 KHz output
     SYSCTRL->XOSC32K.reg = (SYSCTRL_XOSC32K_STARTUP( 0x5 ) |
                             SYSCTRL_XOSC32K_XTALEN | SYSCTRL_XOSC32K_EN32K);
@@ -142,7 +142,7 @@ static void init_clocks (void)
     
     /* Enable DFLL48M */
     // Disable On Demand mode before configuration
-    //      see silicon erata section 1.2.1 - Write Access to DFLL Register
+    //      see silicon errata section 1.2.1 - Write Access to DFLL Register
     SYSCTRL->DFLLCTRL.bit.ONDEMAND = 0;
     // Wait for DFLL48M to be ready
     while (!SYSCTRL->PCLKSR.bit.DFLLRDY);
@@ -275,7 +275,7 @@ static inline void init_io (void)
 int main(void)
 {
     init_clocks();
-    SysTick_Config(48000); // Enable SysTick for an interupt every millisecond
+    SysTick_Config(48000); // Enable SysTick for an interrupt every millisecond
     NVIC_SetPriority (SysTick_IRQn, 0); // Give SysTick highest priority
     
     // Load ADC factory calibration values
@@ -383,7 +383,7 @@ int main(void)
                           (1 << ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC) |
                           (1 << ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC));
     init_adc(GCLK_CLKCTRL_GEN_GCLK3, 8000000UL, chan_mask, ADC_PERIOD,
-             ADC_SOURCE_IMPEDENCE, ADC_DMA_CHAN);
+             ADC_SOURCE_IMPEDANCE, ADC_DMA_CHAN);
 #endif
     
     // Init Altimeter
@@ -541,7 +541,7 @@ static void main_loop (void)
 }
 
 
-/* Interupt Service Routines */
+/* Interrupt Service Routines */
 RAMFUNC void SysTick_Handler(void)
 {
     millis++;

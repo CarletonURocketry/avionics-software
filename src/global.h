@@ -1,6 +1,6 @@
 /**
  * @file global.h
- * @desc Variables and constants which are used globaly
+ * @desc Variables and constants which are used globally
  * @author Samuel Dewan
  * @date 2018-12-27
  * Last Author:
@@ -21,7 +21,7 @@
 #define BUILD_STRING "Built "__DATE__" at "__TIME__" with arm-none-eabi-gcc "__VERSION__"\n"
 
 /**
- *  Number of milliseconds ellapsed since system was reset
+ *  Number of milliseconds elapsed since system was reset
  */
 extern volatile uint32_t millis;
 

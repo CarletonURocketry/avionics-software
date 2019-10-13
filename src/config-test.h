@@ -27,7 +27,7 @@
 
 /* String to identify this configuration */
 #define CONFIG_STRING "Test Config\n"
-/* Globaly enable DMA if defined */
+/* Globally enable DMA if defined */
 #define ENABLE_DMA
 /* Enable Micro Trace Buffer if defined */
 #define ENABLE_MTB
@@ -167,8 +167,8 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
  as -1 */
 #define ADC_DMA_CHAN 11
-/* Maximum impedence of source in ohms, see figure 37-5 in SAMD21 datasheet */
-#define ADC_SOURCE_IMPEDENCE 100000
+/* Maximum impedance of source in ohms, see figure 37-5 in SAMD21 datasheet */
+#define ADC_SOURCE_IMPEDANCE 100000
 
 //
 //
