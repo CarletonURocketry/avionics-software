@@ -18,8 +18,6 @@
 #include "sercom-spi.h"
 #include "sercom-i2c.h"
 
-#include "sd.h"
-
 #ifdef ID_USB
 #include "usb.h"
 #include "usb-cdc.h"
@@ -39,6 +37,8 @@
 
 #include "ground.h"
 #include "telemetry.h"
+
+#include "sd.h"
 
 //MARK: Constants
 
@@ -254,7 +254,7 @@ static void init_clocks (void)
     /* Configure a single flash wait state, good for 2.7-3.3v operation at 48MHz */
     // See section 37.12 of datasheet (NVM Characteristics)
     NVMCTRL->CTRLB.bit.RWS = NVMCTRL_CTRLB_RWS_HALF_Val;
-    
+
     // Ensure that interface clock for generic clock controller is enabled
     PM->APBAMASK.reg |= PM_APBAMASK_GCLK;
     
@@ -381,46 +381,50 @@ static inline void init_io (void)
     PORT_IOBUS->Group[1].PINCFG[13].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[1].PMUX[7].bit.PMUXE = 0x2;     // MISO (Pad 2)
     PORT_IOBUS->Group[1].PINCFG[14].bit.PMUXEN = 0b1;
-    
+
     // I2C
     PORT_IOBUS->Group[1].PMUX[8].bit.PMUXE = 0x2;     // SDA (Pad 0)
     PORT_IOBUS->Group[1].PINCFG[16].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[1].PMUX[8].bit.PMUXO = 0x2;     // SCL (Pad 1)
     PORT_IOBUS->Group[1].PINCFG[17].bit.PMUXEN = 0b1;
-    
+
     // UART 0
     PORT_IOBUS->Group[0].PMUX[2].bit.PMUXE = 0x3;     // TX Sercom 0 Pad 0
     PORT_IOBUS->Group[0].PINCFG[4].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[0].PMUX[2].bit.PMUXO = 0x3;     // RX Sercom 0 Pad 1
     PORT_IOBUS->Group[0].PINCFG[5].bit.PMUXEN = 0b1;
-    
+
     // UART 1
     PORT_IOBUS->Group[0].PMUX[8].bit.PMUXE = 0x2;     // TX Sercom 1 Pad 0
     PORT_IOBUS->Group[0].PINCFG[16].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[0].PMUX[8].bit.PMUXO = 0x2;     // RX Sercom 1 Pad 1
     PORT_IOBUS->Group[0].PINCFG[17].bit.PMUXEN = 0b1;
-    
+
     // UART 2
     PORT_IOBUS->Group[0].PMUX[6].bit.PMUXE = 0x2;     // TX Sercom 2 Pad 0
     PORT_IOBUS->Group[0].PINCFG[12].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[0].PMUX[6].bit.PMUXO = 0x2;     // RX Sercom 2 Pad 1
     PORT_IOBUS->Group[0].PINCFG[13].bit.PMUXEN = 0b1;
-    
+
     // UART 3
     PORT_IOBUS->Group[0].PMUX[11].bit.PMUXE = 0x2;    // TX Sercom 3 Pad 0
     PORT_IOBUS->Group[0].PINCFG[22].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[0].PMUX[11].bit.PMUXO = 0x2;    // RX Sercom 3 Pad 1
     PORT_IOBUS->Group[0].PINCFG[23].bit.PMUXEN = 0b1;
-    
+
     // USB
     PORT_IOBUS->Group[0].PMUX[12].bit.PMUXE = 0x6;     // D-
     PORT_IOBUS->Group[0].PINCFG[24].bit.PMUXEN = 0b1;
     PORT_IOBUS->Group[0].PMUX[12].bit.PMUXO = 0x6;     // D+
     PORT_IOBUS->Group[0].PINCFG[25].bit.PMUXEN = 0b1;
-    
+
     // IO Expander CS pin
     PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].DIRSET.reg = IO_EXPANDER_CS_PIN_MASK;
     PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
+
+    // SD CS pin
+    PORT_IOBUS->Group[SD_CS_PIN_GROUP].DIRSET.reg = SD_CS_PIN_MASK;
+    PORT_IOBUS->Group[SD_CS_PIN_GROUP].OUTSET.reg = SD_CS_PIN_MASK;
 }
 
 int main(void)
@@ -582,14 +586,14 @@ int main(void)
 #ifdef ENABLE_DEBUG_CLI
     init_cli(&cli_g, &console_g, "> ", debug_commands_funcs);
 #endif
-    
+
     // LoRa Radios
 #ifdef ENABLE_LORA
     init_radio_transport(&radio_transport_g, radios_g, radio_uarts_g,
                          radio_antennas_g, LORA_RADIO_SEARCH_ROLE,
                          LORA_DEVICE_ADDRESS);
 #endif
-    
+
     // GPIO
 #ifdef ENABLE_IO_EXPANDER
     init_mcp23s17(&io_expander_g, 0, &spi_g, 100, IO_EXPANDER_CS_PIN_MASK,
@@ -613,9 +617,7 @@ int main(void)
     gpio_set_pin_mode(DEBUG1_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_R_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_G_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
-    
     gpio_set_output(STAT_G_LED_PIN, 1);
-    
     
     // Ground station console
 #ifdef ENABLE_GROUND_SERVICE
@@ -637,7 +639,7 @@ int main(void)
 #ifdef ENABLE_TELEMETRY_SERVICE
     init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
 #endif
-    
+
     // Start Watchdog Timer
     //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
     
@@ -666,13 +668,12 @@ int main(void)
 
 static void main_loop (void)
 {
-    // SD Card Test
-    uint32_t blockaddr = 0x00000000;
-    uint8_t data[] = {0xfe, 0x48, 0x45, 0x4C, 0x4C, 0x4F};
-    write_block(blockaddr, data);
-    write_block(blockaddr, data);
-    write_block(blockaddr, data);
-    // END SD Card Test
+
+    // SD CARD TEST
+    /* uint32_t blockaddr = 0x00000000; */
+    /* uint8_t data[] = {0x48, 0x49, 0x20, 0x53, 0x41, 0x4D, 0x0A}; */
+    /* write_block(blockaddr, data); */
+    // END SD CARD TEST
 
     static uint32_t period = 1000;
     
@@ -687,7 +688,7 @@ static void main_loop (void)
         gpio_toggle_output(STAT_R_LED_PIN);
         gpio_toggle_output(STAT_G_LED_PIN);
     }
-    
+
 #ifdef ENABLE_CONSOLE
     console_service(&console_g);
 #endif
