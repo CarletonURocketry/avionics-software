@@ -35,7 +35,7 @@
 #define IO_EXPANDER_INT_PIN ((uint16_t)PIN_PA28)
 
 /* SD Card */
-#define SD_CS_PIN_MASK  PORT_PA11
+#define SD_CS_PIN_MASK  (PORT_PA11|(1<<21))
 #define SD_CS_PIN_GROUP 0
 #define SD_DETECT_PIN MCP23S17_PIN_FOR(MCP23S17_PORT_A, 4)
 
