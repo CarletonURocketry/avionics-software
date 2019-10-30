@@ -5,36 +5,84 @@
  *
  * Sources for implementation:
  *  -- https://electronics.stackexchange.com/questions/77417
+ *      ^^^ THIS IS THE BEST RESOURCE ^^^
  *  -- https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/
  *  -- https://nerdclub-uk.blogspot.com/2012/11/how-spi-works-with-sd-card.html
  *  -- https://openlabpro.com/guide/raw-sd-readwrite-using-pic-18f4550/
  *
+ *  **IMPORTANT NOTE:** If using an older card, the initialization steps must be
+ *  executed while the microprocessor/controller is running at a slower clock
+ *  rate (100-400 KHz). Newer cards can withstand MHz clocks but older ones will
+ *  complain. After initialization is complete, the clock speed may be switched
+ *  to a higher one.
+ *
  * Supposedly, the proper way to initalize a card over SPI is to:
- *      1. Set the clock speed to 400kHz or less
- *      2. Hold the CS line low and send 80 clock pulses (with command 0xFF)
+ *      1. Set the clock speed to 400kHz or less if old card
+ *      2. Hold the CS line low and send 80 clock pulses (with bytes 0xFF)
  *      3. Send the "soft reset" command CMD0
- *      4. Wait for the card to respond "ok" with the value 0x01
- *      5. Send in the "initialize card" command CMD1
- *      6. Repeat sending CMD1 until card responds with "ok" value 0x00
- *      7. Set sector size using CMD16 with parameter 512
- *      8. Turn off CRC requirement by sending CMD59
- *      9. Next time the card responds with "ok" value it is ready
- *      10. Ramp up clock speed back to normal.
- *  But this might be outdated/not work 100% of the time. Also, newer cards can
- *  usually deal with MHz clock speeds just fine so down-clocking isn't
- *  necessary. The stackexchange question had the most recently written process
- *  so that is what was followed in reality.
+ *      4. Wait for the card to respond "ok" with the value 0x01 (0xFF is also
+ *          acceptable and indicates the card was in a strange state)
+ *      5. Initialize the card:
+ *          5a. Send CMD55 followed by ACMD41, if response is 0x05, this is an
+ *              old card and CMD1 must be used (step 5b). If response 0x01 for
+ *              CMD55 then continue, if response 0x00 for ACMD41 then continue,
+ *              if response 0x01 for ACMD41 then repeat this step.
+ *          5b. Send in the "initialize card" command CMD1 and repeat this until
+ *              the card responds with 0x00.
+ *      6. Set sector size using CMD16 with parameter 512
+ *      7. Turn off CRC requirement by sending CMD59
+ *      8. Next time the card responds with "ok" value it is ready
+ *      9. Ramp up clock speed back to normal if step 1 was necessary.
  *
- *  Supposedly, according to the spec, all SD/SDHC/SDXC cards should respond to
- *  CMD55/ACMD41 to initalize and CMD1 should only be used as a fallback.
- *
- *  We should also make sure CS is low at least before and after each CMD is
- *  sent since SD cards are selfish and may assume it's the only SPI device
- *  selected all the time?
+ *  We should also assert CS low at least before and after each CMD is sent
+ *  since SD cards are selfish and may assume it's the only SPI device selected
+ *  all the time.
  */
 
+#include <string.h>
 #include "config.h"
 #include "sd.h"
+
+/**
+ * sd_send_cmd_large()
+ * @brief Sets up the buffer for sending commands to the SD card and then
+ * sends the data. This is the version of the function which receives 5 bytes of
+ * data for the commands which need this
+ *
+ * @param cmd The single byte command to send to the SD card.
+ * @param arg The four byte argument to send to the SD card.
+ * @param crc The crc checksum to send (necessary during initialization,
+ *              otherwise optional).
+ * @param receiveBuffer The buffer that will contain the bytes sent back from
+ *              the SD card in response to a command.
+ * @param receiveBufferLength The lenght, in bytes, of the receiving buffer.
+ *
+ * @return The bytes that the SD card sent in response.
+ */
+static inline uint8_t* sd_send_cmd_large(uint8_t cmd, uint32_t arg, uint8_t crc,
+        uint8_t* receiveBuffer, uint16_t receiveBufferLength)
+{
+    uint8_t transactionId;
+    uint8_t sendBuffer[7];
+    uint16_t sendBufferLength = sizeof(sendBuffer);
+
+    sendBuffer[0] = cmd | 0x40; // Every command byte sent must have bit 6 set
+    sendBuffer[1] = arg >> 24;
+    sendBuffer[2] = arg >> 16;
+    sendBuffer[3] = arg >> 8;
+    sendBuffer[4] = arg;
+    sendBuffer[5] = crc; // Usually 0x00 during normal (i.e. not init) operation
+    // The byte below provides 8 clock cycles necessary to allow the card to
+    // complete the operation according to the SD Card spec
+    sendBuffer[6] = 0xFF;
+
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+            SD_CS_PIN_MASK, sendBuffer, sendBufferLength, receiveBuffer,
+            receiveBufferLength);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
+
+    return 0;
+}
 
 /**
  * sd_send_cmd()
@@ -45,17 +93,13 @@
  * @param arg The four byte argument to send to the SD card.
  * @param crc The crc checksum to send (necessary during initialization,
  *              otherwise optional).
- * @param initFlag A simple flag which will tell the program whether or not to
- *              set the CS pin (the CS pin must remain low when setting card
- *              into SPI mode).
  *
  * @return The byte that the SD card sent in response.
  */
-static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
-                                  uint8_t initFlag)
+static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc)
 {
     uint8_t transactionId;
-    uint8_t receiveBuffer;
+    uint8_t receiveBuffer = 0x00;
     uint8_t sendBuffer[7];
     uint16_t sendBufferLength = sizeof(sendBuffer);
     uint16_t receiveBufferLength = sizeof(receiveBuffer);
@@ -66,22 +110,15 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc,
     sendBuffer[3] = arg >> 8;
     sendBuffer[4] = arg;
     sendBuffer[5] = crc; // Usually 0x00 during normal (i.e. not init) operation
-    // Provides 8 clock cycles necessary to allow the card to complete the
-    // operation according to the SD Card spec
+    // The byte below provides 8 clock cycles necessary to allow the card to
+    // complete the operation according to the SD Card spec
     sendBuffer[6] = 0xFF;
 
-    if (initFlag) {
-        sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, 0xFF,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
-                receiveBufferLength);
-        while (!sercom_spi_transaction_done(&spi_g, transactionId));
-    }
-    else {
-        sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
-                SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
-                receiveBufferLength);
-        while (!sercom_spi_transaction_done(&spi_g, transactionId));
-    }
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+            SD_CS_PIN_MASK, sendBuffer, sendBufferLength, &receiveBuffer,
+            receiveBufferLength);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
+
     return receiveBuffer;
 }
 
@@ -95,37 +132,52 @@ uint8_t init_sd_card(void)
 {
     uint8_t oldCardFlag = 0;
     uint8_t softResetCount = 0;
-    uint8_t response = 0xFF;
+    uint8_t response = 0x00;
+    uint8_t transactionId;
 
     // Put SD card in SPI mode
-    for (uint8_t i = 0; i < 10; i++) {
-        sd_send_cmd(0xFF, 0xFFFFFFFF, 0xFF, 1);
-    }
+    // Buffer of all 1s as dummy data
+    uint8_t sendBuffer[10];
+    uint16_t sendBufferLength = sizeof(sendBuffer);
+    memset(sendBuffer, 0xFF, 10);
+
+
+    // Receive Buffer/Length is NULL/0 here because there is no expected
+    // response
+    sercom_spi_start(&spi_g, &transactionId, SD_BAUDRATE, SD_CS_PIN_GROUP,
+            SD_CS_PIN_MASK, sendBuffer, sendBufferLength, NULL, 0);
+    while (!sercom_spi_transaction_done(&spi_g, transactionId));
+
     // Repeat until soft reset successful or a reasonable number of times
     // since it is possible to not get a valid response here but have the next
     // steps work just fine
-    while (response != 0x01 || softResetCount < 20) {
-        response = sd_send_cmd(CMD0, 0x00000000, 0x95, 0);
+    while ( response != 0x01 && softResetCount < 20) {
+        response = sd_send_cmd(CMD0, 0x00000000, 0x95);
         softResetCount++;
     }
 
-    response = sd_send_cmd(CMD8, 0x000001AA, 0x87, 0);
+    // This CMD needs a larger response buffer as it sends back the argument in
+    // addition to the regular response code
+    uint8_t largeReceiveBuffer[5];
+    memset(largeReceiveBuffer, 0x00, 5);
+    sd_send_cmd_large(CMD8, 0x000001AA, 0x87,
+                      largeReceiveBuffer, sizeof(largeReceiveBuffer));
 
     // Apparently most cards require this to be repeated at least once...
     // ...so repeat it 3 times to be really sure since it is also apprently
     // common to have to wait a few hundred ms if device is just after power on.
     for (uint8_t i = 0; i < 3; i++) {
         if (oldCardFlag)
-            response = sd_send_cmd(CMD1, 0x00000000, 0xF9, 0);
+            response = sd_send_cmd(CMD1, 0x00000000, 0xF9);
         else {
-            response = sd_send_cmd(CMD55, 0x00000000, 0x65, 0);
+            response = sd_send_cmd(CMD55, 0x00000000, 0x65);
             // If this response is given, we have an old card that must use CMD1
             if (response == 0x05) {
-                response = sd_send_cmd(CMD1, 0x00000000, 0xF9, 0);
+                response = sd_send_cmd(CMD1, 0x00000000, 0xF9);
                 oldCardFlag = 1;
             }
             else {
-                response = sd_send_cmd(ACMD41, 0x40000000, 0x77, 0);
+                response = sd_send_cmd(ACMD41, 0x40000000, 0x77);
                 // If this response is given, we need to send CMD55 again
                 if (response == 0x01) {
                     i--;
@@ -140,7 +192,7 @@ uint8_t init_sd_card(void)
         // Set the R/W block size to 512 bytes with CMD16
         // Try 3 times, if success return 0 immediately
         for (uint8_t i = 0; i < 3; i++) {
-            response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF, 0);
+            response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF);
             if (response == 0x00)
                 return 0;
         }
@@ -175,7 +227,7 @@ uint8_t write_block(uint32_t blockAddr, uint8_t* src)
     uint8_t writeBeginByte = 0xFE;
 
     // Send CMD24 (the single block write command)
-    response = sd_send_cmd(CMD24, blockAddr, 0x00, 0);
+    response = sd_send_cmd(CMD24, blockAddr, 0x00);
     // If not immediately successful, exit because we can't afford keep
     // trying for a single write command.
     if (response != 0x00) {
@@ -210,7 +262,7 @@ uint8_t write_block(uint32_t blockAddr, uint8_t* src)
 
     // It is (apparently) mandatory to send CMD13 after every block write
     // presumably because this returns the status of the card.
-    response = sd_send_cmd(CMD13, 0x00000000, 0xFF, 0);
+    response = sd_send_cmd(CMD13, 0x00000000, 0xFF);
 
     // Check if write was successful.
     if (response == 0x00)
