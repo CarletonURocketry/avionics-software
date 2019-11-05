@@ -1,5 +1,11 @@
-** Describe what your implemented features are **
+## General Information
+**Feature Implemented:**
+**Reference to Issue (link)**
+**Author(s):**
 
-** Describe any bugs with your implementation **
+## Bugs and Improvements
+**Describe any hacks or workarounds you needed to use**
 
-** Provide a reference to an open feature request or issue **
+**Describe any bugs with your implementation**
+
+**Describe the areas left to be cleaned up or improved**
