@@ -1,7 +1,7 @@
 ## General Information
-* **Feature Implemented:**
-* **Reference to Issue (link)**
-* **Author(s):**
+**Feature Implemented:**
+**Reference to Issue (link)**
+**Author(s):**
 
 ## Bugs and Improvements
 **Describe any hacks or workarounds you needed to use**
