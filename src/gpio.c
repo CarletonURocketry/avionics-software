@@ -32,6 +32,10 @@ struct external_io_int_t gpio_ext_io_ints[GPIO_MAX_EXTERNAL_IO_INTERRUPTS];
  */
 static struct mcp23s17_desc_t *gpio_mcp23s17_g;
 
+/**
+ *  Array of descriptors for RN2483 radios with GPIO.
+ */
+static struct rn2483_desc_t **gpio_rn2483s_g;
 
 
 /**
@@ -40,14 +44,14 @@ static struct mcp23s17_desc_t *gpio_mcp23s17_g;
 static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value);
 
 /**
- *  Function to be called by MCP23S17 driver when an interrupt has occured
+ *  Function to be called by MCP23S17 driver when an interrupt has occurred
  */
-static void gpio_mcp23s17_interrupt_occured (struct mcp23s17_desc_t *inst,
+static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
                                              union mcp23s17_pin_t pin,
                                              uint8_t value);
 
 
-#define NUM_GPIO_PIN_INTERUPTS  64
+#define NUM_GPIO_PIN_INTERRUPTS  64
 static const int8_t gpio_pin_interrupts[] = {
     //PA0                         PA7
     0,  1,  2,  3,  4,  5,  6,  7,
@@ -69,9 +73,10 @@ static const int8_t gpio_pin_interrupts[] = {
 
 
 void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
-               uint16_t mcp23s17_int_pin)
+               uint16_t mcp23s17_int_pin, struct rn2483_desc_t **rn2483s)
 {
     gpio_mcp23s17_g = mcp23s17;
+    gpio_rn2483s_g = rn2483s;
 
     /* Configure External Interrupt Controller */
 
@@ -93,7 +98,7 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
     EIC->INTENCLR.reg = 0xFFFF;
     EIC->INTFLAG.reg = 0xFFFF;
 
-    /* Ensure that no external interupts will wake the CPU except for the
+    /* Ensure that no external interrupts will wake the CPU except for the
        MCP23S17 interrupt */
     EIC->WAKEUP.reg = (1 << gpio_pin_interrupts[mcp23s17_int_pin]);
 
@@ -128,7 +133,7 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
 
         // Set MCP23S17 interrupt callback
         mcp23s17_set_interrupt_callback(gpio_mcp23s17_g,
-                                        gpio_mcp23s17_interrupt_occured);
+                                        gpio_mcp23s17_interrupt_occurred);
     }
 
     /* Enabled interrupts from EIC in NVIC */
@@ -177,10 +182,22 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
                 // Not supported
                 return 1;
             }
-            return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
-            return 1;
+            if ((mode == GPIO_PIN_OUTPUT_TOTEM) ||
+                (mode == GPIO_PIN_OUTPUT_STRONG)) {
+                // Output
+                return rn2483_set_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
+                                           pin.rn2483.pin,
+                                           RN2483_PIN_MODE_OUTPUT);
+            } else if (mode == GPIO_PIN_INPUT) {
+                // Input
+                return rn2483_set_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
+                                           pin.rn2483.pin,
+                                           RN2483_PIN_MODE_INPUT);
+            } else {
+                // Not supported
+                return 1;
+            }
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 1;
@@ -211,7 +228,6 @@ enum gpio_pin_mode gpio_get_pin_mode(union gpio_pin_t pin)
                 // Disabled
                 return GPIO_PIN_DISABLED;
             }
-            return 0;
         case GPIO_MCP23S17_PIN:
             if (mcp23s17_get_pin_mode(gpio_mcp23s17_g, pin.mcp23s17) ==
                     MCP23S17_MODE_INPUT) {
@@ -219,10 +235,19 @@ enum gpio_pin_mode gpio_get_pin_mode(union gpio_pin_t pin)
             } else {
                 return GPIO_PIN_OUTPUT_TOTEM;
             }
-            return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
-            return 0;
+            if (rn2483_get_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
+                                    pin.rn2483.pin) == RN2483_PIN_MODE_INPUT) {
+                return GPIO_PIN_INPUT;
+            } else if (rn2483_get_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
+                                           pin.rn2483.pin) ==
+                       RN2483_PIN_MODE_OUTPUT) {
+                return GPIO_PIN_OUTPUT_TOTEM;
+            } else {
+                // Pin can be configured as an analog input, not handled by
+                // GPIO module
+                return GPIO_PIN_DISABLED;
+            }
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 0;
@@ -260,7 +285,7 @@ uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull)
             }
             return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
+            // Module does not support pull resistors
             return 1;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
@@ -273,12 +298,14 @@ uint8_t gpio_get_input(union gpio_pin_t pin)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
-            return !!(PORT_IOBUS->Group[pin.internal.port].IN.reg & (1 << pin.internal.pin));
+            // Use PORT instead of PORT_IOBUS because reads from PORT_IOBUS
+            // don't seem to trigger on demand sampling
+            return !!(PORT->Group[pin.internal.port].IN.reg & (1 << pin.internal.pin));
         case GPIO_MCP23S17_PIN:
             return mcp23s17_get_input(gpio_mcp23s17_g, pin.mcp23s17);
         case GPIO_RN2483_PIN:
-            // Not yet supported
-            return 0;
+            return rn2483_get_input(gpio_rn2483s_g[pin.rn2483.radio],
+                                    pin.rn2483.pin);
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 0;
@@ -305,8 +332,9 @@ uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value)
             mcp23s17_set_output(gpio_mcp23s17_g, pin.mcp23s17, value);
             return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
-            return 1;
+            rn2483_set_output(gpio_rn2483s_g[pin.rn2483.radio], pin.rn2483.pin,
+                              value);
+            return 0;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 1;
@@ -329,8 +357,9 @@ uint8_t gpio_toggle_output(union gpio_pin_t pin)
             mcp23s17_toggle_output(gpio_mcp23s17_g, pin.mcp23s17);
             return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
-            return 1;
+            rn2483_toggle_output(gpio_rn2483s_g[pin.rn2483.radio],
+                                 pin.rn2483.pin);
+            return 0;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 1;
@@ -344,13 +373,13 @@ uint8_t gpio_toggle_output(union gpio_pin_t pin)
  *  @param interrupt The interrupt number for which the pin should be found
  *  @param pin Address of pin structure which will be populated
  *
- *  @return 0 if successfull, 1 if the pin could not be found
+ *  @return 0 if successful, 1 if the pin could not be found
  */
 static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
 {
-    for (uint8_t i = 0; i < NUM_GPIO_PIN_INTERUPTS; i++) {
+    for (uint8_t i = 0; i < NUM_GPIO_PIN_INTERRUPTS; i++) {
         if (gpio_pin_interrupts[i] == interrupt) {
-            // Since interrupts are avliable on multiple pins, we have to check
+            // Since interrupts are available on multiple pins, we have to check
             // if the interrupt is actually enabled on this pin
             pin->internal.raw = i;
 
@@ -378,9 +407,9 @@ static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
     return 1;
 }
 
-uint8_t gpio_enable_interupt(union gpio_pin_t pin,
-                             enum gpio_interupt_trigger trigger, uint8_t filter,
-                             gpio_interrupt_cb callback)
+uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
+                              enum gpio_interrupt_trigger trigger,
+                              uint8_t filter, gpio_interrupt_cb callback)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
@@ -448,7 +477,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
 
             // Enable waking from interrupt
             EIC->WAKEUP.reg |= (1 << int_num);
-            // Enable interrup
+            // Enable interrupt
             EIC->INTENSET.reg = (1 << int_num);
 
             return 0;
@@ -478,7 +507,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
             }
             return 1;
         case GPIO_RN2483_PIN:
-            // Not yet supported
+            // Module does not support interrupts
             return 1;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
@@ -487,7 +516,7 @@ uint8_t gpio_enable_interupt(union gpio_pin_t pin,
     return 1;
 }
 
-uint8_t gpio_disable_interupt(union gpio_pin_t pin)
+uint8_t gpio_disable_interrupt(union gpio_pin_t pin)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
@@ -530,7 +559,7 @@ uint8_t gpio_disable_interupt(union gpio_pin_t pin)
             // The interrupt wasn't enabled
             return 0;
         case GPIO_RN2483_PIN:
-            // Not yet supported
+            // Module does not support interrupts
             return 1;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
@@ -546,9 +575,9 @@ static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value)
     mcp23s17_handle_interrupt(gpio_mcp23s17_g);
 }
 
-static void gpio_mcp23s17_interrupt_occured (struct mcp23s17_desc_t *inst,
-                                             union mcp23s17_pin_t pin,
-                                             uint8_t value)
+static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
+                                              union mcp23s17_pin_t pin,
+                                              uint8_t value)
 {
     for (uint8_t i = 0; i < GPIO_MAX_EXTERNAL_IO_INTERRUPTS; i++) {
         if ((gpio_ext_io_ints[i].pin.type == GPIO_MCP23S17_PIN) &&
@@ -566,7 +595,7 @@ void EIC_Handler (void)
 {
     for (uint8_t i = 0; i < EIC_EXTINT_NUM; i++) {
         if (EIC->INTFLAG.reg & (1 << i)) {
-            // Interrupt i has occured
+            // Interrupt i has occurred
             if (gpio_int_callbacks[i] != NULL) {
                 union gpio_pin_t pin;
                 if (!get_pin_for_interrupt(i, &pin)) {
