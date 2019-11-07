@@ -22,6 +22,12 @@
 #define RN2483_PWR_MIN  -3
 #define RN2483_PWR_MAX  14
 
+#define RN2483_NUM_PINS 18
+
+/** Period in milliseconds at which inputs should be polled, if 0 inputs will
+    not be polled automatically */
+#define RN2483_GPIO_UPDATE_PERIOD 0
+
 struct rn2483_desc_t;
 
 /**
@@ -40,12 +46,16 @@ enum rn2483_state {
     RN2483_WRITE_CR,
     RN2483_WRITE_SYNC,
     RN2483_WRITE_BW,
+    RN2483_RETURN_TO_IDLE,
     RN2483_IDLE,
     RN2483_SEND,
     RN2483_SEND_WAIT,
     RN2483_RECEIVE,
     RN2483_RECEIVE_WAIT,
     RN2483_GET_SNR,
+    RN2483_SET_PIN_MODE,
+    RN2483_SET_PINDIG,
+    RN2483_GET_PIN_VALUE,
     RN2483_FAILED
 };
 
@@ -53,7 +63,7 @@ enum rn2483_state {
  *  Status code returned when starting a radio operation
  */
 enum rn2483_operation_result {
-    /** Operation was started successfuly */
+    /** Operation was started successfully */
     RN2483_OP_SUCCESS,
     /** Radio is busy */
     RN2483_OP_BUSY,
@@ -94,10 +104,49 @@ enum rn2483_bw {
 };
 
 /**
+ *  RN2483 GPIO pin
+ */
+enum rn2483_pin {
+    RN2483_GPIO0 = 0,
+    RN2483_GPIO1 = 1,
+    RN2483_GPIO2 = 2,
+    RN2483_GPIO3 = 3,
+    RN2483_GPIO4 = 4,
+    RN2483_GPIO5 = 5,
+    RN2483_GPIO6 = 6,
+    RN2483_GPIO7 = 7,
+    RN2483_GPIO8 = 8,
+    RN2483_GPIO9 = 9,
+    RN2483_GPIO10 = 10,
+    RN2483_GPIO11 = 11,
+    RN2483_GPIO12 = 12,
+    RN2483_GPIO13 = 13,
+    RN2483_UART_CTS,
+    RN2483_UART_RTS,
+    RN2483_TEST0,
+    RN2483_TEST1
+};
+
+/**
+ *  RN2483 GPIO pin mode
+ */
+enum rn2483_pin_mode {
+    RN2483_PIN_MODE_OUTPUT,
+    RN2483_PIN_MODE_INPUT,
+    RN2483_PIN_MODE_ANALOG
+};
+
+/**
  *  Type for callback function used for receiving data.
  */
 typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
                                      uint8_t *data, uint8_t length, int8_t snr);
+
+#define RN2483_PIN_DESC_VALUE(x)    (x & 0x3FF)
+#define RN2483_PIN_DESC_MODE(x)     ((x & 0x3) << 10)
+#define RN2483_PIN_DESC_MODE_DIRTY  (1 << 12)
+#define RN2483_PIN_DESC_VALUE_DIRTY (1 << 13)
+#define RN2483_PIN_DESC_MODE_EXP    (1 << 14)
 
 /**
  *  Descriptor for RN2483 radio module driver instance.
@@ -130,19 +179,47 @@ struct rn2483_desc_t {
         uint8_t invert_qi:1;
     } settings;
     
-    /** Buffer used for marshalling commands and receiving responses */
+    /** Stores the last time at which the GPIO registers where polled */
+    uint32_t last_polled;
+    
+    /** Cache for GPIO pin states */
+    union {
+        struct {
+            /** The digital or analog value for this pin */
+            uint16_t value:10;
+            /** Mode for this pin */
+            enum rn2483_pin_mode mode:2;
+            /** Indicates whether the mode for this pin has been changes since
+                it was last written to the module */
+            uint16_t mode_dirty:1;
+            /** Indicates whether the locally cached value for this pin needs to
+                be updated from the module (for an input) or written to the
+                module (for an output) */
+            uint16_t value_dirty:1;
+            /** Indicates whether the mode for this pin has been explicitly set,
+                which would indicate that application code cares about this pin
+                and if it is an input it should be polled automatically */
+            uint16_t mode_explicit:1;
+        };
+        uint16_t raw;
+    }pins[RN2483_NUM_PINS];
+    
+    /** Buffer used for marshaling commands and receiving responses */
     char buffer[RN2483_BUFFER_LEN];
     
     /** Pointer for sending commands over multiple calls to service if UART
         buffer becomes full */
     uint8_t out_pos;
     
+    /** Pin which is the target of the current GPIO command */
+    enum rn2483_pin current_pin:8;
+    
     /** Current state of driver */
-    enum rn2483_state state:6;
+    enum rn2483_state state:5;
     /** Whether a new line needs to be received before the driver can
         continue */
     uint8_t waiting_for_line:1;
-    /** Whether the command to be sent next has been marshalled */
+    /** Whether the command to be sent next has been marshaled */
     uint8_t cmd_ready:1;
 };
 
@@ -195,12 +272,138 @@ extern enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
  *  @param callback Function to be called when data is received
  *  @param context Context variable to be provided to callback
  *
- *  @return Opertaion status
+ *  @return Operation status
  */
 extern enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
-                                                    uint32_t window_size,
+                                                uint32_t window_size,
                                                 rn2483_recv_callback callback,
-                                                    void *context);
+                                                void *context);
+
+/**
+ *  Poll the radio modules for updates on any pins which have been set as
+ *  inputs.
+ *
+ *  @param inst Driver instance
+ */
+extern void rn2483_poll_gpio(struct rn2483_desc_t *inst);
+
+/**
+ *  Poll the radio modules for updates on a specific input pin.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin which should be polled
+ */
+static inline void rn2483_poll_gpio_pin(struct rn2483_desc_t *inst,
+                                        enum rn2483_pin pin)
+{
+    // Set value dirty
+    inst->pins[pin].value_dirty = 1;
+    // Run the service to start the update right away if possible
+    rn2483_service(inst);
+}
+
+/**
+ *  Check if the radio module is in the process of being polled for updates to
+ *  input pin values.
+ *
+ *  @param inst Driver instance
+ *
+ *  @return 1 if polling is in progress, 0 otherwise
+ */
+extern uint8_t rn2483_poll_gpio_in_progress(struct rn2483_desc_t *inst);
+
+/**
+ *  Check if the radio module is in the process of being polled for an update to
+ *  the value for a specific input pin.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin which should be checked
+ *
+ *  @return 1 if polling is in progress, 0 otherwise
+ */
+static inline uint8_t rn2483_poll_gpio_pin_in_progress(
+                                                    struct rn2483_desc_t *inst,
+                                                    enum rn2483_pin pin)
+{
+    return inst->pins[pin].value_dirty;
+}
+
+/**
+ *  Configure the mode for a pin.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the mode should be set
+ *  @param mode 0 for output, any other value for input
+ *
+ *  @return 0 if the mode was set successfully, a non-zero value otherwise
+ */
+extern uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst,
+                                   enum rn2483_pin pin,
+                                   enum rn2483_pin_mode mode);
+
+/**
+ *  Get the current mode of a pin.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the mode should be found
+ *
+ *  @return The current mode of the pin
+ */
+extern enum rn2483_pin_mode rn2483_get_pin_mode(struct rn2483_desc_t *inst,
+                                                enum rn2483_pin pin);
+
+/**
+ *  Get the value from a pin which is configured as an input.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the value should be returned
+ *
+ *  @return The value of the pin, 0 for logic low, 1 for logic high
+ */
+static inline uint8_t rn2483_get_input(struct rn2483_desc_t *inst,
+                                       enum rn2483_pin pin)
+{
+    return (uint8_t)!!inst->pins[pin].value;
+}
+
+/**
+ *  Set the value for a pin which is configured as an output.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the value should be set
+ *  @param value New value for the pin, 0 for logic low, logic high otherwise
+ */
+extern void rn2483_set_output(struct rn2483_desc_t *inst, enum rn2483_pin pin,
+                              uint8_t value);
+
+/**
+ *  Toggle the value for a pin which is configured as an output.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the value should be toggled
+ */
+extern void rn2483_toggle_output(struct rn2483_desc_t *inst,
+                                 enum rn2483_pin pin);
+
+/**
+ *  Get the value from a pin which is configured as an analog input.
+ *
+ *  @param inst Driver instance
+ *  @param pin The pin for which the value should be returned
+ *
+ *  @return A value ranging from 0 to 1023 representing the analog value of the
+ *          pin from 0v to VDD or 0xFFFF if the pin is not configured as an
+ *          analog input
+ */
+static inline uint16_t rn2483_get_analog(struct rn2483_desc_t *inst,
+                                         enum rn2483_pin pin)
+{
+    if (inst->pins[pin].mode == RN2483_PIN_MODE_ANALOG) {
+        return inst->pins[pin].value;
+    } else {
+        return 0xFFFF;
+    }
+}
 
 #endif /* rn2483_h */
 

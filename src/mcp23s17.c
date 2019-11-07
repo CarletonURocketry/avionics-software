@@ -33,7 +33,7 @@ void init_mcp23s17(struct mcp23s17_desc_t *descriptor, uint8_t address,
     /* Clear transaction state */
     descriptor->transaction_state = MCP23S17_SPI_NONE;
     
-    /* Initilize register cache */
+    /* Initialize register cache */
     // Start all pins as inputs
     descriptor->registers.IODIR[0].reg = 0xff;
     descriptor->registers.IODIR[1].reg = 0xff;
@@ -74,13 +74,13 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
     
     /* Acquire service function lock */
     if (inst->service_lock) {
-        // Could not accuire lock, service is already being run
+        // Could not acquire lock, service is already being run
         return;
     } else {
         inst->service_lock = 1;
     }
-    // This mutex is not foolproof, it is possible for the IO expander interupt
-    // to occure after the condition has been checked, but before the lock is
+    // This mutex is not foolproof, it is possible for the IO expander interrupt
+    // to occur after the condition has been checked, but before the lock is
     // updated. This is not an issue however as the service will run fully in
     // the interrupt routine before it continues running on the main thread. In
     // this case there is still no chance of the same transaction being queued
@@ -94,7 +94,7 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
         /* The current SPI transaction has finished */
         
         if (inst->transaction_state == MCP23S17_SPI_INTERRUPTS) {
-            /* An interrupts fetch transaction has finished, parse interupt */
+            /* An interrupts fetch transaction has finished, parse interrupt */
             for (union mcp23s17_pin_t pin = {.value = 0}; pin.value < 16;
                     pin.value++) {
                 if ((inst->registers.INTF[pin.port].reg & (1 << pin.pin)) &&

@@ -36,7 +36,7 @@
  */
 struct mcp23s17_desc_t;
 
-/** Represents ony of the two ports on an MCP23S17 */
+/** Represents any of the two ports on an MCP23S17 */
 enum mcp23s17_port {
     MCP23S17_PORT_A,
     MCP23S17_PORT_B
@@ -76,7 +76,7 @@ enum mcp23s17_transaction_state {
     MCP23S17_SPI_OTHER
 };
 
-/** Type of function called when an interrupt occures */
+/** Type of function called when an interrupt occurs */
 typedef void (*mcp23s17_int_callback)(struct mcp23s17_desc_t *inst,
                                       union mcp23s17_pin_t pin, uint8_t value);
 
@@ -111,7 +111,7 @@ struct mcp23s17_desc_t {
     /** ID to keep track of SPI transactions */
     uint8_t spi_transaction_id;
     
-    /** Flag that indicates that a the cached interupt flag and value register
+    /** Flag that indicates that a the cached interrupt flag and value register
      values need to updated from the device */
     uint8_t interrupts_dirty:1;
     /** Flag that indicates that a the cached input register values need to
@@ -136,9 +136,9 @@ struct mcp23s17_desc_t {
 
 
 /**
- *  Initilize an MCP23S17 GPIO expander.
+ *  Initialize an MCP23S17 GPIO expander.
  *
- *  @param descriptor The instance descriptor to be initilized
+ *  @param descriptor The instance descriptor to be initialized
  *  @param address The 3 bit selectable address of the IO expander
  *  @param spi_inst The SPI instance used to communicate with the device
  *  @param poll_period The period in milliseconds with which the device should
@@ -274,7 +274,7 @@ extern void mcp23s17_disable_interrupt(struct mcp23s17_desc_t *inst,
  *  Set the interrupt callback function.
  *
  *  @param inst The descriptor for the IO expander
- *  @param callback The function to be called when an interrupt occures
+ *  @param callback The function to be called when an interrupt occurs
  */
 static inline void mcp23s17_set_interrupt_callback(struct mcp23s17_desc_t *inst,
                                      mcp23s17_int_callback callback)

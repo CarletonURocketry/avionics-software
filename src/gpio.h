@@ -13,6 +13,7 @@
 #include "global.h"
 
 #include "mcp23s17.h"
+#include "rn2483.h"
 
 #define GPIO_MAX_EXTERNAL_IO_INTERRUPTS 8
 
@@ -48,7 +49,10 @@ union gpio_pin_t {
             /** MCP23S17 Pin */
             union mcp23s17_pin_t mcp23s17;
             /** RN2483 Pin */
-            uint8_t rn2483;
+            struct {
+                enum rn2483_pin pin:5;
+                uint8_t radio:3;
+            } rn2483;
             /** RFM69HCW Pin */
             uint8_t rfm69hcw;
         };
@@ -82,7 +86,7 @@ enum gpio_pull_mode {
 };
 
 /** Interrupt trigger */
-enum gpio_interupt_trigger {
+enum gpio_interrupt_trigger {
     /** Trigger interrupt when pin transitions from low to high */
     GPIO_INTERRUPT_RISING_EDGE,
     /** Trigger interrupt when pin transitions from high to low */
@@ -95,23 +99,26 @@ enum gpio_interupt_trigger {
     GPIO_INTERRUPT_LOW
 };
 
-/** Type of function called when an interrupt occures */
+/** Type of function called when an interrupt occurs */
 typedef void (*gpio_interrupt_cb)(union gpio_pin_t pin, uint8_t value);
 
 #define GPIO_PIN_FOR(x) ((union gpio_pin_t){.type = GPIO_INTERNAL_PIN, .internal.raw = x})
 #define MCP23S17_PIN_FOR(port, pin) ((union gpio_pin_t){.type = GPIO_MCP23S17_PIN, .mcp23s17.value = (pin | (port << 3))})
+#define RN2483_PIN_FOR(radio, pin) ((union gpio_pin_t){.type = GPIO_RN2483_PIN, .rn2483.radio = radio, .rn2483.pin = pin})
 
 /**
- *  Initilize the GPIO system.
+ *  Initialize the GPIO system.
  *
  *  @param eic_clock_mask Mask for the clock to be used for the external
- *                        interupt controller
+ *                        interrupt controller
  *  @param mcp23s17 An MCP23S17 instance for external GPIO, can be NULL, must be
- *                  initilized if not NULL
+ *                  initialized if not NULL
  *  @param mcp23s17_int_pin Pin number for the MCP23S17 interrupt pin
+ *  @param rn2483 An RN2483 instance for external GPIO, can be NULL, must be
+ *                initialized if not NULL
  */
 extern void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
-                      uint16_t mcp23s17_int_pin);
+                      uint16_t mcp23s17_int_pin, struct rn2483_desc_t **rn2483);
 
 /**
  *  Set the mode of a pin.
@@ -165,22 +172,22 @@ extern uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull);
 extern uint8_t gpio_get_input(union gpio_pin_t pin);
 
 /**
- *  Set the value of a pin which is conigured as an output.
+ *  Set the value of a pin which is configured as an output.
  *
  *  @param pin The pin for which the value should be set
  *  @param value The new value for the pin, 1 = logic high, 0 = logic low
  *
- *  @return 0 if successfull, a non-zero value if the pin is not configured as
+ *  @return 0 if successful, a non-zero value if the pin is not configured as
  *          an output and/or does not support output
  */
 extern uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value);
 
 /**
- *  Toggle the value of a pin which is conigured as an output.
+ *  Toggle the value of a pin which is configured as an output.
  *
  *  @param pin The pin for which the value should be toggled
  *
- *  @return 0 if successfull, a non-zero value if the pin is not configured as
+ *  @return 0 if successful, a non-zero value if the pin is not configured as
  *          an output and/or does not support output
  */
 extern uint8_t gpio_toggle_output(union gpio_pin_t pin);
@@ -191,12 +198,12 @@ extern uint8_t gpio_toggle_output(union gpio_pin_t pin);
  *  @param pin The pin for which the interrupt should be enabled
  *  @param trigger The trigger type for the interrupt
  *  @param filter Whether or not a filter should be
- *  @param callback The function to be called when the interrupt occures
+ *  @param callback The function to be called when the interrupt occurs
  *
  *  @return 0 if interrupt enabled successfully, 1 otherwise
  */
-extern uint8_t gpio_enable_interupt(union gpio_pin_t pin,
-                                    enum gpio_interupt_trigger trigger,
+extern uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
+                                    enum gpio_interrupt_trigger trigger,
                                     uint8_t filter,
                                     gpio_interrupt_cb callback);
 
@@ -205,10 +212,10 @@ extern uint8_t gpio_enable_interupt(union gpio_pin_t pin,
  *
  *  @param pin The pin for which the interrupt should be disabled
  *
- *  @return 0 if successfull or 1 if the interrupt could not be disabled, if the
+ *  @return 0 if successful or 1 if the interrupt could not be disabled, if the
  *          interrupt was not enabled it is considered to have been successfully
  *          disabled
  */
-extern uint8_t gpio_disable_interupt(union gpio_pin_t pin);
+extern uint8_t gpio_disable_interrupt(union gpio_pin_t pin);
 
 #endif /* gpio_h */

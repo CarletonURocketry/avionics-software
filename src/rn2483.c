@@ -15,54 +15,83 @@
 
 #define RN2483_LINE_DELIM   '\r'
 
-const char const *RN2483_RSP_OK = "ok";
+#define RN2483_ANALOG_PINS_MASK ((1<<RN2483_GPIO0)  | (1<<RN2483_GPIO1)  | \
+                                 (1<<RN2483_GPIO2)  | (1<<RN2483_GPIO3)  | \
+                                 (1<<RN2483_GPIO5)  | (1<<RN2483_GPIO6)  | \
+                                 (1<<RN2483_GPIO7)  | (1<<RN2483_GPIO8)  | \
+                                 (1<<RN2483_GPIO9)  | (1<<RN2483_GPIO10) | \
+                                 (1<<RN2483_GPIO11) | (1<<RN2483_GPIO12) | \
+                                 (1<<RN2483_GPIO13))
+#define RN2483_PIN_SUPPORTS_ANA(x) (RN2483_ANALOG_PINS_MASK & (1<<x))
+
+static const char const *RN2483_RSP_OK = "ok";
 #define RN2483_RSP_OK_LEN 2
-const char const *RN2483_RSP_RESET_OK = "RN2483";
+static const char const *RN2483_RSP_RESET_OK = "RN2483";
 #define RN2483_RSP_RESET_OK_LEN 6
-const char const *RN2483_RSP_TX_OK = "radio_tx_ok";
+static const char const *RN2483_RSP_TX_OK = "radio_tx_ok";
 #define RN2483_RSP_TX_OK_LEN 11
-const char const *RN2483_RSP_RX_OK = "radio_rx ";
+static const char const *RN2483_RSP_RX_OK = "radio_rx ";
 #define RN2483_RSP_RX_OK_LEN 9
-const char const *RN2483_RSP_PAUSE_MAC = "4294967245";
+static const char const *RN2483_RSP_PAUSE_MAC = "4294967245";
 #define RN2483_RSP_PAUSE_MAC_LEN 10
 
 
-const char const *RN2483_CMD_RESET = "sys reset\r\n";
-const char const *RN2483_CMD_WDT = "radio set wdt 0\r\n";
-const char const *RN2483_CMD_PAUSE_MAC = "mac pause\r\n";
+static const char const *RN2483_CMD_RESET = "sys reset\r\n";
+static const char const *RN2483_CMD_WDT = "radio set wdt 0\r\n";
+static const char const *RN2483_CMD_PAUSE_MAC = "mac pause\r\n";
 
-const char const *RN2483_CMD_MODE = "radio set mod lora\r\n";
-const char const *RN2483_CMD_FREQ = "radio set freq ";
-const char const *RN2483_CMD_PWR = "radio set pwr ";
-const char const *RN2483_CMD_SF = "radio set sf ";
-const char const *RN2483_CMD_CRC = "radio set crc ";
-const char const *RN2483_CMD_IQI = "radio set iqi ";
-const char const *RN2483_CMD_CR = "radio set cr ";
-const char const *RN2483_CMD_SYNC = "radio set sync ";
-const char const *RN2483_CMD_BW = "radio set bw ";
+static const char const *RN2483_CMD_MODE = "radio set mod lora\r\n";
+static const char const *RN2483_CMD_FREQ = "radio set freq ";
+static const char const *RN2483_CMD_PWR = "radio set pwr ";
+static const char const *RN2483_CMD_SF = "radio set sf ";
+static const char const *RN2483_CMD_CRC = "radio set crc ";
+static const char const *RN2483_CMD_IQI = "radio set iqi ";
+static const char const *RN2483_CMD_CR = "radio set cr ";
+static const char const *RN2483_CMD_SYNC = "radio set sync ";
+static const char const *RN2483_CMD_BW = "radio set bw ";
 
-const char const *RN2483_CMD_TX = "radio tx ";
-const char const *RN2483_CMD_RX = "radio rx ";
-const char const *RN2483_CMD_SNR = "radio get snr\r\n";
+static const char const *RN2483_CMD_TX = "radio tx ";
+static const char const *RN2483_CMD_RX = "radio rx ";
+static const char const *RN2483_CMD_SNR = "radio get snr\r\n";
 
-const char const *RN2483_STR_ON = "on\r\n";
-const char const *RN2483_STR_OFF = "off\r\n";
+static const char const *RN2483_CMD_SET_PINMODE = "sys set pinmode ";
+static const char const *RN2483_CMD_SET_PINDIG = "sys set pindig ";
+static const char const *RN2483_CMD_GET_PINDIG = "sys get pindig ";
+static const char const *RN2483_CMD_GET_PINANA = "sys get pinana ";
 
-const char const *RN2483_STR_SF_7 = "sf7\r\n";
-const char const *RN2483_STR_SF_8 = "sf8\r\n";
-const char const *RN2483_STR_SF_9 = "sf9\r\n";
-const char const *RN2483_STR_SF_10 = "sf10\r\n";
-const char const *RN2483_STR_SF_11 = "sf11\r\n";
-const char const *RN2483_STR_SF_12 = "sf12\r\n";
+static const char const *RN2483_STR_ON = "on\r\n";
+static const char const *RN2483_STR_OFF = "off\r\n";
 
-const char const *RN2483_STR_CR_4_5 = "4/5\r\n";
-const char const *RN2483_STR_CR_4_6 = "4/6\r\n";
-const char const *RN2483_STR_CR_4_7 = "4/7\r\n";
-const char const *RN2483_STR_CR_4_8 = "4/8\r\n";
+static const char const *RN2483_STR_SF_7 = "sf7\r\n";
+static const char const *RN2483_STR_SF_8 = "sf8\r\n";
+static const char const *RN2483_STR_SF_9 = "sf9\r\n";
+static const char const *RN2483_STR_SF_10 = "sf10\r\n";
+static const char const *RN2483_STR_SF_11 = "sf11\r\n";
+static const char const *RN2483_STR_SF_12 = "sf12\r\n";
 
-const char const *RN2483_STR_BW125 = "125\r\n";
-const char const *RN2483_STR_BW250 = "250\r\n";
-const char const *RN2483_STR_BW500 = "500\r\n";
+static const char const *RN2483_STR_CR_4_5 = "4/5\r\n";
+static const char const *RN2483_STR_CR_4_6 = "4/6\r\n";
+static const char const *RN2483_STR_CR_4_7 = "4/7\r\n";
+static const char const *RN2483_STR_CR_4_8 = "4/8\r\n";
+
+static const char const *RN2483_STR_BW125 = "125\r\n";
+static const char const *RN2483_STR_BW250 = "250\r\n";
+static const char const *RN2483_STR_BW500 = "500\r\n";
+
+static const char const *RN2483_STR_PINSTATE_HIGH = " 1\r\n";
+static const char const *RN2483_STR_PINSTATE_LOW = " 0\r\n";
+
+static const char const *RN2483_STR_PIN_MODE_DIGOUT = " digout\r\n";
+static const char const *RN2483_STR_PIN_MODE_DIGIN = " digin\r\n";
+static const char const *RN2483_STR_PIN_MODE_ANA = " ana\r\n";
+
+static const char* const RN2483_PIN_NAMES[] = { "GPIO0",  "GPIO1",  "GPIO2",
+                                                "GPIO3",  "GPIO4",  "GPIO5",
+                                                "GPIO6",  "GPIO7",  "GPIO8",
+                                                "GPIO9",  "GPIO10",  "GPIO11",
+                                                "GPIO12",  "GPIO13",
+                                                "UART_CTS", "UART_RTS", "TEST0",
+                                                "TEST1" };
 
 
 void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
@@ -96,6 +125,12 @@ void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
     inst->settings.invert_qi = !!invert_qi;
     inst->settings.sync_byte = sync_byte;
     
+    // Initialize GPIO pins to inputs
+    for (enum rn2483_pin pin = 0; pin < RN2483_NUM_PINS; pin++) {
+        inst->pins[pin].raw = (RN2483_PIN_DESC_MODE(RN2483_PIN_MODE_INPUT) |
+                               RN2483_PIN_DESC_MODE_DIRTY);
+    }
+    
     // Start by reseting module
     inst->state = RN2483_RESET;
     
@@ -112,7 +147,7 @@ void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
  *                    buffer must not change until the state is complete
  *  @param expected_response The response expected from the radio module
  *  @param compare_length The maximum number of characters to compare between
- *                        the response and expeceted response
+ *                        the response and expected response
  *  @param next_state The state which should be entered next
  *
  *  @return 1 if the FSM should move to the next state, 0 otherwise
@@ -130,7 +165,7 @@ static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
         // Clear command ready flag for next state
         inst->cmd_ready = 0;
         
-        // Get the recevied line
+        // Get the received line
         sercom_uart_get_line(inst->uart, RN2483_LINE_DELIM, inst->buffer,
                              RN2483_BUFFER_LEN);
         
@@ -371,12 +406,66 @@ void rn2483_service (struct rn2483_desc_t *inst)
                 inst->cmd_ready = 1;
             }
             // Handle writing of command and reception of response
-            if (handle_state(inst, inst->buffer, RN2483_RSP_OK,
-                             RN2483_RSP_OK_LEN, RN2483_IDLE)) {
+            if (!handle_state(inst, inst->buffer, RN2483_RSP_OK,
+                              RN2483_RSP_OK_LEN, RN2483_IDLE)) {
                 break;
             }
+            // Prevent sleep because we are about to call allow_sleep() when we
+            // fall through
+            inhibit_sleep();
+            /* fall through */
+        case RN2483_RETURN_TO_IDLE:
+            inst->state = RN2483_IDLE;
+            // Returning to idle after a GPIO command, allow sleep again since
+            // the command has finished
+            allow_sleep();
             /* fall through */
         case RN2483_IDLE:
+            // If we are otherwise idle we should check to see if there are any
+            // GPIO commands that need to send
+            
+            /* Check if enough time has elapsed that we should mark our inputs
+               dirty */
+            if (RN2483_GPIO_UPDATE_PERIOD &&
+                ((millis - inst->last_polled) > RN2483_GPIO_UPDATE_PERIOD)) {
+                inst->last_polled = millis;
+                rn2483_poll_gpio(inst);
+            }
+            
+            /* Check for pins with dirty modes */
+            for (inst->current_pin = 0; inst->current_pin < RN2483_NUM_PINS;
+                    inst->current_pin++) {
+                if (inst->pins[inst->current_pin].mode_dirty) {
+                    break;
+                }
+            }
+            if (inst->current_pin < RN2483_NUM_PINS) {
+                // There is a pin with a dirty mode, update it
+                inst->state = RN2483_SET_PIN_MODE;
+                // Prevent sleep so that that this function is run again ASAP
+                inhibit_sleep();
+                break;
+            }
+            
+            /* Check for pins with dirty values */
+            for (inst->current_pin = 0; inst->current_pin < RN2483_NUM_PINS;
+                    inst->current_pin++) {
+                if (inst->pins[inst->current_pin].value_dirty) {
+                    break;
+                }
+            }
+            if (inst->current_pin < RN2483_NUM_PINS) {
+                // There is a pin with a dirty value, update it
+                if (inst->pins[inst->current_pin].mode ==
+                        RN2483_PIN_MODE_OUTPUT) {
+                    inst->state = RN2483_SET_PINDIG;
+                } else {
+                    inst->state = RN2483_GET_PIN_VALUE;
+                }
+                // Prevent sleep so that that this function is run again ASAP
+                inhibit_sleep();
+                break;
+            }
             break;
         case RN2483_SEND:
             // Handle writing of command and reception of response
@@ -451,6 +540,108 @@ void rn2483_service (struct rn2483_desc_t *inst)
                                        snr);
             }
             break;
+        case RN2483_SET_PIN_MODE:
+            // Update command if required
+            if (!inst->cmd_ready) {
+                // Create command
+                strcpy(inst->buffer, RN2483_CMD_SET_PINMODE);
+                size_t i = strlen(inst->buffer);
+                strcpy(inst->buffer + i, RN2483_PIN_NAMES[inst->current_pin]);
+                i = strlen(inst->buffer);
+                switch (inst->pins[inst->current_pin].mode) {
+                    case RN2483_PIN_MODE_OUTPUT:
+                        strcpy(inst->buffer + i, RN2483_STR_PIN_MODE_DIGOUT);
+                        break;
+                    case RN2483_PIN_MODE_INPUT:
+                        strcpy(inst->buffer + i, RN2483_STR_PIN_MODE_DIGIN);
+                        break;
+                    case RN2483_PIN_MODE_ANALOG:
+                        strcpy(inst->buffer + i, RN2483_STR_PIN_MODE_ANA);
+                        break;
+                }
+                inst->cmd_ready = 1;
+                // The idle state will have prevented sleep to get here ASAP,
+                // now that we are waiting for a response form the module we
+                // should allow sleep again
+                allow_sleep();
+            }
+            // Handle writing of command and reception of response
+            if (handle_state(inst, inst->buffer, RN2483_RSP_OK,
+                             RN2483_RSP_OK_LEN, RN2483_RETURN_TO_IDLE)) {
+                // Pin's mode is now clean
+                inst->pins[inst->current_pin].mode_dirty = 0;
+                // Prevent sleep to get back to the idle state ASAP
+                inhibit_sleep();
+            }
+            break;
+        case RN2483_SET_PINDIG:
+            // Update command if required
+            if (!inst->cmd_ready) {
+                // Create command
+                strcpy(inst->buffer, RN2483_CMD_SET_PINDIG);
+                size_t i = strlen(inst->buffer);
+                strcpy(inst->buffer + i, RN2483_PIN_NAMES[inst->current_pin]);
+                i = strlen(inst->buffer);
+                if (inst->pins[inst->current_pin].value) {
+                    strcpy(inst->buffer + i, RN2483_STR_PINSTATE_HIGH);
+                } else {
+                    strcpy(inst->buffer + i, RN2483_STR_PINSTATE_LOW);
+                }
+                inst->cmd_ready = 1;
+                // The idle state will have prevented sleep to get here ASAP,
+                // now that we are waiting for a response form the module we
+                // should allow sleep again
+                allow_sleep();
+            }
+            // Handle writing of command and reception of response
+            if (handle_state(inst, inst->buffer, RN2483_RSP_OK,
+                             RN2483_RSP_OK_LEN, RN2483_RETURN_TO_IDLE)) {
+                // Pin's value is now clean
+                inst->pins[inst->current_pin].value_dirty = 0;
+                // Prevent sleep to get back to the idle state ASAP
+                inhibit_sleep();
+            }
+            break;
+        case RN2483_GET_PIN_VALUE:
+            // Update command if required
+            if (!inst->cmd_ready) {
+                // Create command
+                switch (inst->pins[inst->current_pin].mode) {
+                    case RN2483_PIN_MODE_INPUT:
+                        strcpy(inst->buffer, RN2483_CMD_GET_PINDIG);
+                        break;
+                    case RN2483_PIN_MODE_ANALOG:
+                        strcpy(inst->buffer, RN2483_CMD_GET_PINANA);
+                        break;
+                    default:
+                        // This should not happen, go back to idle
+                        inst->state = RN2483_IDLE;
+                        return;
+                }
+                size_t i = strlen(inst->buffer);
+                strcpy(inst->buffer + i, RN2483_PIN_NAMES[inst->current_pin]);
+                i = strlen(inst->buffer);
+                *(inst->buffer + i + 0) = '\r';
+                *(inst->buffer + i + 1)  = '\n';
+                *(inst->buffer + i + 2)  = '\0';
+                inst->cmd_ready = 1;
+                // The idle state will have prevented sleep to get here ASAP,
+                // now that we are waiting for a response form the module we
+                // should allow sleep again
+                allow_sleep();
+            }
+            // Handle writing of command and reception of response
+            if (!handle_state(inst, inst->buffer, RN2483_RSP_OK, 0,
+                              RN2483_RETURN_TO_IDLE)) {
+                // Parse and store received value
+                uint16_t value = (uint16_t) strtoul(inst->buffer, NULL, 10);
+                inst->pins[inst->current_pin].value = value;
+                // Pin value is no longer dirty
+                inst->pins[inst->current_pin].value_dirty = 0;
+                // Prevent sleep to get back to the idle state ASAP
+                inhibit_sleep();
+            }
+            break;
         case RN2483_FAILED:
             // This should not happen
             break;
@@ -522,4 +713,89 @@ enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
     rn2483_service(inst);
     
     return RN2483_OP_SUCCESS;
+}
+
+
+
+void rn2483_poll_gpio(struct rn2483_desc_t *inst)
+{
+    for (enum rn2483_pin pin = 0; pin < RN2483_NUM_PINS; pin++) {
+        // Mark value dirty if pin has been explicitly set as an
+        // input
+        if (((inst->pins[pin].mode == RN2483_PIN_MODE_INPUT) ||
+             (inst->pins[pin].mode == RN2483_PIN_MODE_ANALOG)) &&
+            (inst->pins[pin].mode_explicit)) {
+            inst->pins[pin].value_dirty = 1;
+        }
+    }
+}
+
+uint8_t rn2483_poll_gpio_in_progress(struct rn2483_desc_t *inst)
+{
+    for (enum rn2483_pin pin = 0; pin < RN2483_NUM_PINS; pin++) {
+        // If pin is an input and is being polled return 1
+        if (((inst->pins[pin].mode == RN2483_PIN_MODE_INPUT) ||
+             (inst->pins[pin].mode == RN2483_PIN_MODE_ANALOG)) &&
+            (inst->pins[pin].value_dirty)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst, enum rn2483_pin pin,
+                            enum rn2483_pin_mode mode)
+{
+    // If the mode has not changed, don't bother sending command to radio
+    if (inst->pins[pin].mode == mode) {
+        return 0;
+    }
+    
+    // Check that mode is valid for pin
+    if ((mode == RN2483_PIN_MODE_ANALOG) && !RN2483_PIN_SUPPORTS_ANA(pin)) {
+        return 1;
+    }
+    
+    // Update pin mode in cache, reset the pin's value to 0, and mark the pin's
+    // mode has having been explicitly set.
+    inst->pins[pin].raw = (RN2483_PIN_DESC_VALUE(0) |
+                           RN2483_PIN_DESC_MODE(mode) |
+                           RN2483_PIN_DESC_MODE_DIRTY |
+                           RN2483_PIN_DESC_VALUE_DIRTY |
+                           RN2483_PIN_DESC_MODE_EXP);
+    
+    // Run service to start sending command to radio if possible
+    rn2483_service(inst);
+    
+    return 0;
+}
+
+enum rn2483_pin_mode rn2483_get_pin_mode(struct rn2483_desc_t *inst,
+                                         enum rn2483_pin pin)
+{
+    return inst->pins[pin].mode;
+}
+
+void rn2483_set_output(struct rn2483_desc_t *inst, enum rn2483_pin pin,
+                       uint8_t value)
+{
+    // If the value has not changed, don't bother sending command to radio
+    if (inst->pins[pin].value == value) {
+        return;
+    }
+    
+    // Update pin value in cache
+    inst->pins[pin].value = value;
+    inst->pins[pin].value_dirty = 1;
+    // Run service to start sending command to radio if possible
+    rn2483_service(inst);
+}
+
+void rn2483_toggle_output(struct rn2483_desc_t *inst, enum rn2483_pin pin)
+{
+    // Update pin value in cache
+    inst->pins[pin].value = !inst->pins[pin].value;
+    inst->pins[pin].value_dirty = 1;
+    // Run service to start sending command to radio if possible
+    rn2483_service(inst);
 }

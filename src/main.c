@@ -73,6 +73,8 @@ struct mcp23s17_desc_t io_expander_g;
 
 #ifdef ENABLE_LORA_RADIO
 struct rn2483_desc_t rn2483_g;
+
+static struct rn2483_desc_t *rn2483_list_g[] = { &rn2483_g, NULL };
 #endif
 
 #ifdef ENABLE_ALTIMETER
@@ -421,13 +423,30 @@ int main(void)
              debug_commands_num_funcs);
 #endif
     
+    // LoRa Radio
+#ifdef ENABLE_LORA_RADIO
+    init_rn2483(&rn2483_g, &LORA_UART, LORA_FREQ, LORA_POWER,
+                LORA_SPREADING_FACTOR, LORA_CODING_RATE, LORA_BANDWIDTH,
+                LORA_CRC, LORA_INVERT_IQ, LORA_SYNC_WORD);
+#endif
+    
     // GPIO
 #ifdef ENABLE_IO_EXPANDER
     init_mcp23s17(&io_expander_g, 0, &spi_g, 100, IO_EXPANDER_CS_PIN_MASK,
                   IO_EXPANDER_CS_PIN_GROUP);
-    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN);
+#ifdef ENABLE_LORA_RADIO
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN,
+              rn2483_list_g);
 #else
-    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0);
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN,
+              NULL);
+#endif
+#else
+#ifdef ENABLE_LORA_RADIO
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0, rn2483_list_g);
+#else
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0, NULL);
+#endif
 #endif
     
     gpio_set_pin_mode(DEBUG0_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
@@ -437,12 +456,6 @@ int main(void)
     
     gpio_set_output(STAT_G_LED_PIN, 1);
     
-    // LoRa Radio
-#ifdef ENABLE_LORA_RADIO
-    init_rn2483(&rn2483_g, &LORA_UART, LORA_FREQ, LORA_POWER,
-                LORA_SPREADING_FACTOR, LORA_CODING_RATE, LORA_BANDWIDTH,
-                LORA_CRC, LORA_INVERT_IQ, LORA_SYNC_WORD);
-#endif
     
     // Ground station console
 #ifdef ENABLE_GROUND_SERVICE

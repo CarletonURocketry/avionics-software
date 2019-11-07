@@ -1,6 +1,6 @@
 /**
  * @file mcp23s17-registers.h
- * @desc Register descriptions for Microchip MCP23S17 IO Expeander
+ * @desc Register descriptions for Microchip MCP23S17 IO Expander
  * @author Samuel Dewan
  * @date 2019-03-14
  * Last Author:
@@ -243,7 +243,7 @@ struct mcp23s17_register_map {
     /** Interrupt mode, 1 is level, 0 is pin change */
     union MCP23S17_INTCON_Reg INTCON[2];
     
-    /** Allias of IOCON,  */
+    /** Alias of IOCON,  */
     uint8_t IOCON_ALT;
     /** Device configuration register */
     union MCP23S17_IOCON_Reg IOCON;
