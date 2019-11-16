@@ -130,7 +130,7 @@ static inline uint8_t sd_send_cmd(uint8_t cmd, uint32_t arg, uint8_t crc)
  */
 uint8_t init_sd_card(void)
 {
-    uint8_t oldCardFlag = 0;
+    uint8_t oldCard = 0;
     uint8_t softResetCount = 0;
     uint8_t response = 0x00;
     uint8_t transactionId;
@@ -151,7 +151,7 @@ uint8_t init_sd_card(void)
     // Repeat until soft reset successful or a reasonable number of times
     // since it is possible to not get a valid response here but have the next
     // steps work just fine
-    while ( response != 0x01 && softResetCount < 20) {
+    while (response != 0x01 && softResetCount < 20) {
         response = sd_send_cmd(CMD0, 0x00000000, 0x95);
         softResetCount++;
     }
@@ -160,44 +160,48 @@ uint8_t init_sd_card(void)
     // addition to the regular response code
     uint8_t largeReceiveBuffer[5];
     memset(largeReceiveBuffer, 0x00, 5);
-    sd_send_cmd_large(CMD8, 0x000001AA, 0x87,
-                      largeReceiveBuffer, sizeof(largeReceiveBuffer));
+    while (largeReceiveBuffer[0] != 0x01) {
+        sd_send_cmd_large(CMD8, 0x000001AA, 0x87,
+                          largeReceiveBuffer, sizeof(largeReceiveBuffer));
+    }
 
-    // Apparently most cards require this to be repeated at least once...
-    // ...so repeat it 3 times to be really sure since it is also apprently
-    // common to have to wait a few hundred ms if device is just after power on.
-    for (uint8_t i = 0; i < 3; i++) {
-        if (oldCardFlag)
-            response = sd_send_cmd(CMD1, 0x00000000, 0xF9);
-        else {
+    // Apparently most cards require this to be repeated at least once
+    for (uint8_t i = 0; i < 1; i++) {
+        if (! oldCard) {
             response = sd_send_cmd(CMD55, 0x00000000, 0x65);
             // If this response is given, we have an old card that must use CMD1
             if (response == 0x05) {
                 response = sd_send_cmd(CMD1, 0x00000000, 0xF9);
-                oldCardFlag = 1;
+                oldCard = 1;
             }
-            else {
+            // Successful CMD55
+            else if (response == 0x01) {
                 response = sd_send_cmd(ACMD41, 0x40000000, 0x77);
-                // If this response is given, we need to send CMD55 again
-                if (response == 0x01) {
+                // Response should be 0x00 indicating the SD card is ready, if
+                // not, initialization has failed.
+                // We must keep repeating CMD55+ACMD41 until we get 0x00
+                if (response != 0x00) {
                     i--;
                     continue;
                 }
             }
+            else {
+                // Something is quite wrong, stop initializing.
+                return 2;
+            }
+        }
+        else {
+            response = sd_send_cmd(CMD1, 0x00000000, 0xF9);
         }
     }
-    // Response should be 0x00 indicating the SD card is ready, if not,
-    // initialization has failed
-    if (response == 0x00) {
-        // Set the R/W block size to 512 bytes with CMD16
-        // Try 3 times, if success return 0 immediately
-        for (uint8_t i = 0; i < 3; i++) {
-            response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF);
-            if (response == 0x00)
-                return 0;
-        }
+    // Set the R/W block size to 512 bytes with CMD16
+    // Try 3 times, if success return 0 immediately, card is ready.
+    for (uint8_t i = 0; i < 3; i++) {
+        response = sd_send_cmd(CMD16, SD_BLOCKSIZE, 0xFF);
+        if (response == 0x00)
+            return 0;
     }
-    // In all error cases, return 1
+    // In all other error cases, return 1
     return 1;
 }
 
