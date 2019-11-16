@@ -668,13 +668,6 @@ int main(void)
 
 static void main_loop (void)
 {
-
-    // SD CARD TEST
-    /* uint32_t blockaddr = 0x00000000; */
-    /* uint8_t data[] = {0x48, 0x49, 0x20, 0x53, 0x41, 0x4D, 0x0A}; */
-    /* write_block(blockaddr, data); */
-    // END SD CARD TEST
-
     static uint32_t period = 1000;
     
     if ((millis - lastLed_g) >= period) {
