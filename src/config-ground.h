@@ -134,10 +134,16 @@ extern struct sercom_uart_desc_t uart3_g;
 #define ENABLE_USB
 /* Define to enable USB CDC port 0 */
 #define ENABLE_USB_CDC_PORT_0
+/* Define to enable echo on USB CDC port 0 */
+#define USB_CDC_PORT_0_ECHO
 /* Define to enable USB CDC port 1 */
 #define ENABLE_USB_CDC_PORT_1
+/* Define to enable echo on USB CDC port 1 */
+//#define USB_CDC_PORT_1_ECHO
 /* Define to enable USB CDC port 2 */
 //#define ENABLE_USB_CDC_PORT_2
+/* Define to enable echo on USB CDC port 2 */
+//#define USB_CDC_PORT_2_ECHO
 // Note: USB CDC ports should be enabled in order to minimize memory usage
 
 //

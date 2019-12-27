@@ -32,6 +32,7 @@ static uint8_t align_buffers_g[USB_CDC_HIGHEST_PORT + 1][4];
 static struct {
     uint8_t initialized:3;
     uint8_t in_ongoing:3;
+    uint8_t echo:3;
 } usb_cdc_flags_g;
 
 /** Lengths by which buffer heads need to be moved in in complete callbacks */
@@ -158,24 +159,29 @@ static void data_out_complete (uint8_t port, uint16_t length)
         uint8_t data = out_buffers_g[port][i];
         uint8_t full = 0;
         
-        if (!iscntrl(data) || (data == '\r')) {
-            // Should add byte to input buffer
-            full = circular_buffer_try_push(rx_circ_buffs_g + port, data);
-            
-            if (!full && isprint(data)) {
-                // Echo
-                usb_cdc_put_char(port, (char)data);
-            } else if (!full && (data == '\r')) {
-                // Echo newline
-                usb_cdc_put_char(port, '\n');
+        if (usb_cdc_flags_g.echo & (1 << port)) {
+            if (!iscntrl(data) || (data == '\r')) {
+                // Should add byte to input buffer
+                full = circular_buffer_try_push(rx_circ_buffs_g + port, data);
+                
+                if (!full && isprint(data)) {
+                    // Echo
+                    usb_cdc_put_char(port, (char)data);
+                } else if (!full && (data == '\r')) {
+                    // Echo newline
+                    usb_cdc_put_char(port, '\n');
+                }
+            } else if (data == 127) {
+                // Backspace
+                uint8_t empty = circular_buffer_unpush(rx_circ_buffs_g + port);
+                
+                if (!empty) {
+                    usb_cdc_put_string(port, "\x1B[1D\x1B[K");
+                }
             }
-        } else if (data == 127) {
-            // Backspace
-            uint8_t empty = circular_buffer_unpush(rx_circ_buffs_g + port);
-            
-            if (!empty) {
-                usb_cdc_put_string(port, "\x1B[1D\x1B[K");
-            }
+        } else {
+            // Add byte to input buffer, but do not echo
+            circular_buffer_push(rx_circ_buffs_g + port, data);
         }
     }
     
@@ -254,6 +260,10 @@ static void data_2_out_complete (uint16_t length)
 void usb_cdc_enable_config_callback (void)
 {
 #ifdef ENABLE_USB_CDC_PORT_0
+    /* Set echo flag */
+#ifdef USB_CDC_PORT_0_ECHO
+    usb_cdc_flags_g.echo |= (1 << 0);
+#endif
     /* Initialize circular buffers */
     init_circular_buffer(rx_circ_buffs_g + 0, rx_buffs_g[0],
                          USB_CDC_CIRC_BUFF_SIZE);
@@ -281,6 +291,10 @@ void usb_cdc_enable_config_callback (void)
     }
 #endif
 #ifdef ENABLE_USB_CDC_PORT_1
+    /* Set echo flag */
+#ifdef USB_CDC_PORT_1_ECHO
+    usb_cdc_flags_g.echo |= (1 << 1);
+#endif
     /* Initialize circular buffers */
     init_circular_buffer(rx_circ_buffs_g + 1, rx_buffs_g[1],
                          USB_CDC_CIRC_BUFF_SIZE);
@@ -307,6 +321,10 @@ void usb_cdc_enable_config_callback (void)
     }
 #endif
 #ifdef ENABLE_USB_CDC_PORT_2
+    /* Set echo flag */
+#ifdef USB_CDC_PORT_2_ECHO
+    usb_cdc_flags_g.echo |= (1 << 2);
+#endif
     /* Initialize circular buffers */
     init_circular_buffer(rx_circ_buffs_g + 2, rx_buffs_g[2],
                          USB_CDC_CIRC_BUFF_SIZE);
