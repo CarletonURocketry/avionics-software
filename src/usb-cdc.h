@@ -177,15 +177,15 @@ extern void usb_cdc_put_char (uint8_t port, const char c);
 extern void usb_cdc_get_string (uint8_t port, char *str, uint16_t len);
 
 /**
- *  Determine if there is a full line available to be read from a CDC port
- *  buffer.
+ *  Determine if there is a full line, as delimited by the provided char,
+ *  available to be read from a CDC port buffer.
  *
  *  @param port Index of the CDC port
  *  @param delim The delimiter for new lines (ie. '\n').
  *
  *  @return 0 if there is no line available, 1 if a line is available.
  */
-extern uint8_t usb_cdc_has_line (uint8_t port, char delim);
+extern uint8_t usb_cdc_has_delim (uint8_t port, char delim);
 
 /**
  *  Read a string from the input buffer up to the next occurrence of a
@@ -196,8 +196,28 @@ extern uint8_t usb_cdc_has_line (uint8_t port, char delim);
  *  @param str The string in which the data should be stored.
  *  @param len The maximum number of chars to be read from the input buffer.
  */
-extern void usb_cdc_get_line (uint8_t port, char delim, char *str,
-                              uint16_t len);
+extern void usb_cdc_get_line_delim (uint8_t port, char delim, char *str,
+                                    uint16_t len);
+
+/**
+ *  Determine if there is a full line, delimited by the sequence "\r\n",
+ *  available to be read from a CDC port buffer.
+ *
+ *  @param port Index of the CDC port
+ *
+ *  @return 0 if there is no line available, 1 if a line is available.
+ */
+extern uint8_t usb_cdc_has_line (uint8_t port);
+
+/**
+ *  Read a string from the input buffer up to the next occurrence of a
+ *  the sequence "\r\n".
+ *
+ *  @param port Index of the CDC port
+ *  @param str The string in which the data should be stored.
+ *  @param len The maximum number of chars to be read from the input buffer.
+ */
+extern void usb_cdc_get_line (uint8_t port, char *str, uint16_t len);
 
 /**
  *  Get a character from a CDC port input buffer.

@@ -543,13 +543,13 @@ void usb_cdc_get_string (uint8_t port, char *str, uint16_t len)
     str[len - 1] = '\0';
 }
 
-uint8_t usb_cdc_has_line (uint8_t port, char delim)
+uint8_t usb_cdc_has_delim (uint8_t port, char delim)
 {
     return ((usb_cdc_flags_g.initialized & (1 << port)) &&
             circular_buffer_has_char(rx_circ_buffs_g + port, delim));
 }
 
-void usb_cdc_get_line (uint8_t port, char delim, char *str, uint16_t len)
+void usb_cdc_get_line_delim (uint8_t port, char delim, char *str, uint16_t len)
 {
     for (uint16_t i = 0; i < (len - 1); i++) {
         uint8_t pop_failed = circular_buffer_pop(rx_circ_buffs_g + port,
@@ -560,6 +560,45 @@ void usb_cdc_get_line (uint8_t port, char delim, char *str, uint16_t len)
             return;
         }
     }
+    // Make sure that string is terminated.
+    str[len - 1] = '\0';
+}
+
+uint8_t usb_cdc_has_line (uint8_t port)
+{
+    return ((usb_cdc_flags_g.initialized & (1 << port)) &&
+            circular_buffer_has_line(rx_circ_buffs_g + port));
+}
+
+void usb_cdc_get_line (uint8_t port, char *str, uint16_t len)
+{
+    uint8_t last_char_cr = 0;
+    for (uint16_t i = 0; i < (len - 1); i++) {
+        uint8_t pop_failed = circular_buffer_pop(rx_circ_buffs_g + port,
+                                                 (uint8_t*)(str + i));
+        
+        if (pop_failed) {
+            str[i] = '\0';
+            return;
+        } else if (last_char_cr && str[i] == '\n') {
+            str[i - 1] = '\0';
+            return;
+        }
+        
+        last_char_cr = str[i] == '\r';
+    }
+    
+    // We ran out of space in the buffer to pop the next character, we might
+    // have just popped a carriage return, and the next character might be a
+    // newline, in which case we can pop the newline even though the buffer is
+    // full since we don't need to put it in our buffer
+    uint8_t c;
+    if (last_char_cr && !circular_buffer_peak(rx_circ_buffs_g + port, &c)) {
+        if (c == '\n') {
+            circular_buffer_pop(rx_circ_buffs_g + port, &c);
+        }
+    }
+    
     // Make sure that string is terminated.
     str[len - 1] = '\0';
 }
