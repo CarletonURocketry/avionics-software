@@ -396,7 +396,7 @@ int main(void)
     
     // Init GNSS
 #ifdef ENABLE_GNSS
-    init_uart_console(&gnss_console_g, &GNSS_UART, '\r');
+    init_uart_console(&gnss_console_g, &GNSS_UART, '\0');
     init_gnss_xa1110(&gnss_console_g);
 #endif
     
