@@ -45,7 +45,9 @@ struct console_desc_t {
  *
  *  @param console The console descriptor to be initialized
  *  @param uart Pointer to a sercom uart descriptor
- *  @param line_delim The delimiter for new lines received
+ *  @param line_delim The delimiter for new lines received, if line_delim is
+ *                    '\0' the sequence "\r\n" will be used as the line
+ *                    delimiter
  */
 extern void init_uart_console (struct console_desc_t *console,
                                struct sercom_uart_desc_t *uart,
