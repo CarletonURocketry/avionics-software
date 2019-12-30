@@ -314,20 +314,21 @@ static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state)
     if (sercom->USART.INTFLAG.bit.RXC) {
         uint8_t data = sercom->USART.DATA.reg;
         
-        if (!iscntrl(data) || (data == '\r')) {
+        if (!uart->echo) {
+            // Always add bytes to input buffer when echo is off
+            circular_buffer_try_push(&uart->in_buffer, data);
+        } else if (!iscntrl(data) || (data == '\r')) {
             // Should add byte to input buffer
             uint8_t full = circular_buffer_try_push(&uart->in_buffer, data);
-
-            if (uart->echo) {
-                if (!full && isprint(data)) {
-                    // Echo
-                    sercom_uart_put_char(uart, (char)data);
-                } else if (!full && (data == '\r')) {
-                    // Echo newline
-                    sercom_uart_put_char(uart, '\n');
-                }
+            
+            if (!full && isprint(data)) {
+                // Echo
+                sercom_uart_put_char(uart, (char)data);
+            } else if (!full && (data == '\r')) {
+                // Echo newline
+                sercom_uart_put_char(uart, '\n');
             }
-        } else if (uart->echo && data == 127) {
+        } else if (data == 127) {
             // Backspace
             uint8_t empty = circular_buffer_unpush(&uart->in_buffer);
 
