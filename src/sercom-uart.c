@@ -239,13 +239,13 @@ void sercom_uart_get_string (struct sercom_uart_desc_t *uart, char *str,
     str[len - 1] = '\0';
 }
 
-uint8_t sercom_uart_has_line (struct sercom_uart_desc_t *uart, char delim)
+uint8_t sercom_uart_has_delim (struct sercom_uart_desc_t *uart, char delim)
 {
     return circular_buffer_has_char(&uart->in_buffer, delim);
 }
 
-void sercom_uart_get_line (struct sercom_uart_desc_t *uart, char delim,
-                           char *str, uint16_t len)
+void sercom_uart_get_line_delim (struct sercom_uart_desc_t *uart, char delim,
+                                 char *str, uint16_t len)
 {
     for (uint16_t i = 0; i < (len - 1); i++) {
         uint8_t pop_failed = circular_buffer_pop(&uart->in_buffer,
@@ -256,6 +256,45 @@ void sercom_uart_get_line (struct sercom_uart_desc_t *uart, char delim,
             return;
         }
     }
+    // Make sure that string is terminated.
+    str[len - 1] = '\0';
+}
+
+uint8_t sercom_uart_has_line (struct sercom_uart_desc_t *uart)
+{
+    return circular_buffer_has_line(&uart->in_buffer);
+}
+
+void sercom_uart_get_line (struct sercom_uart_desc_t *uart, char *str,
+                           uint16_t len)
+{
+    uint8_t last_char_cr = 0;
+    for (uint16_t i = 0; i < (len - 1); i++) {
+        uint8_t pop_failed = circular_buffer_pop(&uart->in_buffer,
+                                                 (uint8_t*)(str + i));
+        
+        if (pop_failed) {
+            str[i] = '\0';
+            return;
+        } else if (last_char_cr && str[i] == '\n') {
+            str[i - 1] = '\0';
+            return;
+        }
+        
+        last_char_cr = str[i] == '\r';
+    }
+    
+    // We ran out of space in the buffer to pop the next character, we might
+    // have just popped a carriage return, and the next character might be a
+    // newline, in which case we can pop the newline even though the buffer is
+    // full since we don't need to put it in our buffer
+    uint8_t c;
+    if (last_char_cr && !circular_buffer_peak(&uart->in_buffer, &c)) {
+        if (c == '\n') {
+            circular_buffer_pop(&uart->in_buffer, &c);
+        }
+    }
+    
     // Make sure that string is terminated.
     str[len - 1] = '\0';
 }

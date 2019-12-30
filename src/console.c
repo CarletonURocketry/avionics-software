@@ -147,11 +147,12 @@ void console_service (struct console_desc_t *console)
     
     if (console->type == CONSOLE_TYPE_UART) {
         // SERCOM UART
-        if (sercom_uart_has_line(console->interface.uart,
-                                 console->line_delimiter)) {
-            sercom_uart_get_line(console->interface.uart,
-                                 console->line_delimiter, console_in_buffer,
-                                 CONSOLE_IN_BUFFER_LEN);
+        if (sercom_uart_has_delim(console->interface.uart,
+                                  console->line_delimiter)) {
+            sercom_uart_get_line_delim(console->interface.uart,
+                                       console->line_delimiter,
+                                       console_in_buffer,
+                                       CONSOLE_IN_BUFFER_LEN);
             got_line = 1;
         }
     }

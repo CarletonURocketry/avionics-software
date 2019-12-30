@@ -292,6 +292,29 @@ static inline uint8_t circular_buffer_has_char(struct circular_buffer_t *buffer,
 }
 
 /**
+ *  Determine if the character sequence "\r\n" is present in the buffer.
+ *
+ *  @param buffer The buffer in which the presence of a line should be
+ *                determined.
+ *
+ *  @return 1 if a line is found, 0 otherwise
+ */
+static inline uint8_t circular_buffer_has_line(struct circular_buffer_t *buffer)
+{
+    for (uint16_t i = buffer->head; i != buffer->tail;
+         i = ((i + 1) % buffer->capacity)) {
+        if (buffer->buffer[i] == '\r') {
+            uint16_t next = (i + 1) % buffer->capacity;
+            if ((next != buffer->head) && (buffer->buffer[next] == '\n')) {
+                return 1;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+/**
  *  Resets a circular buffer to an empty state.
  *
  *  @param buffer The buffer to be cleared.

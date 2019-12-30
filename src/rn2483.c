@@ -12,9 +12,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
-#define RN2483_LINE_DELIM   '\r'
-
 #define RN2483_ANALOG_PINS_MASK ((1<<RN2483_GPIO0)  | (1<<RN2483_GPIO1)  | \
                                  (1<<RN2483_GPIO2)  | (1<<RN2483_GPIO3)  | \
                                  (1<<RN2483_GPIO5)  | (1<<RN2483_GPIO6)  | \
@@ -166,8 +163,7 @@ static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
         inst->cmd_ready = 0;
         
         // Get the received line
-        sercom_uart_get_line(inst->uart, RN2483_LINE_DELIM, inst->buffer,
-                             RN2483_BUFFER_LEN);
+        sercom_uart_get_line(inst->uart, inst->buffer, RN2483_BUFFER_LEN);
         
         if (!strncmp(inst->buffer, expected_response, compare_length)) {
             // Success! Go to next state
@@ -194,8 +190,7 @@ static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
 
 void rn2483_service (struct rn2483_desc_t *inst)
 {
-    if (inst->waiting_for_line && !sercom_uart_has_line(inst->uart,
-                                                        RN2483_LINE_DELIM)) {
+    if (inst->waiting_for_line && !sercom_uart_has_line(inst->uart)) {
         // waiting for a line and a new line has not yet been received
         return;
     }

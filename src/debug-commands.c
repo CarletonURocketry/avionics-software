@@ -1142,11 +1142,11 @@ static void debug_lora_version (uint8_t argc, char **argv,
                                 struct console_desc_t *console)
 {
     sercom_uart_put_string_blocking(&uart1_g, "sys get ver\r\n");
-    while (!sercom_uart_has_line(&uart1_g, '\r')) {
+    while (!sercom_uart_has_line(&uart1_g)) {
         wdt_pat();
     }
     char str[128];
-    sercom_uart_get_line(&uart1_g, '\n', str, 128);
+    sercom_uart_get_line(&uart1_g, str, 128);
     console_send_str(console, str);
     console_send_str(console, "\n");
 }
