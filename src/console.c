@@ -147,7 +147,6 @@ void console_service (struct console_desc_t *console)
     
     if (console->type == CONSOLE_TYPE_UART) {
         // SERCOM UART
-        
         if ((console->line_delimiter != '\0') && sercom_uart_has_delim(
                                                     console->interface.uart,
                                                     console->line_delimiter)) {
@@ -166,10 +165,16 @@ void console_service (struct console_desc_t *console)
 #ifdef ID_USB
     else if (console->type == CONSOLE_TYPE_USB_CDC) {
         // USB
-        if (usb_cdc_has_line(console->interface.usb_cdc,
-                             console->line_delimiter)) {
-            usb_cdc_get_line(console->interface.usb_cdc,
-                             console->line_delimiter, console_in_buffer,
+        if ((console->line_delimiter != '\0') && usb_cdc_has_delim(
+                                                console->interface.usb_cdc,
+                                                console->line_delimiter)) {
+            usb_cdc_get_line_delim(console->interface.usb_cdc,
+                                   console->line_delimiter, console_in_buffer,
+                                   CONSOLE_IN_BUFFER_LEN);
+            got_line = 1;
+        } else if ((console->line_delimiter == '\0') && usb_cdc_has_line(
+                                                console->interface.usb_cdc)) {
+            usb_cdc_get_line(console->interface.usb_cdc, console_in_buffer,
                              CONSOLE_IN_BUFFER_LEN);
             got_line = 1;
         }

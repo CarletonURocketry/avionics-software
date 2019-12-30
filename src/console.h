@@ -59,7 +59,9 @@ extern void init_uart_console (struct console_desc_t *console,
  *
  *  @param console The console descriptor to be initialized
  *  @param usb_cdc_interface USB CDC interface number
- *  @param line_delim The delimiter for new lines received
+ *  @param line_delim The delimiter for new lines received, if line_delim is
+ *                    '\0' the sequence "\r\n" will be used as the line
+ *                    delimiter
  */
 extern void init_usb_cdc_console (struct console_desc_t *console,
                                   uint8_t usb_cdc_interface,
