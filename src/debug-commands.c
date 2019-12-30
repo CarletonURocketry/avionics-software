@@ -991,7 +991,7 @@ static void debug_gnss (uint8_t argc, char **argv,
     print_fixed_point(console, gnss_xa1110_descriptor.course, 2);
     
     /* Metadata */
-    console_send_str(console, "degrees\nMetadata\n\tNumber of satellites in "
+    console_send_str(console, "°\nMetadata\n\tNumber of satellites in "
                                "use: ");
     utoa(gnss_xa1110_descriptor.num_sats_in_use, str, 10);
     console_send_str(console, str);
@@ -1102,7 +1102,7 @@ static void debug_gnss (uint8_t argc, char **argv,
         console_send_str(console, "°, SNR: ");
         utoa(gnss_xa1110_descriptor.in_view_gps_satellites[i].snr, str, 10);
         console_send_str(console, str);
-        console_send_str(console, "dB-Hz)\n");
+        console_send_str(console, " dB-Hz)\n");
     }
     
     console_send_str(console, "\tGLONASS satellites in view: ");
@@ -1130,7 +1130,7 @@ static void debug_gnss (uint8_t argc, char **argv,
         console_send_str(console, "°, SNR: ");
         utoa(gnss_xa1110_descriptor.in_view_glonass_satellites[i].snr, str, 10);
         console_send_str(console, str);
-        console_send_str(console, "dB-Hz)\n");
+        console_send_str(console, " dB-Hz)\n");
     }
 #endif
 }
