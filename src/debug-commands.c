@@ -1609,12 +1609,12 @@ static uint16_t parse_value(char *str, char **end, uint8_t *has_decimal)
         
         char *s = *end + 1;
         
-        if (s == '\0') {
+        if (*s == '\0') {
             return 0;
         }
         
         for (uint16_t weight = 100; weight != 0; weight /= 10) {
-            if (isdigit(*s)) {
+            if (isdigit((unsigned char)*s)) {
                 value += weight * (*s - '0');
             } else {
                 break;
@@ -1770,7 +1770,7 @@ static void debug_gpio (uint8_t argc, char **argv,
     
     /* Parse pin */
     char* end;
-    if (argv[2][0] == 'g' || isdigit(argv[2][0])) {
+    if (argv[2][0] == 'g' || isdigit((unsigned char)argv[2][0])) {
         // Try and parse pin as a header pin number
         uint32_t pin_num = strtoul(argv[2] + (argv[2][0] == 'g'), &end, 10);
         if ((*end == '\0') && (pin_num < NUM_HEADER_PINS)) {
