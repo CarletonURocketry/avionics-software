@@ -1742,16 +1742,16 @@ static void debug_dac (uint8_t argc, char **argv,
                          "\n<pin> = r<radio #>.<0 to 17> : RN2483 pin"
 
 #define NUM_HEADER_PINS 24
-static const union gpio_pin_t const HEADER_PINS[] = {
-                                                      GPIO_0,  GPIO_1,  GPIO_2,
-                                                      GPIO_3,  GPIO_4,  GPIO_5,
-                                                      GPIO_6,  GPIO_7,  GPIO_8,
-                                                      GPIO_9,  GPIO_10, GPIO_11,
-                                                      GPIO_12, GPIO_13, GPIO_14,
-                                                      GPIO_15, GPIO_16, GPIO_17,
-                                                      GPIO_18, GPIO_19, GPIO_20,
-                                                      GPIO_21, GPIO_22, GPIO_23
-                                                    };
+static const union gpio_pin_t HEADER_PINS[] = {
+                                                GPIO_0,  GPIO_1,  GPIO_2,
+                                                GPIO_3,  GPIO_4,  GPIO_5,
+                                                GPIO_6,  GPIO_7,  GPIO_8,
+                                                GPIO_9,  GPIO_10, GPIO_11,
+                                                GPIO_12, GPIO_13, GPIO_14,
+                                                GPIO_15, GPIO_16, GPIO_17,
+                                                GPIO_18, GPIO_19, GPIO_20,
+                                                GPIO_21, GPIO_22, GPIO_23
+                                              };
 
 static void debug_gpio (uint8_t argc, char **argv,
                         struct console_desc_t *console)
