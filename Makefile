@@ -108,13 +108,13 @@ CFLAGS += -Wshift-overflow=2 -Wduplicated-cond -Wpointer-arith -Wwrite-strings
 CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls -Wlong-long
 CFLAGS += -Werror=implicit-function-declaration -Wlogical-not-parentheses
 CFLAGS += -Wlogical-op -Wold-style-definition -Wcast-qual -Wdouble-promotion
-CFLAGS += -Wunsuffixed-float-constants
-CLFAGS += -Wmissing-include-dirs -Wnormalized -Wdisabled-optimization
+CFLAGS += -Wunsuffixed-float-constants -Wmissing-include-dirs -Wnormalized
+CLFAGS += -Wdisabled-optimization -Wsuggest-attribute=const
 
 # These warning may be usefull in some cases, but cause too many false positives
 # to be enabled all of the time: -Winline -Wpadded -Wvla -Wpedantic -Wconversion
 # -Wnull-dereference -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn
-# -Wsuggest-attribute=const -Wstack-usage=256
+# -Wstack-usage=256
 
 # Disable some anoying warnings
 CFLAGS += -Wno-unused-parameter
