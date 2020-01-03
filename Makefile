@@ -44,7 +44,6 @@ TARGET = main
 SRCDIR = src
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(wildcard $(SRCDIR)/*.c) $(SRCDIR)/$(MCU_NAME)/startup_$(MCU_NAME).c
-SRC += $(wildcard $(SRCDIR)/usb/*.c) $(wildcard $(SRCDIR)/usb/samd/*.c)
 
 OBJDIR = obj
 # List Assembler source files here.
@@ -67,7 +66,6 @@ OPT = 2
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
 EXTRAINCDIRS = $(SRCDIR) $(SRCDIR)/$(MCU_NAME)/include $(SRCDIR)/$(MCU_NAME)/source
-EXTRAINCDIRS += $(SRCDIR)/usb
 
 # Compiler flag to set the C Standard level.
 CSTANDARD = -std=gnu11
@@ -113,7 +111,7 @@ CLFAGS += -Wdisabled-optimization -Wsuggest-attribute=const
 
 # These warning may be usefull in some cases, but cause too many false positives
 # to be enabled all of the time: -Winline -Wpadded -Wvla -Wpedantic -Wconversion
-# -Wnull-dereference -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn
+# -Wnull-dereference -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure
 # -Wstack-usage=256
 
 # Disable some anoying warnings
