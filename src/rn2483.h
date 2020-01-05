@@ -25,7 +25,7 @@
 #define RN2483_NUM_PINS 18
 
 /** Period in milliseconds at which inputs should be polled, if 0 inputs will
-    not be polled automatically */
+ not be polled automatically */
 #define RN2483_GPIO_UPDATE_PERIOD 0
 
 struct rn2483_desc_t;
@@ -148,6 +148,28 @@ typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
 #define RN2483_PIN_DESC_VALUE_DIRTY (1 << 13)
 #define RN2483_PIN_DESC_MODE_EXP    (1 << 14)
 
+#define RN2483_VER_NUM_MAJOR_BITS   5
+#define RN2483_VER_NUM_MAJOR_POS    11
+#define RN2483_VER_NUM_MAJOR_MASK   (((((uint16_t)1) <<\
+                                            RN2483_VER_NUM_MAJOR_BITS) - 1) <<\
+                                                RN2483_VER_NUM_MAJOR_POS)
+#define RN2483_VER_NUM_MINOR_BITS   5
+#define RN2483_VER_NUM_MINOR_POS    6
+#define RN2483_VER_NUM_MINOR_MASK   (((((uint16_t)1) <<\
+                                            RN2483_VER_NUM_MINOR_BITS) - 1) <<\
+                                                RN2483_VER_NUM_MINOR_POS)
+#define RN2483_VER_NUM_REV_BITS     6
+#define RN2483_VER_NUM_REV_POS      0
+#define RN2483_VER_NUM_REV_MASK     (((((uint16_t)1) <<\
+                                            RN2483_VER_NUM_REV_BITS) - 1) <<\
+                                                RN2483_VER_NUM_REV_POS)
+#define RN2483_VERSION(ma, mi, r) ((((uint16_t)ma << RN2483_VER_NUM_MAJOR_POS)\
+                                                & RN2483_VER_NUM_MAJOR_MASK)\
+                                 | (((uint16_t)mi << RN2483_VER_NUM_MINOR_POS)\
+                                                & RN2483_VER_NUM_MINOR_MASK)\
+                                 | (((uint16_t)r << RN2483_VER_NUM_REV_POS)\
+                                                & RN2483_VER_NUM_REV_MASK))
+
 /**
  *  Descriptor for RN2483 radio module driver instance.
  */
@@ -182,6 +204,9 @@ struct rn2483_desc_t {
     /** Stores the last time at which the GPIO registers where polled */
     uint32_t last_polled;
     
+    /** Module firmware version*/
+    uint16_t version;
+    
     /** Cache for GPIO pin states */
     union {
         struct {
@@ -190,15 +215,15 @@ struct rn2483_desc_t {
             /** Mode for this pin */
             enum rn2483_pin_mode mode:2;
             /** Indicates whether the mode for this pin has been changes since
-                it was last written to the module */
+             it was last written to the module */
             uint16_t mode_dirty:1;
             /** Indicates whether the locally cached value for this pin needs to
-                be updated from the module (for an input) or written to the
-                module (for an output) */
+             be updated from the module (for an input) or written to the
+             module (for an output) */
             uint16_t value_dirty:1;
             /** Indicates whether the mode for this pin has been explicitly set,
-                which would indicate that application code cares about this pin
-                and if it is an input it should be polled automatically */
+             which would indicate that application code cares about this pin
+             and if it is an input it should be polled automatically */
             uint16_t mode_explicit:1;
         };
         uint16_t raw;
@@ -208,7 +233,7 @@ struct rn2483_desc_t {
     char buffer[RN2483_BUFFER_LEN];
     
     /** Pointer for sending commands over multiple calls to service if UART
-        buffer becomes full */
+     buffer becomes full */
     uint8_t out_pos;
     
     /** Pin which is the target of the current GPIO command */
@@ -217,7 +242,7 @@ struct rn2483_desc_t {
     /** Current state of driver */
     enum rn2483_state state:5;
     /** Whether a new line needs to be received before the driver can
-        continue */
+     continue */
     uint8_t waiting_for_line:1;
     /** Whether the command to be sent next has been marshaled */
     uint8_t cmd_ready:1;
@@ -275,9 +300,9 @@ extern enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
  *  @return Operation status
  */
 extern enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
-                                                uint32_t window_size,
-                                                rn2483_recv_callback callback,
-                                                void *context);
+                                                    uint32_t window_size,
+                                                    rn2483_recv_callback callback,
+                                                    void *context);
 
 /**
  *  Poll the radio modules for updates on any pins which have been set as
@@ -322,8 +347,8 @@ extern uint8_t rn2483_poll_gpio_in_progress(struct rn2483_desc_t *inst);
  *  @return 1 if polling is in progress, 0 otherwise
  */
 static inline uint8_t rn2483_poll_gpio_pin_in_progress(
-                                                    struct rn2483_desc_t *inst,
-                                                    enum rn2483_pin pin)
+                                                       struct rn2483_desc_t *inst,
+                                                       enum rn2483_pin pin)
 {
     return inst->pins[pin].value_dirty;
 }

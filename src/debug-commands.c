@@ -1136,7 +1136,7 @@ static void debug_gnss (uint8_t argc, char **argv,
 }
 
 #define DEBUG_LORA_VERSION_NAME  "lora-version"
-#define DEBUG_LORA_VERSION_HELP  "Get the version of the LoRa radio firmware"
+#define DEBUG_LORA_VERSION_HELP  "Get version string from LoRa radio module"
 
 static void debug_lora_version (uint8_t argc, char **argv,
                                 struct console_desc_t *console)
@@ -1637,7 +1637,7 @@ static void debug_dac (uint8_t argc, char **argv,
     enum debug_dac_mode mode = DEBUG_DAC_MODE_RAW;
     
     if (!dac_initialized && (argc != 3)) {
-        console_send_str(console, "DAC not initialize, run 'dac init 1V' or "\
+        console_send_str(console, "DAC not initialized, run 'dac init 1V' or "\
                                   "'dac init 3.3V'.\n");
         return;
     }
@@ -1662,7 +1662,7 @@ static void debug_dac (uint8_t argc, char **argv,
             } else if (!strcasecmp(argv[2], "3.3v")) {
                 init_dac(GCLK_CLKCTRL_GEN_GCLK0, DAC_REF_AVCC, 1, 1);
             } else {
-                console_send_str(console, "DAC not initialize, run 'dac init "\
+                console_send_str(console, "DAC not initialized, run 'dac init "\
                                           "1V' or 'dac init 3.3V'.\n");
                 return;
             }
@@ -1690,7 +1690,7 @@ static void debug_dac (uint8_t argc, char **argv,
                 return;
             }
         } else {
-            console_send_str(console, "DAC not initialize, run 'dac init 1V' "\
+            console_send_str(console, "DAC not initialized, run 'dac init 1V' "\
                              "or 'dac init 3.3V'.\n");
             return;
         }
@@ -2038,8 +2038,37 @@ static void debug_gpio (uint8_t argc, char **argv,
     }
 }
 
+#define DEBUG_RADIO_VERSION_NAME  "radio-version"
+#define DEBUG_RADIO_VERSION_HELP  "Get the version of the LoRa radio firmware"
 
-const uint8_t debug_commands_num_funcs = 23;
+static void debug_radio_version (uint8_t argc, char **argv,
+                                 struct console_desc_t *console)
+{
+    console_send_str(console, "Firmware version: ");
+
+    char str[8];
+    
+    uint16_t major = ((rn2483_g.version & RN2483_VER_NUM_MAJOR_MASK) >>
+                      RN2483_VER_NUM_MAJOR_POS);
+    utoa(major, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+
+    uint16_t minor = ((rn2483_g.version & RN2483_VER_NUM_MINOR_MASK) >>
+                      RN2483_VER_NUM_MINOR_POS);
+    utoa(minor, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ".");
+    
+    uint16_t rev = ((rn2483_g.version & RN2483_VER_NUM_REV_MASK) >>
+                    RN2483_VER_NUM_REV_POS);
+    utoa(rev, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+}
+
+
+const uint8_t debug_commands_num_funcs = 24;
 const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME, .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
@@ -2063,5 +2092,6 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_adc_init, .name = DEBUG_ADC_INIT_NAME, .help_string = DEBUG_ADC_INIT_HELP},
     {.func = debug_adc_read, .name = DEBUG_ADC_READ_NAME, .help_string = DEBUG_ADC_READ_HELP},
     {.func = debug_dac, .name = DEBUG_DAC_NAME, .help_string = DEBUG_DAC_HELP},
-    {.func = debug_gpio, .name = DEBUG_GPIO_NAME, .help_string = DEBUG_GPIO_HELP}
+    {.func = debug_gpio, .name = DEBUG_GPIO_NAME, .help_string = DEBUG_GPIO_HELP},
+    {.func = debug_radio_version, .name = DEBUG_RADIO_VERSION_NAME, .help_string = DEBUG_RADIO_VERSION_HELP}
 };

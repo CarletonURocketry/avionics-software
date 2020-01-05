@@ -12,6 +12,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+/** Minimum firmware version supported by driver */
+#define RN2483_MINIMUM_FIRMWARE RN2483_VERSION(1, 0, 4)
+/** Minimum firmware version which supports radio rxstop command */
+#define RN2483_MIN_FW_RXSTOP RN2483_VERSION(1, 0, 5)
+/** Minimum firmware version which supports radio get rssi command */
+#define RN2483_MIN_FW_RSSI RN2483_VERSION(1, 0, 5)
+
 #define RN2483_ANALOG_PINS_MASK ((1<<RN2483_GPIO0)  | (1<<RN2483_GPIO1)  | \
                                  (1<<RN2483_GPIO2)  | (1<<RN2483_GPIO3)  | \
                                  (1<<RN2483_GPIO5)  | (1<<RN2483_GPIO6)  | \
@@ -137,6 +144,70 @@ void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
 }
 
 /**
+ *  Validate an RN2483 version string and store the version information.
+ *
+ *  @param inst The instance descriptor in which the version information should
+ *              be stored
+ *  @param version_string The version string to be parsed
+ *
+ *  @return 0 if successfull
+ */
+static uint8_t __attribute__((pure)) parse_version (struct rn2483_desc_t *inst,
+                                                    const char *version_string)
+{
+    size_t length = strlen(version_string);
+    
+    // Sanity checks
+    if (length < (RN2483_RSP_RESET_OK_LEN + 6)) {
+        // If we dont have at least enough length for the module number, a space
+        // 3 digit and two decimal places then the string isn't valid
+        return 1;
+    } else if (strncmp(RN2483_RSP_RESET_OK, version_string,
+                       RN2483_RSP_RESET_OK_LEN)) {
+        // Model is not correct, this isn't a valid version string from an
+        // RN2483
+        return 1;
+    }
+    
+    char *end;
+    
+    // Parse first section (major version)
+    unsigned long major = strtoul(version_string + RN2483_RSP_RESET_OK_LEN + 1,
+                                  &end, 10);
+    if (*end != '.') {
+        // Version number format is not valid
+        return 1;
+    } else if (major > ((((unsigned long)1) << RN2483_VER_NUM_MAJOR_BITS) - 1)) {
+        // Major version is too high for us to store
+        return 1;
+    }
+    
+    // Parse second section (minor version)
+    unsigned long minor = strtoul(end + 1, &end, 10);
+    if (*end != '.') {
+        // Version number format is not valid
+        return 1;
+    } else if (minor > ((((unsigned long)1) << RN2483_VER_NUM_MINOR_BITS) - 1)) {
+        // Minor version is too high for us to store
+        return 1;
+    }
+    
+    // Parse third section (revision)
+    unsigned long rev = strtoul(end + 1, &end, 10);
+    if (*end != ' ') {
+        // Version number format is not valid
+        return 1;
+    } else if (rev > ((((unsigned long)1) << RN2483_VER_NUM_REV_BITS) - 1)) {
+        // revision is too high for us to store
+        return 1;
+    }
+    
+    inst->version = RN2483_VERSION(major, minor, rev);
+    
+    return 0;
+}
+
+/**
  *  Handle a state where a command is sent and a response is read back.
  *
  *  @param inst The RN2483 driver instance
@@ -198,8 +269,15 @@ void rn2483_service (struct rn2483_desc_t *inst)
     switch (inst->state) {
         case RN2483_RESET:
             // Handle writing of command and reception of response
-            if (handle_state(inst, RN2483_CMD_RESET, RN2483_RSP_RESET_OK,
-                             RN2483_RSP_RESET_OK_LEN, RN2483_WRITE_WDT)) {
+            if (handle_state(inst, RN2483_CMD_RESET, RN2483_RSP_RESET_OK, 0,
+                             RN2483_WRITE_WDT)) {
+                break;
+            }
+            // Parse version string
+            uint8_t ret = parse_version(inst, inst->buffer);
+            if (ret || (inst->version < RN2483_MINIMUM_FIRMWARE)) {
+                // Could not parse version number or version number too low
+                inst->state = RN2483_FAILED;
                 break;
             }
             /* fall through */
