@@ -261,6 +261,7 @@ static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
 
 void rn2483_service (struct rn2483_desc_t *inst)
 {
+do_next_state:
     if (inst->waiting_for_line && !sercom_uart_has_line(inst->uart)) {
         // waiting for a line and a new line has not yet been received
         return;
@@ -483,15 +484,6 @@ void rn2483_service (struct rn2483_desc_t *inst)
                               RN2483_RSP_OK_LEN, RN2483_IDLE)) {
                 break;
             }
-            // Prevent sleep because we are about to call allow_sleep() when we
-            // fall through
-            inhibit_sleep();
-            /* fall through */
-        case RN2483_RETURN_TO_IDLE:
-            inst->state = RN2483_IDLE;
-            // Returning to idle after a GPIO command, allow sleep again since
-            // the command has finished
-            allow_sleep();
             /* fall through */
         case RN2483_IDLE:
             // If we are otherwise idle we should check to see if there are any
@@ -515,9 +507,8 @@ void rn2483_service (struct rn2483_desc_t *inst)
             if (inst->current_pin < RN2483_NUM_PINS) {
                 // There is a pin with a dirty mode, update it
                 inst->state = RN2483_SET_PIN_MODE;
-                // Prevent sleep so that that this function is run again ASAP
-                inhibit_sleep();
-                break;
+                // Handle next state right away
+                goto do_next_state;
             }
             
             /* Check for pins with dirty values */
@@ -535,9 +526,8 @@ void rn2483_service (struct rn2483_desc_t *inst)
                 } else {
                     inst->state = RN2483_GET_PIN_VALUE;
                 }
-                // Prevent sleep so that that this function is run again ASAP
-                inhibit_sleep();
-                break;
+                // Handle next state right away
+                goto do_next_state;
             }
             break;
         case RN2483_SEND:
@@ -633,18 +623,14 @@ void rn2483_service (struct rn2483_desc_t *inst)
                         break;
                 }
                 inst->cmd_ready = 1;
-                // The idle state will have prevented sleep to get here ASAP,
-                // now that we are waiting for a response form the module we
-                // should allow sleep again
-                allow_sleep();
             }
             // Handle writing of command and reception of response
             if (handle_state(inst, inst->buffer, RN2483_RSP_OK,
-                             RN2483_RSP_OK_LEN, RN2483_RETURN_TO_IDLE)) {
+                             RN2483_RSP_OK_LEN, RN2483_IDLE)) {
                 // Pin's mode is now clean
                 inst->pins[inst->current_pin].mode_dirty = 0;
-                // Prevent sleep to get back to the idle state ASAP
-                inhibit_sleep();
+                // Handle next state right away
+                goto do_next_state;
             }
             break;
         case RN2483_SET_PINDIG:
@@ -661,18 +647,14 @@ void rn2483_service (struct rn2483_desc_t *inst)
                     strcpy(inst->buffer + i, RN2483_STR_PINSTATE_LOW);
                 }
                 inst->cmd_ready = 1;
-                // The idle state will have prevented sleep to get here ASAP,
-                // now that we are waiting for a response form the module we
-                // should allow sleep again
-                allow_sleep();
             }
             // Handle writing of command and reception of response
             if (handle_state(inst, inst->buffer, RN2483_RSP_OK,
-                             RN2483_RSP_OK_LEN, RN2483_RETURN_TO_IDLE)) {
+                             RN2483_RSP_OK_LEN, RN2483_IDLE)) {
                 // Pin's value is now clean
                 inst->pins[inst->current_pin].value_dirty = 0;
-                // Prevent sleep to get back to the idle state ASAP
-                inhibit_sleep();
+                // Handle next state right away
+                goto do_next_state;
             }
             break;
         case RN2483_GET_PIN_VALUE:
@@ -698,21 +680,17 @@ void rn2483_service (struct rn2483_desc_t *inst)
                 *(inst->buffer + i + 1)  = '\n';
                 *(inst->buffer + i + 2)  = '\0';
                 inst->cmd_ready = 1;
-                // The idle state will have prevented sleep to get here ASAP,
-                // now that we are waiting for a response form the module we
-                // should allow sleep again
-                allow_sleep();
             }
             // Handle writing of command and reception of response
             if (!handle_state(inst, inst->buffer, RN2483_RSP_OK, 0,
-                              RN2483_RETURN_TO_IDLE)) {
+                              RN2483_IDLE)) {
                 // Parse and store received value
                 uint16_t value = (uint16_t) strtoul(inst->buffer, NULL, 10);
                 inst->pins[inst->current_pin].value = value;
                 // Pin value is no longer dirty
                 inst->pins[inst->current_pin].value_dirty = 0;
-                // Prevent sleep to get back to the idle state ASAP
-                inhibit_sleep();
+                // Handle next state right away
+                goto do_next_state;
             }
             break;
         case RN2483_FAILED:
