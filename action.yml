@@ -1,0 +1,9 @@
+# This is part of github actions for automated compile testing
+name: 'Compile'
+description: "Does it compile? Runs 'make build' to find out"
+
+# Dockerfile can be found in root
+# If the docker container is build fully the build succeed
+runs:
+    using: 'docker'
+    image: 'Dockerfile'
