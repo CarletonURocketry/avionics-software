@@ -642,10 +642,16 @@ int main(void)
 
     // Start Watchdog Timer
     //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
-    
-    // Init SD Card
-    init_sd_card();
-    
+
+    // SD CARD TEST
+    uint32_t blockaddr = 0x00000000;
+    uint8_t data[] = {0x00, 0x48, 0x49, 0x20, 0x53, 0x41, 0x4D, 0x0A};
+    write_block(blockaddr, data);
+    blockaddr = 0x00000001;
+    uint8_t data2[] = {0x00, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21};
+    write_block(blockaddr, data2);
+    // END SD CARD TEST
+
     // Main Loop
     for (;;) {
         
