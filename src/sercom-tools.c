@@ -44,8 +44,9 @@ uint8_t sercom_calc_sync_baud (const uint32_t baudrate, const uint32_t clock,
         return 1;
     }
     
-    // Get nearest integer baud value for given baud rate
-    *baud = ((clock + baudrate) / (2 * baudrate)) - 1;
+    // Get baud value for baud rate, or next lowest supported baud rate if
+    // requested rate is not possible
+    *baud = (clock - 1) / (2 * baudrate);
     
     return 0;
 }
