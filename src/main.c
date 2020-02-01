@@ -25,6 +25,7 @@
 #undef ENABLE_USB
 #endif
 
+#include "status_led.h"
 #include "console.h"
 #include "cli.h"
 #include "debug-commands.h"
@@ -486,6 +487,7 @@ int main(void)
 #ifdef ENABLE_TELEMETRY_SERVICE
     init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
 #endif
+    status_set(STATUS_OK);
     
     
     // Start Watchdog Timer
@@ -518,13 +520,6 @@ static void main_loop (void)
     if ((millis - lastLed_g) >= period) {
         lastLed_g = millis;
         gpio_toggle_output(DEBUG0_LED_PIN);
-    }
-    
-    static uint32_t last_stat;
-    if (((millis - last_stat) >= STAT_PERIOD)) {
-        last_stat = millis;
-        gpio_toggle_output(STAT_R_LED_PIN);
-        gpio_toggle_output(STAT_G_LED_PIN);
     }
     
 #ifdef ENABLE_CONSOLE
