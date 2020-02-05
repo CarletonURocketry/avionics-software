@@ -26,6 +26,7 @@
 #endif
 
 #include "status_led.h"
+#include "service_watchdog.h"
 #include "console.h"
 #include "cli.h"
 #include "debug-commands.h"
@@ -37,16 +38,9 @@
 #include "ground.h"
 #include "telemetry.h"
 
-//MARK: Constants
-
-// MARK: Function prototypes
-static void main_loop(void);
-
 // MARK: Variable Definitions
 volatile uint32_t millis;
 volatile uint8_t inhibit_sleep_g;
-
-static uint32_t lastLed_g;
 
 // MARK: Hardware Resources from Config File
 #ifdef SPI_SERCOM_INST
@@ -276,6 +270,49 @@ static inline void init_io (void)
     PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
 }
 
+service_t SERVICES[] = {
+#ifdef ENABLE_CONSOLE
+    {&console_g, (void*) console_service},
+#endif
+
+#ifdef ENABLE_GROUND_SERVICE
+    {&ground_station_console_g, (void*) console_service},
+#endif
+
+#ifdef I2C_SERCOM_INST
+    {&i2c_g, (void*) sercom_i2c_service},
+#endif
+
+#ifdef ENABLE_IO_EXPANDER
+    {&io_expander_g, (void*) mcp23s17_service},
+#endif
+
+#ifdef ENABLE_ADC
+    {0, (void*) adc_service},
+#endif
+
+#ifdef ENABLE_ALTIMETER
+    {&altimeter_g, (void*) ms5611_service},
+#endif
+
+#ifdef ENABLE_GNSS
+    {&gnss_console_g, (void*) console_service},
+#endif
+
+#ifdef ENABLE_LORA_RADIO
+    {&rn2483_g, (void*) rn2483_service},
+#endif
+
+#ifdef ENABLE_GROUND_SERVICE
+    {0, (void*) ground_service},
+#endif
+
+#ifdef ENABLE_TELEMETRY_SERVICE
+    {0, (void*) telemetry_service},
+#endif
+};
+const uint8_t SERVICES_SIZE = sizeof(SERVICES) / sizeof(SERVICES[0]);
+
 int main(void)
 {
     init_clocks();
@@ -490,79 +527,11 @@ int main(void)
     status_set(STATUS_OK);
     
     
-    // Start Watchdog Timer
-    //init_wdt(GCLK_CLKCTRL_GEN_GCLK7, 14, 0);
-    
-    // Main Loop
-    for (;;) {
-        
-        // Pat the watchdog
-        wdt_pat();
-        
-        // Run the main loop
-        main_loop();
-        
-        // Sleep if sleep is not inhibited
-        if (!inhibit_sleep_g) {
-            __WFI();
-        }
-    }
+    // Start running all the servies
+    service_loop(SERVICES, SERVICES_SIZE);
     
     return 0; // never reached
 }
-
-#define STAT_PERIOD 1500
-
-static void main_loop (void)
-{
-    static uint32_t period = 1000;
-    
-    if ((millis - lastLed_g) >= period) {
-        lastLed_g = millis;
-        gpio_toggle_output(DEBUG0_LED_PIN);
-    }
-    
-#ifdef ENABLE_CONSOLE
-    console_service(&console_g);
-#endif
-    
-#ifdef ENABLE_GROUND_SERVICE
-    console_service(&ground_station_console_g);
-#endif
-    
-#ifdef I2C_SERCOM_INST
-    sercom_i2c_service(&i2c_g);
-#endif
-    
-#ifdef ENABLE_IO_EXPANDER
-    mcp23s17_service(&io_expander_g);
-#endif
-    
-#ifdef ENABLE_ADC
-    adc_service();
-#endif
-    
-#ifdef ENABLE_ALTIMETER
-    ms5611_service(&altimeter_g);
-#endif
-    
-#ifdef ENABLE_GNSS
-    console_service(&gnss_console_g);
-#endif
-    
-#ifdef ENABLE_LORA_RADIO
-    rn2483_service(&rn2483_g);
-#endif
-    
-#ifdef ENABLE_GROUND_SERVICE
-    ground_service();
-#endif
-    
-#ifdef ENABLE_TELEMETRY_SERVICE
-    telemetry_service();
-#endif
-}
-
 
 /* Interrupt Service Routines */
 RAMFUNC void SysTick_Handler(void)
