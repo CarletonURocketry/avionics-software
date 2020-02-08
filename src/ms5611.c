@@ -175,10 +175,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->state = MS5611_RESET_WAIT;
                 // Record time
                 inst->conv_start_time = millis;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_RESET_WAIT:
             if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
                 // Not yet time to move on
@@ -195,10 +195,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[0] = __builtin_bswap16(inst->prom_values[0]);
                 // Go to the next state
                 inst->state = MS5611_READ_C2;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_READ_C2:
             // In process of reading C2 from the sensor
             if (handle_read_state(inst, 2,
@@ -208,10 +208,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[1] = __builtin_bswap16(inst->prom_values[1]);
                 // Go to the next state
                 inst->state = MS5611_READ_C3;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_READ_C3:
             // In process of reading C3 from the sensor
             if (handle_read_state(inst, 2,
@@ -221,10 +221,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[2] = __builtin_bswap16(inst->prom_values[2]);
                 // Go to the next state
                 inst->state = MS5611_READ_C4;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_READ_C4:
             // In process of reading C4 from the sensor
             if (handle_read_state(inst, 2,
@@ -234,10 +234,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[3] = __builtin_bswap16(inst->prom_values[3]);
                 // Go to the next state
                 inst->state = MS5611_READ_C5;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_READ_C5:
             // In process of reading C5 from the sensor
             if (handle_read_state(inst, 2,
@@ -247,10 +247,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[4] = __builtin_bswap16(inst->prom_values[4]);
                 // Go to the next state
                 inst->state = MS5611_READ_C6;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_READ_C6:
             // In process of reading C6 from the sensor
             if (handle_read_state(inst, 2,
@@ -260,10 +260,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->prom_values[5] = __builtin_bswap16(inst->prom_values[5]);
                 // Go to the next state
                 inst->state = MS5611_IDLE;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_IDLE:
             // Waiting for it to be time to start a new read
             if ((millis - inst->last_reading_time) < inst->period) {
@@ -280,10 +280,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->state = MS5611_CONVERT_PRES_WAIT;
                 // Record time
                 inst->conv_start_time = millis;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_CONVERT_PRES_WAIT:
             // Waiting for it to be time to read result
             if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
@@ -301,10 +301,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->d1 = __builtin_bswap32(inst->d1);
                 // Go to the next state
                 inst->state = MS5611_CONVERT_TEMP;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_CONVERT_TEMP:
             // In process of sending command to take temperature measurment
             if (handle_write_state(inst, &adc_conv_d2_cmd)) {
@@ -312,10 +312,10 @@ void ms5611_service (struct ms5611_desc_t *inst)
                 inst->state = MS5611_CONVERT_TEMP_WAIT;
                 // Record time
                 inst->conv_start_time = millis;
-                /* fall through */
             } else {
                 break;
             }
+            /* fall through */
         case MS5611_CONVERT_TEMP_WAIT:
             // Waiting for it to be time to read result
             if ((millis - inst->conv_start_time) < CONV_WAIT_TIME) {
