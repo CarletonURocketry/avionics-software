@@ -1,6 +1,6 @@
 /**
  * @file debug-commmands.h
- * @desc Functions to be run from CLI for debuging purposes.
+ * @desc Functions to be run from CLI for debugging purposes.
  * @author Samuel Dewan
  * @date 2019-09-22
  * Last Author:

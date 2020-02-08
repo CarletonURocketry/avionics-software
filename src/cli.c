@@ -14,8 +14,8 @@
 /** String to clear the screen of a VT100 and bring the cursor home. */
 static const char *cli_clear_str = "\x1B[2J\x1B[H";
 
-static const char *cli_unkown_str_0 = "Unkown command \"";
-static const char *cli_unkown_str_1 = "\"\n";
+static const char *cli_unknown_str_0 = "Unknown command \"";
+static const char *cli_unknown_str_1 = "\"\n";
 
 
 static void cli_help (uint8_t argc, char **argv, struct console_desc_t *console,
@@ -35,15 +35,15 @@ static void cli_help (uint8_t argc, char **argv, struct console_desc_t *console,
                 return;
             }
         }
-        console_send_str(console, cli_unkown_str_0);
+        console_send_str(console, cli_unknown_str_0);
         console_send_str(console, argv[1]);
-        console_send_str(console, cli_unkown_str_1);
+        console_send_str(console, cli_unknown_str_1);
     } else {
         console_send_str(console, "Use \"help <command>\" to get information "
                                   "on a specific command.\n");
     }
     
-    console_send_str(console, "\nAvaliable Commands:\n");
+    console_send_str(console, "\nAvailable Commands:\n");
     for (uint8_t i = 0; i < cli->num_functions; i++) {
         console_send_str(console, cli->functions[i].name);
         console_send_str(console, "\n");
@@ -55,7 +55,7 @@ static void cli_line_callback (char *line, struct console_desc_t *console,
 {
     struct cli_desc_t *cli = (struct cli_desc_t*)context;
     
-    /* Count the number of space seperated tokens in the line */
+    /* Count the number of space separated tokens in the line */
     uint8_t num_args = 1;
     for (uint16_t i = 0; i < strlen(line); i++) {
         num_args += (line[i] == ' ');
@@ -80,7 +80,7 @@ static void cli_line_callback (char *line, struct console_desc_t *console,
         console_send_str(console, cli_clear_str);
         command_found = 1;
     } else {
-        // Serach function list
+        // Search function list
         for (int i = 0; i < cli->num_functions; i++) {
             if (!strcasecmp(args[0], cli->functions[i].name)) {
                 cli->functions[i].func(num_args, args, console);
@@ -93,9 +93,9 @@ static void cli_line_callback (char *line, struct console_desc_t *console,
     
     /* If the command was not found and is not empty, print an angry message. */
     if (!command_found) {
-        console_send_str(console, cli_unkown_str_0);
+        console_send_str(console, cli_unknown_str_0);
         console_send_str(console, args[0]);
-        console_send_str(console, cli_unkown_str_1);
+        console_send_str(console, cli_unknown_str_1);
     }
     
     /* Print the prompt. */

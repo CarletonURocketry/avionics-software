@@ -14,7 +14,7 @@
 #include "console.h"
 
 /**
- *  Desciptor for a function which can be called via a CLI.
+ *  Descriptor for a function which can be called via a CLI.
  */
 struct cli_func_desc_t {
     void (*func)(uint8_t, char**, struct console_desc_t*);
@@ -32,9 +32,9 @@ struct cli_desc_t {
 };
 
 /**
- *  Initlize a command line interface on a console.
+ *  Initialize a command line interface on a console.
  *
- *  @param cli The CLI to be initlized
+ *  @param cli The CLI to be initialized
  *  @param console The console on which the CLI should operate.
  *  @param functions An array of function descriptors which can be used via this
  *                   CLI

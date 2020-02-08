@@ -22,9 +22,9 @@ struct gnss gnss_xa1110_descriptor;
  *  Parse the latitude and longitude from a NMEA sentence.
  *
  *  @param lat The latitude string
- *  @param north_sorth North-South indicator string
+ *  @param north_south North-South indicator string
  *  @param lon The longitude string
- *  @param easr_west East-West indicator string
+ *  @param east_west East-West indicator string
  *  @param desc GNSS descriptor in which coordinates should be stored
  */
 static void gnss_parse_coordinates (char *lat, char *north_south, char *lon,
@@ -222,7 +222,7 @@ static void gnss_parse_gga (uint8_t argc, char **argv, struct gnss *desc)
     // 8: Horizontal Dilution of Precision
     //desc->hdop = (uint16_t)gnss_parse_fp(argv[8], 100);
     
-    // 9: Alititude
+    // 9: Altitude
     desc->altitude = gnss_parse_fp(argv[9], 1000);
     
     // 10: Altitude Units (ignored)
@@ -236,7 +236,7 @@ static void gnss_parse_gga (uint8_t argc, char **argv, struct gnss *desc)
 
 #ifdef GNSS_STORE_IN_USE_SAT_SVS
 /**
- *  Parse a comma separated list of satalite PRNs into a bit field.
+ *  Parse a comma separated list of satellite PRNs into a bit field.
  *
  *  @param num_chans The number of channels to parse
  *  @param offset Lowest possible satellite number
@@ -267,7 +267,7 @@ static void gnss_parse_gsa (uint8_t argc, char **argv, struct gnss *desc)
     // 2: Mode 2
     switch (argv[2][0]) {
         case '1':
-            desc->fix_type = GNSS_FIX_NOT_AVALIABLE;
+            desc->fix_type = GNSS_FIX_NOT_AVAILABLE;
             break;
         case '2':
             desc->fix_type = GNSS_FIX_2D;
@@ -332,7 +332,7 @@ static void gnss_parse_rmc (uint8_t argc, char **argv, struct gnss *desc)
     // 7: Speed over ground
     desc->speed = (uint16_t)gnss_parse_fp(argv[7], 100);
     
-    // 8: Coures over ground
+    // 8: Course over ground
     desc->course = (uint16_t)gnss_parse_fp(argv[8], 100);
     
     // 10/11: Magnetic Variation (ignored)
@@ -411,7 +411,7 @@ static void gnss_parse_pgack (uint8_t argc, char **argv, struct gnss *desc)
 
 
 /**
- *  Desciptor for a NMEA sentence parser
+ *  Descriptor for a NMEA sentence parser
  */
 struct gps_parser_t {
     void (*parse)(uint8_t, char**, struct gnss*);
@@ -419,7 +419,7 @@ struct gps_parser_t {
 };
 
 /**
- *  List of avaliable NMEA sentence parsers
+ *  List of available NMEA sentence parsers
  */
 static const struct gps_parser_t nmea_parsers[] = {
     {.parse = gnss_parse_rmc, .type = "GNRMC"},
@@ -476,7 +476,7 @@ static void gnss_line_callback (char *line, struct console_desc_t *console,
     
     gnss_xa1110_descriptor.last_sentence = millis;
     
-    /* Count the number of comma seperated tokens in the line */
+    /* Count the number of comma separated tokens in the line */
     uint8_t num_args = 1;
     for (uint16_t i = 0; i < strlen(line); i++) {
         num_args += (line[i] == ',');

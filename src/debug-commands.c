@@ -1,6 +1,6 @@
 /**
- * @file debug-commmands.c
- * @desc Functions to be run from CLI for debuging purposes.
+ * @file debug-commands.c
+ * @desc Functions to be run from CLI for debugging purposes.
  * @author Samuel Dewan
  * @date 2019-09-22
  * Last Author: Samuel Dewan
@@ -169,7 +169,7 @@ static void debug_i2c_scan (uint8_t argc, char **argv,
     // Print scan results
     char str[8];
     
-    console_send_str(console, "Avaliable Devices:\n");
+    console_send_str(console, "Available Devices:\n");
     for (int i = 0; i < 128; i++) {
         if (sercom_i2c_device_available(&i2c_g, i2c_t_id, i)) {
             console_send_str(console, "0b");
@@ -438,7 +438,7 @@ static void debug_io_exp_regs (uint8_t argc, char **argv,
 static void debug_temp (uint8_t argc, char **argv,
                         struct console_desc_t *console)
 {
-    // Read tempurature log values from
+    // Read temperature log values from
     uint8_t room_temp_val_int = (uint8_t)(((*((uint32_t*)
                                     NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_ADDR)) &
                                         NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Msk) >>
@@ -745,7 +745,7 @@ static void debug_alt (uint8_t argc, char **argv,
 }
 
 #define DEBUG_ALT_TARE_NOW_NAME  "alt-tare-now"
-#define DEBUG_ALT_TARE_NOW_HELP  "Tare altimeter to most recently measured presure"
+#define DEBUG_ALT_TARE_NOW_HELP  "Tare altimeter to most recently measured pressure"
 
 static void debug_alt_tare_now (uint8_t argc, char **argv,
                                 struct console_desc_t *console)
@@ -760,7 +760,7 @@ static void debug_alt_tare_now (uint8_t argc, char **argv,
 }
 
 #define DEBUG_ALT_TARE_NEXT_NAME  "alt-tare-next"
-#define DEBUG_ALT_TARE_NEXT_HELP  "Tare altimeter to next measured presure"
+#define DEBUG_ALT_TARE_NEXT_HELP  "Tare altimeter to next measured pressure"
 
 static void debug_alt_tare_next (uint8_t argc, char **argv,
                                  struct console_desc_t *console)
@@ -1025,7 +1025,7 @@ static void debug_gnss (uint8_t argc, char **argv,
     print_fixed_point(console, gnss_xa1110_descriptor.vdop, 2);
     switch (gnss_xa1110_descriptor.antenna) {
         case GNSS_ANTENNA_UNKOWN:
-            console_send_str(console, "\n\tAntenna: Unkown\n");
+            console_send_str(console, "\n\tAntenna: Unknown\n");
             break;
         case GNSS_ANTENNA_INTERNAL:
             console_send_str(console, "\n\tAntenna: Internal\n");
@@ -1036,10 +1036,10 @@ static void debug_gnss (uint8_t argc, char **argv,
     }
     switch (gnss_xa1110_descriptor.fix_type) {
         case GNSS_FIX_UNKOWN:
-            console_send_str(console, "\tFix: Unkown\n");
+            console_send_str(console, "\tFix: Unknown\n");
             break;
-        case GNSS_FIX_NOT_AVALIABLE:
-            console_send_str(console, "\tFix: Not Avaliable\n");
+        case GNSS_FIX_NOT_AVAILABLE:
+            console_send_str(console, "\tFix: Not Available\n");
             break;
         case GNSS_FIX_2D:
             console_send_str(console, "\tFix: 2D\n");
@@ -1366,7 +1366,7 @@ static void debug_telem_test (uint8_t argc, char **argv,
 }
 
 #define DEBUG_TELEM_PAUSE_NAME  "telem-pause"
-#define DEBUG_TELEM_PAUSE_HELP  "Pause automatic transmition of telemetry"
+#define DEBUG_TELEM_PAUSE_HELP  "Pause automatic transmission of telemetry"
 
 static void debug_telem_pause (uint8_t argc, char **argv,
                                struct console_desc_t *console)
@@ -1375,7 +1375,7 @@ static void debug_telem_pause (uint8_t argc, char **argv,
 }
 
 #define DEBUG_TELEM_RESUME_NAME  "telem-resume"
-#define DEBUG_TELEM_RESUME_HELP  "Resume automatic transmition of telemetry"
+#define DEBUG_TELEM_RESUME_HELP  "Resume automatic transmission of telemetry"
 
 static void debug_telem_resume (uint8_t argc, char **argv,
                                 struct console_desc_t *console)
@@ -1468,13 +1468,13 @@ static void debug_adc_init (uint8_t argc, char **argv,
     // Make sure prescaler is at most 512
     prescaler &= 0x1FF;
     
-    // Set prescaler, 16 bit output, freerunning mode
+    // Set prescaler, 16 bit output, free-running mode
     ADC->CTRLB.reg = (ADC_CTRLB_PRESCALER(prescaler) |
                       ADC_CTRLB_RESSEL_16BIT);
     // Wait for synchronization
     while (ADC->STATUS.bit.SYNCBUSY);
     
-    /* Enable temparature reference */
+    /* Enable temperature reference */
     SYSCTRL->VREF.reg |= SYSCTRL_VREF_TSEN;
     
     ADC->INTENSET.bit.RESRDY = 1;
@@ -1842,7 +1842,7 @@ static void debug_gpio (uint8_t argc, char **argv,
     if (!strcmp(argv[1], "mode")) {
         if (argc < 4) {
             // Not enough arguments
-            console_send_str(console, "Mode command requires an arguemnt.\n");
+            console_send_str(console, "Mode command requires an argument.\n");
             return;
         }
         
@@ -1869,7 +1869,7 @@ static void debug_gpio (uint8_t argc, char **argv,
     } else if (!strcmp(argv[1], "pull")) {
         if (argc < 4) {
             // Not enough arguments
-            console_send_str(console, "Pull command requires an arguemnt.\n");
+            console_send_str(console, "Pull command requires an argument.\n");
             return;
         }
         
@@ -1894,7 +1894,7 @@ static void debug_gpio (uint8_t argc, char **argv,
     } else if (!strcmp(argv[1], "out")) {
         if (argc < 4) {
             // Not enough arguments
-            console_send_str(console, "Out command requires an arguemnt.\n");
+            console_send_str(console, "Out command requires an argument.\n");
             return;
         }
         

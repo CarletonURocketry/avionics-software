@@ -27,7 +27,7 @@
  */
 enum gnss_fix_type {
     GNSS_FIX_UNKOWN,
-    GNSS_FIX_NOT_AVALIABLE,
+    GNSS_FIX_NOT_AVAILABLE,
     GNSS_FIX_2D,
     GNSS_FIX_3D
 };
@@ -73,7 +73,7 @@ extern struct gnss {
 #endif
     
     // GNSS Fix
-    /** Latitide in 100 micominutes per least significant bit */
+    /** Latitude in 100 micominutes per least significant bit */
     int32_t latitude;
     /** Longitude in 100 micominutes per least significant bit */
     int32_t longitude;
@@ -126,12 +126,12 @@ extern struct gnss {
         /** Azimuth in degrees */
         uint16_t azimuth:9;
     } in_view_glonass_satellites[GNSS_MAX_SATS_IN_VIEW];
-    /** Number of GPS satallites in view */
+    /** Number of GPS satellites in view */
     uint8_t num_gps_sats_in_view:4;
-    /** Number of GLONASS satallites in view */
+    /** Number of GLONASS satellites in view */
     uint8_t num_glonass_sats_in_view:4;
 #endif
-    /** Number of satallites used in fix */
+    /** Number of satellites used in fix */
     uint8_t num_sats_in_use;
     /** Antenna in use */
     enum gnss_antenna antenna:2;
@@ -146,9 +146,9 @@ extern struct gnss {
 
 
 /**
- *  Configures the desctiptor structure with all the necessary data for the GNSS
+ *  Configures the descriptor structure with all the necessary data for the GNSS
  *  reciever to work. Begin the process of sending any commands to the module
- *  that are nessary to initilize it.
+ *  that are necessary to initialize it.
  *
  *  @param console Console used to communicate with GNSS module
  */
