@@ -305,7 +305,7 @@ static inline uint8_t circular_buffer_has_line(struct circular_buffer_t *buffer)
          i = ((i + 1) % buffer->capacity)) {
         if (buffer->buffer[i] == '\r') {
             uint16_t next = (i + 1) % buffer->capacity;
-            if ((next != buffer->head) && (buffer->buffer[next] == '\n')) {
+            if ((next != buffer->tail) && (buffer->buffer[next] == '\n')) {
                 return 1;
             }
         }
