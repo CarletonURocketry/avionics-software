@@ -24,7 +24,7 @@ static enum rn2483_operation_result ground_op_status_g;
 
 static void ground_radio_recv_callback (struct rn2483_desc_t *inst,
                                        void *context, uint8_t *data,
-                                       uint8_t length, int8_t snr)
+                                       uint8_t length, int8_t snr, int8_t rssi)
 {
     if (length && ready_to_send_g) {
         console_send_bytes(ground_console_g, data, length);

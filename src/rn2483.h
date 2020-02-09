@@ -52,6 +52,7 @@ enum rn2483_state {
     RN2483_RECEIVE,
     RN2483_RECEIVE_WAIT,
     RN2483_GET_SNR,
+    RN2483_GET_RSSI,
     RN2483_SET_PIN_MODE,
     RN2483_SET_PINDIG,
     RN2483_GET_PIN_VALUE,
@@ -139,7 +140,8 @@ enum rn2483_pin_mode {
  *  Type for callback function used for receiving data.
  */
 typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
-                                     uint8_t *data, uint8_t length, int8_t snr);
+                                     uint8_t *data, uint8_t length, int8_t snr,
+                                     int8_t rssi);
 
 #define RN2483_PIN_DESC_VALUE(x)    (x & 0x3FF)
 #define RN2483_PIN_DESC_MODE(x)     ((x & 0x3) << 10)

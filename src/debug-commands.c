@@ -1259,7 +1259,7 @@ struct radio_recv_context {
 
 static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
                                        void *context, uint8_t *data,
-                                       uint8_t length, int8_t snr)
+                                       uint8_t length, int8_t snr, int8_t rssi)
 {
     struct radio_recv_context *c = (struct radio_recv_context*)context;
     
@@ -1270,6 +1270,9 @@ static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
         console_send_str(c->console, "\"\nSNR: ");
         char str[5];
         itoa(snr, str, 10);
+        console_send_str(c->console, str);
+        console_send_str(c->console, ", RSSI: ");
+        itoa(rssi, str, 10);
         console_send_str(c->console, str);
         console_send_str(c->console, "\n");
     } else {
@@ -1292,21 +1295,23 @@ static void debug_radio_recv (uint8_t argc, char **argv,
     uint32_t window = 500;
     
     char *end;
-    if (argc == 2) {
+    if (argc > 3) {
+        console_send_str(console, "Too many arguments.\n");
+        return;
+    } else if ((argc == 2) || (argc == 3)) {
         count = strtoul(argv[1], &end, 0);
         if (*end != '\0') {
             console_send_str(console, "Invalid count.\n");
             return;
         }
-    } else if (argc == 3) {
-        window = strtoul(argv[2], &end, 0);
-        if (*end != '\0') {
-            console_send_str(console, "Invalid window.\n");
-            return;
+        
+        if (argc == 3) {
+            window = strtoul(argv[2], &end, 0);
+            if (*end != '\0') {
+                console_send_str(console, "Invalid window.\n");
+                return;
+            }
         }
-    } else if (argc > 3) {
-        console_send_str(console, "Too many arguments.\n");
-        return;
     }
     
     struct radio_recv_context context;
@@ -1319,6 +1324,7 @@ static void debug_radio_recv (uint8_t argc, char **argv,
         
         if (result == RN2483_OP_BUSY) {
             console_send_str(console, "Radio busy.\n");
+            break;
         } else {
             context.receive_complete = 0;
             while (!context.receive_complete) {

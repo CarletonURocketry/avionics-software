@@ -36,6 +36,9 @@ static const char* const RN2483_RSP_TX_OK = "radio_tx_ok";
 #define RN2483_RSP_TX_OK_LEN 11
 static const char* const RN2483_RSP_RX_OK = "radio_rx ";
 #define RN2483_RSP_RX_OK_LEN 9
+#if RN2483_RSP_RX_OK_LEN < 7
+#error "RX Response length is too short to leave space to get SNR and RSSI"
+#endif
 static const char* const RN2483_RSP_PAUSE_MAC = "4294967245";
 #define RN2483_RSP_PAUSE_MAC_LEN 10
 
@@ -57,6 +60,7 @@ static const char* const RN2483_CMD_BW = "radio set bw ";
 static const char* const RN2483_CMD_TX = "radio tx ";
 static const char* const RN2483_CMD_RX = "radio rx ";
 static const char* const RN2483_CMD_SNR = "radio get snr\r\n";
+static const char* const RN2483_CMD_RSSI = "radio get rssi\r\n";
 
 static const char* const RN2483_CMD_SET_PINMODE = "sys set pinmode ";
 static const char* const RN2483_CMD_SET_PINDIG = "sys set pindig ";
@@ -150,7 +154,7 @@ void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
  *              be stored
  *  @param version_string The version string to be parsed
  *
- *  @return 0 if successfull
+ *  @return 0 if successful
  */
 static uint8_t __attribute__((pure)) parse_version (struct rn2483_desc_t *inst,
                                                     const char *version_string)
@@ -159,8 +163,8 @@ static uint8_t __attribute__((pure)) parse_version (struct rn2483_desc_t *inst,
     
     // Sanity checks
     if (length < (RN2483_RSP_RESET_OK_LEN + 6)) {
-        // If we dont have at least enough length for the module number, a space
-        // 3 digit and two decimal places then the string isn't valid
+        // If we don't have at least enough length for the module number, a
+        // space, 3 digits and two decimal places then the string isn't valid
         return 1;
     } else if (strncmp(RN2483_RSP_RESET_OK, version_string,
                        RN2483_RSP_RESET_OK_LEN)) {
@@ -208,6 +212,38 @@ static uint8_t __attribute__((pure)) parse_version (struct rn2483_desc_t *inst,
 }
 
 /**
+ *  Parse a nibble from a single hexadecimal digit.
+ *
+ *  @param c Character containing the digit to be parsed
+ *  @param dest Pointer to where data should be stored
+ *  @param offset Number of bits which data should be offset within byte
+ *
+ *  @return 0 If successful
+ */
+static uint8_t parse_nibble (char c, uint8_t *dest, int offset)
+{
+    if (c < '0') {
+        return 1;
+    } else if (c >= 'a') {
+        c -= 32;
+    }
+    c -= '0';
+    if (c <= 9) {
+        goto store_nibble;
+    }
+    c -= 7;
+    if (c <= 9) {
+        return 1;
+    } else if (c <= 15) {
+        goto store_nibble;
+    }
+    return 1;
+store_nibble:
+    *dest |= (c << offset);
+    return 0;
+}
+
+/**
  *  Handle a state where a command is sent and a response is read back.
  *
  *  @param inst The RN2483 driver instance
@@ -218,7 +254,7 @@ static uint8_t __attribute__((pure)) parse_version (struct rn2483_desc_t *inst,
  *                        the response and expected response
  *  @param next_state The state which should be entered next
  *
- *  @return 1 if the FSM should move to the next state, 0 otherwise
+ *  @return 0 if the FSM should move to the next state, something else otherwise
  */
 static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
                              const char *expected_response,
@@ -275,8 +311,8 @@ do_next_state:
                 break;
             }
             // Parse version string
-            uint8_t ret = parse_version(inst, inst->buffer);
-            if (ret || (inst->version < RN2483_MINIMUM_FIRMWARE)) {
+            uint8_t r = parse_version(inst, inst->buffer);
+            if (r || (inst->version < RN2483_MINIMUM_FIRMWARE)) {
                 // Could not parse version number or version number too low
                 inst->state = RN2483_FAILED;
                 break;
@@ -559,7 +595,10 @@ do_next_state:
                 // Receive has started, wait for the second response
                 inst->waiting_for_line = 1;
             } else if (inst->state == RN2483_FAILED) {
-                // Receive failed, go back to idle
+                // Receive failed
+                inst->receive_callback(inst, inst->callback_context, NULL,
+                                       0, 0, 0);
+                // Go back to idle
                 inst->state = RN2483_IDLE;
             }
             break;
@@ -569,39 +608,68 @@ do_next_state:
                 if (inst->state == RN2483_FAILED) {
                     // Receive timed out
                     inst->receive_callback(inst, inst->callback_context, NULL,
-                                           0, 0);
-                    // go back to idle
+                                           0, 0, 0);
+                    // Go back to idle
                     inst->state = RN2483_IDLE;
                 }
                 break;
             }
+            // Got response
             /* fall through */
         case RN2483_GET_SNR:
-            if (!handle_state(inst, RN2483_CMD_SNR, RN2483_RSP_OK, 0,
-                              RN2483_IDLE)) {
-                /* Got the SNR from the radio */
-                // Parse received SNR
-                int8_t snr = (int8_t) strtol(inst->buffer, NULL, 10);
-                
-                // Parse packet
-                char *s = inst->buffer + RN2483_RSP_RX_OK_LEN + 1;
-                size_t str_len = strlen(s);
-                uint8_t len = str_len / 2;
-                uint8_t data[len];
-                
-                s += str_len;
-                for (uint8_t i = len; i > 0; i--) {
-                    // Move back to previous byte
-                    s -= 2;
-                    // Parse byte
-                    data[i - 1] = (uint8_t) strtoul(s, NULL, 16);
-                    // Place null char so that previous byte can be parsed
-                    *s = '\0';
-                }
-                
-                inst->receive_callback(inst, inst->callback_context, data, len,
-                                       snr);
+            if (handle_state(inst, RN2483_CMD_SNR, RN2483_RSP_OK, 0,
+                             RN2483_GET_RSSI)) {
+                break;
             }
+            /* Got the SNR from the radio */
+            // Parse received SNR
+            int8_t snr = (int8_t)strtol(inst->buffer, NULL, 10);
+            // Save SNR in buffer so that we can get it after we have the
+            // RSSI
+            inst->buffer[RN2483_RSP_RX_OK_LEN - 1] = (uint8_t)snr;
+            /* fall through */
+        case RN2483_GET_RSSI:
+            ;
+            int8_t rssi = INT8_MIN;
+            if (inst->version >= RN2483_MIN_FW_RSSI) {
+                if (handle_state(inst, RN2483_CMD_RSSI, RN2483_RSP_OK, 0,
+                                 RN2483_IDLE)) {
+                    break;
+                }
+                /* Got the RSSI from the radio */
+                // Parse received RSSI
+                rssi = (int8_t)strtol(inst->buffer, NULL, 10);
+            }
+
+            // Get SNR from buffer
+            snr = (int8_t)inst->buffer[RN2483_RSP_RX_OK_LEN - 1];
+            
+            // Setup pointers for parsing
+            char *s = inst->buffer + RN2483_RSP_RX_OK_LEN;
+            uint8_t *b = (uint8_t*)inst->buffer;
+            
+            // Skip extra spaces that are sometimes between OK response and data
+            while (*s == ' ') {
+                s++;
+            }
+            
+            // Parse packet into buffer
+            for (; (*s != '\0') && (*(s + 1) != '\0'); b++) {
+                *b = 0;
+                uint8_t ret = parse_nibble(*s, b, 4);
+                s++;
+                ret |= parse_nibble(*s, b, 0);
+                if (ret != 0) {
+                    // Failed to parse byte
+                    break;
+                }
+                s++;
+            }
+            
+            // Call receive callback
+            uintptr_t len = (uintptr_t)b - (uintptr_t)inst->buffer;
+            inst->receive_callback(inst, inst->callback_context,
+                                   (uint8_t*)inst->buffer, len, snr, rssi);
             break;
         case RN2483_SET_PIN_MODE:
             // Update command if required
