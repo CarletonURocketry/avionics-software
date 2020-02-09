@@ -1,5 +1,5 @@
-## 2019-avionics
-Main repository for the avionics software for the 2018/2019 academic year.
+## Avionics Software
+Main repository for the avionics software.
 
 Please see the Wiki tab for in-house documentation. There is another repository, guides-and-manuals, for datasheets, git guides, coding standards and other related information.
 
