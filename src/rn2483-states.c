@@ -520,7 +520,7 @@ static int rn2483_case_idle (struct rn2483_desc_t *inst)
     for (inst->current_pin = 0; inst->current_pin < RN2483_NUM_PINS;
          inst->current_pin++) {
         if (inst->pins[inst->current_pin].mode_dirty) {
-            return 0;
+            break;
         }
     }
     if (inst->current_pin < RN2483_NUM_PINS) {
@@ -534,7 +534,7 @@ static int rn2483_case_idle (struct rn2483_desc_t *inst)
     for (inst->current_pin = 0; inst->current_pin < RN2483_NUM_PINS;
          inst->current_pin++) {
         if (inst->pins[inst->current_pin].value_dirty) {
-            return 0;
+            break;
         }
     }
     if (inst->current_pin < RN2483_NUM_PINS) {
