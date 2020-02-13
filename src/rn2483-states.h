@@ -11,6 +11,16 @@
 #ifndef rn2483_states_h
 #define rn2483_states_h
 
+
+/** Minimum firmware version supported by driver */
+#define RN2483_MINIMUM_FIRMWARE RN2483_VERSION(1, 0, 4)
+/** Minimum firmware version which supports radio rxstop command */
+#define RN2483_MIN_FW_RXSTOP RN2483_VERSION(1, 0, 5)
+/** Minimum firmware version which supports radio get rssi command */
+#define RN2483_MIN_FW_RSSI RN2483_VERSION(1, 0, 5)
+
+
+
 typedef int (*rn2483_stat_handler_t)(struct rn2483_desc_t *inst);
 
 /**
@@ -41,6 +51,7 @@ extern const char* const RN2483_CMD_TX;
 extern const char* const RN2483_CMD_RX;
 extern const char* const RN2483_CMD_SNR;
 extern const char* const RN2483_CMD_RSSI;
+extern const char* const RN2483_CMD_RXSTOP;
 
 extern const char* const RN2483_CMD_SET_PINMODE;
 extern const char* const RN2483_CMD_SET_PINDIG;

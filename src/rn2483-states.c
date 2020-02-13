@@ -14,12 +14,11 @@
 
 // MARK: Constants
 
-/** Minimum firmware version supported by driver */
-#define RN2483_MINIMUM_FIRMWARE RN2483_VERSION(1, 0, 4)
-/** Minimum firmware version which supports radio rxstop command */
-#define RN2483_MIN_FW_RXSTOP RN2483_VERSION(1, 0, 5)
-/** Minimum firmware version which supports radio get rssi command */
-#define RN2483_MIN_FW_RSSI RN2483_VERSION(1, 0, 5)
+/** Default receive window size */
+#define RN2483_RX_WINDOW_SIZE   50000
+/** Number of milliseconds to wait for a radio_err after getting ok from
+    rxstop */
+#define RN2483_RXSTOP_WAIT_TIME 5
 
 static const char* const RN2483_RSP_OK = "ok";
 #define RN2483_RSP_OK_LEN 2
@@ -32,6 +31,8 @@ static const char* const RN2483_RSP_RX_OK = "radio_rx ";
 #if RN2483_RSP_RX_OK_LEN < 7
 #error "RX Response length is too short to leave space to get SNR and RSSI"
 #endif
+static const char* const RN2483_RSP_RX_ERR = "radio_err";
+#define RN2483_RSP_RX_ERR_LEN 9
 static const char* const RN2483_RSP_PAUSE_MAC = "4294967245";
 #define RN2483_RSP_PAUSE_MAC_LEN 10
 
@@ -54,6 +55,7 @@ const char* const RN2483_CMD_TX = "radio tx ";
 const char* const RN2483_CMD_RX = "radio rx ";
 const char* const RN2483_CMD_SNR = "radio get snr\r\n";
 const char* const RN2483_CMD_RSSI = "radio get rssi\r\n";
+const char* const RN2483_CMD_RXSTOP = "radio rxstop\r\n";
 
 const char* const RN2483_CMD_SET_PINMODE = "sys set pinmode ";
 const char* const RN2483_CMD_SET_PINDIG = "sys set pindig ";
@@ -243,6 +245,23 @@ static uint8_t handle_state (struct rn2483_desc_t *inst, const char *out_buffer,
         inst->waiting_for_line = inst->out_pos == strlen(out_buffer);
         return 1;
     }
+}
+
+/**
+ *  Get the first pointer into an RN2483 instancex buffer where a word can be
+ *  stored.
+ *
+ *  @param inst The RN2483 driver instance
+ */
+static uint32_t *get_word_ptr (struct rn2483_desc_t *inst)
+{
+    char *buffer = inst->buffer;
+    // Get the first 4 byte alligned pointer out of the buffer
+    while ((uintptr_t)buffer & 0b11) {
+        buffer++;
+    }
+    // Convince the compiler that we alligned the pointer correctly and return
+    return __builtin_assume_aligned(buffer, 4);
 }
 
 
@@ -548,6 +567,13 @@ static int rn2483_case_idle (struct rn2483_desc_t *inst)
         // Handle next state right away
         return 1;
     }
+    
+    /* Start a reception if continuous receiving is enabled */
+    if (inst->receive) {
+        inst->state = RN2483_RECEIVE;
+        return 1;
+    }
+    
     return 0;
 }
 
@@ -584,15 +610,43 @@ static int rn2483_case_send_wait (struct rn2483_desc_t *inst)
 
 static int rn2483_case_receive (struct rn2483_desc_t *inst)
 {
+    // Update command if required
+    if (!inst->cmd_ready) {
+        // Create command
+        strcpy(inst->buffer, RN2483_CMD_RX);
+        size_t i = strlen(RN2483_CMD_RX);
+        if (inst->version >= RN2483_MIN_FW_RXSTOP) {
+            // If we support rxstop we can start receiving indefinitely
+            utoa(0, inst->buffer + i, 10);
+        } else {
+            // If we do not support rxstop we need to use a window
+            utoa(RN2483_RX_WINDOW_SIZE, inst->buffer + i, 10);
+        }
+        i = strlen(inst->buffer);
+        *(inst->buffer + i + 0) = '\r';
+        *(inst->buffer + i + 1)  = '\n';
+        *(inst->buffer + i + 2)  = '\0';
+        inst->cmd_ready = 1;
+    }
+    // Record whether we need to stop receiving right away (if possible) when we
+    // get the first response to the receive command
+    uint8_t abort = inst->state == RN2483_RECEIVE_ABORT;
     // Handle writing of command and reception of response
     if (!handle_state(inst, inst->buffer, RN2483_RSP_OK, RN2483_RSP_OK_LEN,
                       RN2483_RECEIVE_WAIT)) {
-        // Got first response to receive command
-        // Receive has started, wait for the second response
-        inst->waiting_for_line = 1;
+        if (abort && (inst->version >= RN2483_MIN_FW_RXSTOP)) {
+            // We need to stop receiving right away
+            inst->state = RN2483_RXSTOP;
+            return 1;
+        } else {
+            // Got first response to receive command
+            // Receive has started, wait for the second response
+            inst->waiting_for_line = 1;
+        }
     } else if (inst->state == RN2483_FAILED) {
         // Receive failed
         inst->receive_callback(inst, inst->callback_context, NULL, 0, 0, 0);
+        inst->receive = 0;
         // Go back to idle
         inst->state = RN2483_IDLE;
     }
@@ -605,9 +659,16 @@ static int rn2483_case_receive_wait (struct rn2483_desc_t *inst)
                      RN2483_GET_SNR)) {
         if (inst->state == RN2483_FAILED) {
             // Receive timed out
-            inst->receive_callback(inst, inst->callback_context, NULL, 0, 0, 0);
+            if (!inst->receive) {
+                // This is a one-off receive, notify caller that receive failed
+                inst->receive_callback(inst, inst->callback_context, NULL, 0, 0,
+                                       0);
+            }
             // Go back to idle
             inst->state = RN2483_IDLE;
+            // Could be ready to send another command or start receiving again
+            // right away, continue directly to next state
+            return 1;
         }
         return 0;
     }
@@ -673,6 +734,73 @@ static int rn2483_case_get_rssi (struct rn2483_desc_t *inst)
     uintptr_t len = (uintptr_t)b - (uintptr_t)inst->buffer;
     inst->receive_callback(inst, inst->callback_context, (uint8_t*)inst->buffer,
                            len, snr, rssi);
+    
+    // Receive is finished
+    inst->receive = 0;
+    
+    return 1;
+}
+
+static int rn2483_case_rxstop (struct rn2483_desc_t *inst)
+{
+    // Make note of whether we need to continue on to get the SNR once we have
+    // gotten the ok response from the rxstop command
+    uint8_t recieved = inst->state == RN2483_RXSTOP_RECEIVED;
+    
+    // Send rxstop command and get response
+    if (handle_state(inst, RN2483_CMD_RXSTOP, RN2483_RSP_OK, 0, RN2483_IDLE)) {
+        return 0;
+    }
+    
+    // Check reponse
+    if (!strncmp(inst->buffer, RN2483_RSP_OK, RN2483_RSP_OK_LEN)) {
+        // Got ok response from rxstop command
+        if (recieved) {
+            // Need to parse received data
+            inst->state = RN2483_GET_SNR;
+        } else {
+            // Need to get the error response to rx command
+            inst->state = RN2483_RXSTOP_GET_ERROR;
+            // Store current time so we know how long to wait for
+            *get_word_ptr(inst) = millis;
+        }
+    } else if (!strncmp(inst->buffer, RN2483_RSP_RX_OK, RN2483_RSP_RX_OK_LEN)) {
+        // Received a packet
+        // We still need to get the ok response to the rxstop command before we
+        // can continue on to parsing the received data
+        inst->state = RN2483_RXSTOP_RECEIVED;
+        inst->waiting_for_line = 1;
+    } else {
+        // Receive failed
+        // We still need to get the ok response to the rxstop command
+        inst->state = RN2483_RXSTOP;
+        inst->waiting_for_line = 1;
+    }
+    
+    return 1;
+}
+
+static int rn2483_case_rxstop_get_error (struct rn2483_desc_t *inst)
+{
+    if (sercom_uart_has_line(inst->uart)) {
+        // Get the received line
+        sercom_uart_get_line(inst->uart, inst->buffer, RN2483_BUFFER_LEN);
+        
+        if (!strncmp(inst->buffer, RN2483_RSP_RX_ERR, RN2483_RSP_RX_ERR_LEN)) {
+            // Got error response
+            inst->state = RN2483_IDLE;
+            return 1;
+        } else {
+            // Got something unexpected
+            inst->state = RN2483_FAILED;
+            return 0;
+        }
+    } else if ((millis - *get_word_ptr(inst)) > RN2483_RXSTOP_WAIT_TIME) {
+        // Done waiting for error
+        inst->state = RN2483_IDLE;
+        return 1;
+    }
+    
     return 0;
 }
 
@@ -787,28 +915,32 @@ static int rn2483_case_failed (struct rn2483_desc_t *inst)
 // MARK: State Handlers Table
 
 const rn2483_stat_handler_t rn2483_state_handlers[] = {
-    rn2483_case_reset,          // RN2483_RESET
-    rn2483_case_write_wdt,      // RN2483_WRITE_WDT
-    rn2483_case_pause_mac,      // RN2483_PAUSE_MAC
-    rn2483_case_write_mode,     // RN2483_WRITE_MODE
-    rn2483_case_write_freq,     // RN2483_WRITE_FREQ
-    rn2483_case_write_pwr,      // RN2483_WRITE_PWR
-    rn2483_case_write_sf,       // RN2483_WRITE_SF
-    rn2483_case_write_crc,      // RN2483_WRITE_CRC
-    rn2483_case_write_iqi,      // RN2483_WRITE_IQI
-    rn2483_case_write_cr,       // RN2483_WRITE_CR
-    rn2483_case_write_sync,     // RN2483_WRITE_SYNC
-    rn2483_case_write_bw,       // RN2483_WRITE_BW
-    rn2483_case_idle,           // RN2483_IDLE
-    rn2483_case_send,           // RN2483_SEND
-    rn2483_case_send_wait,      // RN2483_SEND_WAIT
-    rn2483_case_receive,        // RN2483_RECEIVE
-    rn2483_case_receive_wait,   // RN2483_RECEIVE_WAIT
-    rn2483_case_get_snr,        // RN2483_GET_SNR
-    rn2483_case_get_rssi,       // RN2483_GET_RSSI
-    rn2483_case_set_pin_mode,   // RN2483_SET_PIN_MODE
-    rn2483_case_set_pindig,     // RN2483_SET_PINDIG
-    rn2483_case_get_pin_value,  // RN2483_GET_PIN_VALUE
-    rn2483_case_failed          // RN2483_FAILED
+    rn2483_case_reset,              // RN2483_RESET
+    rn2483_case_write_wdt,          // RN2483_WRITE_WDT
+    rn2483_case_pause_mac,          // RN2483_PAUSE_MAC
+    rn2483_case_write_mode,         // RN2483_WRITE_MODE
+    rn2483_case_write_freq,         // RN2483_WRITE_FREQ
+    rn2483_case_write_pwr,          // RN2483_WRITE_PWR
+    rn2483_case_write_sf,           // RN2483_WRITE_SF
+    rn2483_case_write_crc,          // RN2483_WRITE_CRC
+    rn2483_case_write_iqi,          // RN2483_WRITE_IQI
+    rn2483_case_write_cr,           // RN2483_WRITE_CR
+    rn2483_case_write_sync,         // RN2483_WRITE_SYNC
+    rn2483_case_write_bw,           // RN2483_WRITE_BW
+    rn2483_case_idle,               // RN2483_IDLE
+    rn2483_case_send,               // RN2483_SEND
+    rn2483_case_send_wait,          // RN2483_SEND_WAIT
+    rn2483_case_receive,            // RN2483_RECEIVE
+    rn2483_case_receive,            // RN2483_RECEIVE_ABORT
+    rn2483_case_receive_wait,       // RN2483_RECEIVE_WAIT
+    rn2483_case_get_snr,            // RN2483_GET_SNR
+    rn2483_case_get_rssi,           // RN2483_GET_RSSI
+    rn2483_case_rxstop,             // RN2483_RXSTOP
+    rn2483_case_rxstop,             // RN2483_RXSTOP_RECEIVED
+    rn2483_case_rxstop_get_error,   // RN2483_RXSTOP_GET_ERROR
+    rn2483_case_set_pin_mode,       // RN2483_SET_PIN_MODE
+    rn2483_case_set_pindig,         // RN2483_SET_PINDIG
+    rn2483_case_get_pin_value,      // RN2483_GET_PIN_VALUE
+    rn2483_case_failed              // RN2483_FAILED
 };
 

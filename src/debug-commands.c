@@ -1250,12 +1250,12 @@ static void debug_radio_count (uint8_t argc, char **argv,
 
 #define DEBUG_RADIO_RECV_NAME  "radio-receive"
 #define DEBUG_RADIO_RECV_HELP  "Receive a message with the RN2483 radio.\n"\
-                               "Usage: radio-receive [count] [window]"
+                               "Usage: radio-receive [count] [timeout]"
 
-struct radio_recv_context {
+static struct radio_recv_context {
     struct console_desc_t *console;
     uint8_t receive_complete:1;
-};
+} debug_radio_rx_context;
 
 static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
                                        void *context, uint8_t *data,
@@ -1277,7 +1277,7 @@ static void debug_radio_recv_callback (struct rn2483_desc_t *inst,
         console_send_str(c->console, "\n");
     } else {
         // Did not receive any data
-        console_send_str(c->console, "Did not receive data within window.\n");
+        console_send_str(c->console, "Receive failed.\n");
     }
     c->receive_complete = 1;
 }
@@ -1292,7 +1292,7 @@ static void debug_radio_recv (uint8_t argc, char **argv,
 #endif
     
     uint32_t count = 1;
-    uint32_t window = 500;
+    uint32_t timeout = 5000;
     
     char *end;
     if (argc > 3) {
@@ -1306,30 +1306,35 @@ static void debug_radio_recv (uint8_t argc, char **argv,
         }
         
         if (argc == 3) {
-            window = strtoul(argv[2], &end, 0);
+            timeout = strtoul(argv[2], &end, 0);
             if (*end != '\0') {
-                console_send_str(console, "Invalid window.\n");
+                console_send_str(console, "Invalid timeout.\n");
                 return;
             }
         }
     }
     
-    struct radio_recv_context context;
-    context.console = console;
+    debug_radio_rx_context.console = console;
     
     for (uint32_t i = 0; (i < count) || (count == 0); i++) {
-        enum rn2483_operation_result result =  rn2483_receive(&rn2483_g, window,
+        enum rn2483_operation_result result =  rn2483_receive(&rn2483_g,
                                                     debug_radio_recv_callback,
-                                                              &context);
+                                                    &debug_radio_rx_context);
         
         if (result == RN2483_OP_BUSY) {
             console_send_str(console, "Radio busy.\n");
             break;
         } else {
-            context.receive_complete = 0;
-            while (!context.receive_complete) {
+            debug_radio_rx_context.receive_complete = 0;
+            uint32_t start_time = millis;
+            while (!debug_radio_rx_context.receive_complete &&
+                   ((timeout == 0) || ((millis - start_time) < timeout))) {
                 wdt_pat();
                 rn2483_service(&rn2483_g);
+            }
+            if (!debug_radio_rx_context.receive_complete) {
+                console_send_str(console, "Timeout expired.\n");
+                rn2483_receive_stop(&rn2483_g);
             }
         }
     }

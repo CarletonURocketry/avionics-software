@@ -120,31 +120,55 @@ enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
 }
 
 enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
-                                             uint32_t window_size,
                                              rn2483_recv_callback callback,
                                              void *context)
 {
-    if (inst->state != RN2483_IDLE) {
+    if (inst->receive) {
+        // If we are already receiving return busy
         return RN2483_OP_BUSY;
+    } else if (inst->state == RN2483_FAILED) {
+        return RN2483_OP_BAD_STATE;
     }
     
     // Store receive callback
     inst->receive_callback = callback;
     inst->callback_context = context;
     
-    // Create command
-    strcpy(inst->buffer, RN2483_CMD_RX);
-    size_t i = strlen(RN2483_CMD_RX);
-    utoa(window_size, inst->buffer + i, 10);
-    i = strlen(inst->buffer);
-    *(inst->buffer + i + 0) = '\r';
-    *(inst->buffer + i + 1)  = '\n';
-    *(inst->buffer + i + 2)  = '\0';
-    inst->cmd_ready = 1;
-    
-    // Set state and start receive command
-    inst->state = RN2483_RECEIVE;
+    // Enable continuous receive and run service to start receiving if possible
+    inst->receive = 1;
     rn2483_service(inst);
+    
+    return RN2483_OP_SUCCESS;
+}
+
+enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
+{
+    if (!inst->receive && (inst->state != RN2483_RECEIVE) &&
+        (inst->state != RN2483_RECEIVE_WAIT)) {
+        // No receive to cancel
+        return RN2483_OP_BAD_STATE;
+    } else if (inst->state == RN2483_FAILED) {
+        return RN2483_OP_BAD_STATE;
+    }
+    
+    // Disable continuous receive
+    inst->receive = 0;
+    
+    if (inst->state == RN2483_RECEIVE) {
+        // We are in the process of sending the receive command or are waiting
+        // for the first response to the receive command, we need to indicate
+        // that we should abort the receive (if possible) as soon as we are done
+        // starting it
+        inst->state = RN2483_RECEIVE_ABORT;
+    } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
+               (inst->state == RN2483_RECEIVE_WAIT)) {
+        // rxstop command is supported and we are in receive wait, we should
+        // cancle the ongoing reception
+        inst->state = RN2483_RXSTOP;
+        inst->waiting_for_line = 0;
+        
+        rn2483_service(inst);
+    }
     
     return RN2483_OP_SUCCESS;
 }

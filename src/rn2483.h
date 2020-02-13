@@ -50,9 +50,13 @@ enum rn2483_state {
     RN2483_SEND,
     RN2483_SEND_WAIT,
     RN2483_RECEIVE,
+    RN2483_RECEIVE_ABORT,
     RN2483_RECEIVE_WAIT,
     RN2483_GET_SNR,
     RN2483_GET_RSSI,
+    RN2483_RXSTOP,
+    RN2483_RXSTOP_RECEIVED,
+    RN2483_RXSTOP_GET_ERROR,
     RN2483_SET_PIN_MODE,
     RN2483_SET_PINDIG,
     RN2483_GET_PIN_VALUE,
@@ -68,7 +72,9 @@ enum rn2483_operation_result {
     /** Radio is busy */
     RN2483_OP_BUSY,
     /** Data size is too long */
-    RN2483_OP_TOO_LONG
+    RN2483_OP_TOO_LONG,
+    /** Radio driver cannot start operation from its current state */
+    RN2483_OP_BAD_STATE
 };
 
 
@@ -177,30 +183,12 @@ typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
 struct rn2483_desc_t {
     /** UART instance to which the radio is connected */
     struct sercom_uart_desc_t *uart;
+    
     /** Callback function to be called when data is received */
     rn2483_recv_callback receive_callback;
+    
     /** Context variable for callback */
     void *callback_context;
-    
-    /** Radio configuration information */
-    struct {
-        /** Centre frequency */
-        uint32_t freq;
-        /** Sync word */
-        uint8_t sync_byte;
-        /** Power level  */
-        int8_t power;
-        /** LoRa spreading factor */
-        enum rn2483_sf spreading_factor:3;
-        /** LoRa coding rate */
-        enum rn2483_cr coding_rate:2;
-        /** Bandwidth */
-        enum rn2483_bw bandwidth:2;
-        /** Whether a CRC should be added to the data */
-        uint8_t crc:1;
-        /** Whether the I and Q streams should be inverted */
-        uint8_t invert_qi:1;
-    } settings;
     
     /** Stores the last time at which the GPIO registers where polled */
     uint32_t last_polled;
@@ -216,19 +204,39 @@ struct rn2483_desc_t {
             /** Mode for this pin */
             enum rn2483_pin_mode mode:2;
             /** Indicates whether the mode for this pin has been changes since
-             it was last written to the module */
+                it was last written to the module */
             uint16_t mode_dirty:1;
             /** Indicates whether the locally cached value for this pin needs to
-             be updated from the module (for an input) or written to the
-             module (for an output) */
+                be updated from the module (for an input) or written to the
+                module (for an output) */
             uint16_t value_dirty:1;
             /** Indicates whether the mode for this pin has been explicitly set,
-             which would indicate that application code cares about this pin
-             and if it is an input it should be polled automatically */
+                which would indicate that application code cares about this pin
+                and if it is an input it should be polled automatically */
             uint16_t mode_explicit:1;
         };
         uint16_t raw;
-    }pins[RN2483_NUM_PINS];
+    } pins[RN2483_NUM_PINS];
+    
+    /** Radio configuration information */
+    struct {
+        /** Centre frequency */
+        uint32_t freq:31;
+        /** Whether the I and Q streams should be inverted */
+        uint32_t invert_qi:1;
+        /** Sync word */
+        uint8_t sync_byte;
+        /** Power level  */
+        int8_t power;
+        /** LoRa spreading factor */
+        enum rn2483_sf spreading_factor:3;
+        /** LoRa coding rate */
+        enum rn2483_cr coding_rate:2;
+        /** Bandwidth */
+        enum rn2483_bw bandwidth:2;
+        /** Whether a CRC should be added to the data */
+        uint8_t crc:1;
+    } settings;
     
     /** Buffer used for marshaling commands and receiving responses */
     char buffer[RN2483_BUFFER_LEN];
@@ -243,10 +251,13 @@ struct rn2483_desc_t {
     /** Current state of driver */
     enum rn2483_state state:5;
     /** Whether a new line needs to be received before the driver can
-     continue */
+        continue */
     uint8_t waiting_for_line:1;
     /** Whether the command to be sent next has been marshaled */
     uint8_t cmd_ready:1;
+    /** Whether the radio should retrun to receiving after sending any other
+        command */
+    uint8_t receive:1;
 };
 
 /**
@@ -291,19 +302,32 @@ extern enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
                                                  uint8_t length);
 
 /**
- *  Receive data from radio.
+ *  Start receiving data from radio. Radio will be put into receive mode
+ *  whenever another operation is not in progess until a packet has been
+ *  received.
  *
  *  @param inst Driver instance
- *  @param window_size Length of receive window in symbols, 0 for indefinite
  *  @param callback Function to be called when data is received
  *  @param context Context variable to be provided to callback
  *
- *  @return Operation status
+ *  @return RN2483_OP_SUCCESS on success, RN2483_OP_BUSY if the radio is already
+ *          receiving or RN2483_OP_BAD_STATE if the radio driver is in a failed
+ *          state
  */
 extern enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
-                                                    uint32_t window_size,
                                                     rn2483_recv_callback callback,
                                                     void *context);
+
+/**
+ *  Cancel an ongoing receive operation.
+ *
+ *  @param inst Driver instance
+ *
+ *  @return RN2483_OP_SUCCESS if operation is being cancled, RN2483_OP_BAD_STATE
+ *          if radio is not currently receiving or if radio driver is in a
+ *          failed state
+ */
+enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst);
 
 /**
  *  Poll the radio modules for updates on any pins which have been set as

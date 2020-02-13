@@ -30,7 +30,7 @@ static void ground_radio_recv_callback (struct rn2483_desc_t *inst,
         console_send_bytes(ground_console_g, data, length);
         console_send_bytes(ground_console_g, (uint8_t*)&snr, 1);
     }
-    ground_op_status_g =  rn2483_receive(ground_radio_g, 0,
+    ground_op_status_g =  rn2483_receive(ground_radio_g,
                                          ground_radio_recv_callback, NULL);
 }
 
@@ -47,7 +47,7 @@ void init_ground_service(struct console_desc_t *out_console,
     ground_radio_g = radio;
     ready_to_send_g = 0;
     
-    ground_op_status_g = rn2483_receive(ground_radio_g, 0,
+    ground_op_status_g = rn2483_receive(ground_radio_g,
                                         ground_radio_recv_callback, NULL);
     
     console_set_init_callback(ground_console_g, console_ready, NULL);
@@ -56,7 +56,7 @@ void init_ground_service(struct console_desc_t *out_console,
 void ground_service (void)
 {
     if (ground_op_status_g != RN2483_OP_SUCCESS) {
-        ground_op_status_g = rn2483_receive(ground_radio_g, 0,
+        ground_op_status_g = rn2483_receive(ground_radio_g,
                                             ground_radio_recv_callback, NULL);
     }
 }
