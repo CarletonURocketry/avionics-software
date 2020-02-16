@@ -143,6 +143,22 @@ enum rn2483_pin_mode {
 };
 
 /**
+ *  State of a send transaction
+ */
+enum rn2483_send_trans_state {
+    /** This transaction is not valid */
+    RN2483_SEND_TRANS_INVALID,
+    /** The data had not yet been send to the radio */
+    RN2483_SEND_TRANS_PENDING,
+    /** Data has been sent to radio (buffer is no longer needed) */
+    RN2483_SEND_TRANS_WRITTEN,
+    /** Radio has transmitted data */
+    RN2483_SEND_TRANS_DONE,
+    /** Radio has failed to transmit data */
+    RN2483_SEND_TRANS_FAILED
+};
+
+/**
  *  Type for callback function used for receiving data.
  */
 typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
@@ -177,6 +193,10 @@ typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
                                  | (((uint16_t)r << RN2483_VER_NUM_REV_POS)\
                                                 & RN2483_VER_NUM_REV_MASK))
 
+#define RN2483_SEND_TRANSACTION_SIZE    3
+#define RN2483_NUM_SEND_TRANSACTIONS    3
+#define RN2483_SEND_TRANSACTION_MASK    ((1 << 3) - 1)
+
 /**
  *  Descriptor for RN2483 radio module driver instance.
  */
@@ -190,33 +210,11 @@ struct rn2483_desc_t {
     /** Context variable for callback */
     void *callback_context;
     
+    /** Pointer to buffer of data to be send */
+    const uint8_t *send_buffer;
+    
     /** Stores the last time at which the GPIO registers where polled */
     uint32_t last_polled;
-    
-    /** Module firmware version*/
-    uint16_t version;
-    
-    /** Cache for GPIO pin states */
-    union {
-        struct {
-            /** The digital or analog value for this pin */
-            uint16_t value:10;
-            /** Mode for this pin */
-            enum rn2483_pin_mode mode:2;
-            /** Indicates whether the mode for this pin has been changes since
-                it was last written to the module */
-            uint16_t mode_dirty:1;
-            /** Indicates whether the locally cached value for this pin needs to
-                be updated from the module (for an input) or written to the
-                module (for an output) */
-            uint16_t value_dirty:1;
-            /** Indicates whether the mode for this pin has been explicitly set,
-                which would indicate that application code cares about this pin
-                and if it is an input it should be polled automatically */
-            uint16_t mode_explicit:1;
-        };
-        uint16_t raw;
-    } pins[RN2483_NUM_PINS];
     
     /** Radio configuration information */
     struct {
@@ -241,6 +239,37 @@ struct rn2483_desc_t {
     /** Buffer used for marshaling commands and receiving responses */
     char buffer[RN2483_BUFFER_LEN];
     
+    /** Cache for GPIO pin states */
+    union {
+        struct {
+            /** The digital or analog value for this pin */
+            uint16_t value:10;
+            /** Mode for this pin */
+            enum rn2483_pin_mode mode:2;
+            /** Indicates whether the mode for this pin has been changes since
+             it was last written to the module */
+            uint16_t mode_dirty:1;
+            /** Indicates whether the locally cached value for this pin needs to
+             be updated from the module (for an input) or written to the
+             module (for an output) */
+            uint16_t value_dirty:1;
+            /** Indicates whether the mode for this pin has been explicitly set,
+             which would indicate that application code cares about this pin
+             and if it is an input it should be polled automatically */
+            uint16_t mode_explicit:1;
+        };
+        uint16_t raw;
+    } pins[RN2483_NUM_PINS];
+    
+    /** Module firmware version*/
+    uint16_t version;
+    
+    /** Information about send transactions */
+    uint16_t send_transactions:9;
+    
+    /** Length of data in send buffer */
+    uint16_t send_length:7;
+    
     /** Pointer for sending commands over multiple calls to service if UART
      buffer becomes full */
     uint8_t out_pos;
@@ -255,7 +284,7 @@ struct rn2483_desc_t {
     uint8_t waiting_for_line:1;
     /** Whether the command to be sent next has been marshaled */
     uint8_t cmd_ready:1;
-    /** Whether the radio should retrun to receiving after sending any other
+    /** Whether the radio should return to receiving after sending any other
         command */
     uint8_t receive:1;
 };
@@ -294,16 +323,39 @@ extern void rn2483_service (struct rn2483_desc_t *inst);
  *  @param inst Driver instance
  *  @param data The data to be sent
  *  @param length The number of bytes to be sent
+ *  @param transaction_id Pointer to where transaction ID should be stored
  *
  *  @return Operation status
  */
 extern enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
                                                  const uint8_t *data,
-                                                 uint8_t length);
+                                                 uint8_t length,
+                                                 uint8_t *transaction_id);
+
+/**
+ *  Get the current state of a send transaction.
+ *
+ *  @param inst Driver instance
+ *  @param transaction_id ID of transaction for which state should be found
+ *
+ *  @return The state of the transaction
+ */
+extern enum rn2483_send_trans_state rn2483_get_send_state (
+                                                    struct rn2483_desc_t *inst,
+                                                    uint8_t transaction_id);
+
+/**
+ *  Clear an entry in the send transaction table.
+ *
+ *  @param inst Driver instance
+ *  @param transaction_id ID of transaction to be cleared
+ */
+extern void rn2483_clear_send_transaction (struct rn2483_desc_t *inst,
+                                           uint8_t transaction_id);
 
 /**
  *  Start receiving data from radio. Radio will be put into receive mode
- *  whenever another operation is not in progess until a packet has been
+ *  whenever another operation is not in progress until a packet has been
  *  received.
  *
  *  @param inst Driver instance
@@ -323,7 +375,7 @@ extern enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
  *
  *  @param inst Driver instance
  *
- *  @return RN2483_OP_SUCCESS if operation is being cancled, RN2483_OP_BAD_STATE
+ *  @return RN2483_OP_SUCCESS if operation is being canceled, RN2483_OP_BAD_STATE
  *          if radio is not currently receiving or if radio driver is in a
  *          failed state
  */

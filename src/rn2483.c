@@ -19,7 +19,7 @@
                                  (1<<RN2483_GPIO7)  | (1<<RN2483_GPIO8)  | \
                                  (1<<RN2483_GPIO9)  | (1<<RN2483_GPIO10) | \
                                  (1<<RN2483_GPIO11) | (1<<RN2483_GPIO12) | \
-(1<<RN2483_GPIO13))
+                                 (1<<RN2483_GPIO13))
 #define RN2483_PIN_SUPPORTS_ANA(x) (RN2483_ANALOG_PINS_MASK & (1<<x))
 
 
@@ -83,40 +83,68 @@ void rn2483_service (struct rn2483_desc_t *inst)
 }
 
 enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
-                                          uint8_t const *data, uint8_t length)
+                                          uint8_t const *data, uint8_t length,
+                                          uint8_t *transaction_id)
 {
-    if (inst->state != RN2483_IDLE) {
+    // Check that we are not already sending something and for message length
+    if (inst->send_buffer != NULL) {
         return RN2483_OP_BUSY;
-    } else if (length > ((RN2483_BUFFER_LEN - (strlen(RN2483_CMD_TX) + 2))
-                         / 2)) {
+    } else if (length > ((RN2483_BUFFER_LEN - (RN2483_CMD_TX_LEN + 2)) / 2)) {
         // Message is too large to be sent
         return RN2483_OP_TOO_LONG;
     }
     
-    // Create command
-    strcpy(inst->buffer, RN2483_CMD_TX);
-    char *insert_point = inst->buffer + strlen(RN2483_CMD_TX);
-    
-    for (uint8_t i = 0; i < length; i++) {
-        if (data[i] < 16) {
-            *insert_point = '0';
-            utoa(data[i], insert_point + 1, 16);
-        } else {
-            utoa(data[i], insert_point, 16);
-        }
-        insert_point = inst->buffer + strlen(inst->buffer);
+    // Check for an open transaction slot
+    uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_INVALID);\
+    if (id == RN2483_NUM_SEND_TRANSACTIONS) {
+        return RN2483_OP_BUSY;
     }
     
-    *insert_point = '\r';
-    *(insert_point + 1) = '\n';
-    *(insert_point + 2) = '\0';
-    inst->cmd_ready = 1;
+    // Get transaction ready
+    *transaction_id = id;
     
-    // Set state and start sending command
-    inst->state = RN2483_SEND;
+    inst->send_buffer = data;
+    inst->send_length = length;
+    
+    set_send_trans_state(inst, id, RN2483_SEND_TRANS_PENDING);
+    
+    if (inst->state == RN2483_IDLE) {
+        // If we are idle, jump right to send state
+        inst->state = RN2483_SEND;
+    } else if (inst->state == RN2483_RECEIVE) {
+        // We are in the process of sending the receive command or are waiting
+        // for the first response to the receive command, we need to indicate
+        // that we should abort the receive (if possible) as soon as we are done
+        // starting it
+        inst->state = RN2483_RECEIVE_ABORT;
+    } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
+               (inst->state == RN2483_RECEIVE_WAIT)) {
+        // rxstop command is supported and we are in receive wait, we should
+        // cancel the ongoing reception
+        inst->state = RN2483_RXSTOP;
+        inst->waiting_for_line = 0;
+    }
+    
+    // Start sending right away if possible
     rn2483_service(inst);
     
     return RN2483_OP_SUCCESS;
+}
+
+enum rn2483_send_trans_state rn2483_get_send_state (struct rn2483_desc_t *inst,
+                                                    uint8_t transaction_id)
+{
+    unsigned int offset = (RN2483_SEND_TRANSACTION_SIZE * transaction_id);
+    uint16_t state = ((inst->send_transactions >> offset) &
+                      RN2483_SEND_TRANSACTION_MASK);
+    
+    return (enum rn2483_send_trans_state)state;
+}
+
+void rn2483_clear_send_transaction (struct rn2483_desc_t *inst,
+                                    uint8_t transaction_id)
+{
+    set_send_trans_state(inst, transaction_id, RN2483_SEND_TRANS_INVALID);
 }
 
 enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
@@ -163,7 +191,7 @@ enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
     } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
                (inst->state == RN2483_RECEIVE_WAIT)) {
         // rxstop command is supported and we are in receive wait, we should
-        // cancle the ongoing reception
+        // cancel the ongoing reception
         inst->state = RN2483_RXSTOP;
         inst->waiting_for_line = 0;
         

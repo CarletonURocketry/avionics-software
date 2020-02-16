@@ -7,9 +7,10 @@
  * Last Edited On:
  */
 
-
 #ifndef rn2483_states_h
 #define rn2483_states_h
+
+#include "rn2483.h"
 
 
 /** Minimum firmware version supported by driver */
@@ -19,6 +20,8 @@
 /** Minimum firmware version which supports radio get rssi command */
 #define RN2483_MIN_FW_RSSI RN2483_VERSION(1, 0, 5)
 
+
+#define RN2483_CMD_TX_LEN 9
 
 
 typedef int (*rn2483_stat_handler_t)(struct rn2483_desc_t *inst);
@@ -31,32 +34,12 @@ typedef int (*rn2483_stat_handler_t)(struct rn2483_desc_t *inst);
  */
 extern const rn2483_stat_handler_t rn2483_state_handlers[];
 
+/** Set the current state of a transaction entry */
+extern void set_send_trans_state(struct rn2483_desc_t *inst, int n,
+                                 enum rn2483_send_trans_state state);
 
-
-extern const char* const RN2483_CMD_RESET;
-extern const char* const RN2483_CMD_WDT;
-extern const char* const RN2483_CMD_PAUSE_MAC;
-
-extern const char* const RN2483_CMD_MODE;
-extern const char* const RN2483_CMD_FREQ;
-extern const char* const RN2483_CMD_PWR;
-extern const char* const RN2483_CMD_SF;
-extern const char* const RN2483_CMD_CRC;
-extern const char* const RN2483_CMD_IQI;
-extern const char* const RN2483_CMD_CR;
-extern const char* const RN2483_CMD_SYNC;
-extern const char* const RN2483_CMD_BW;
-
-extern const char* const RN2483_CMD_TX;
-extern const char* const RN2483_CMD_RX;
-extern const char* const RN2483_CMD_SNR;
-extern const char* const RN2483_CMD_RSSI;
-extern const char* const RN2483_CMD_RXSTOP;
-
-extern const char* const RN2483_CMD_SET_PINMODE;
-extern const char* const RN2483_CMD_SET_PINDIG;
-extern const char* const RN2483_CMD_GET_PINDIG;
-extern const char* const RN2483_CMD_GET_PINANA;
-
+/** Find the first send transaction with a given state */
+extern uint8_t find_send_trans(struct rn2483_desc_t *inst,
+                               enum rn2483_send_trans_state state);
 
 #endif /* rn2483_states_h */

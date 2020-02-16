@@ -1155,6 +1155,39 @@ static void debug_lora_version (uint8_t argc, char **argv,
 #define DEBUG_RADIO_SEND_HELP  "Send a message via the RN2483 radio.\n"\
                                "Usage: radio-send <message>\n"
 
+static void do_radio_send (uint8_t *data, uint8_t length,
+                           struct console_desc_t *console)
+{
+    uint8_t t_id;
+    enum rn2483_operation_result result = rn2483_send(&rn2483_g, data, length,
+                                                      &t_id);
+    
+    if (result == RN2483_OP_SUCCESS) {
+        console_send_str(console, "Sending...");
+    } else if (result == RN2483_OP_BUSY) {
+        console_send_str(console, "Radio busy.\n");
+    } else if (result == RN2483_OP_TOO_LONG) {
+        console_send_str(console, "String too long to send.\n");
+    }
+    
+    for (;;) {
+        rn2483_service(&rn2483_g);
+        
+        enum rn2483_send_trans_state state = rn2483_get_send_state(&rn2483_g,
+                                                                   t_id);
+        
+        if (state == RN2483_SEND_TRANS_DONE) {
+            console_send_str(console, " done.\n");
+            break;
+        } else if (state == RN2483_SEND_TRANS_FAILED) {
+            console_send_str(console, " failed.\n");
+            break;
+        }
+    }
+    
+    rn2483_clear_send_transaction(&rn2483_g, t_id);
+}
+
 static void debug_radio_send (uint8_t argc, char **argv,
                               struct console_desc_t *console)
 {
@@ -1172,17 +1205,7 @@ static void debug_radio_send (uint8_t argc, char **argv,
         return;
     }
     
-    enum rn2483_operation_result result = rn2483_send(&rn2483_g,
-                                                      (uint8_t*)argv[1],
-                                                      strlen(argv[1]) + 1);
-    
-    if (result == RN2483_OP_SUCCESS) {
-        console_send_str(console, "Sending.\n");
-    } else if (result == RN2483_OP_BUSY) {
-        console_send_str(console, "Radio busy.\n");
-    } else if (result == RN2483_OP_TOO_LONG) {
-        console_send_str(console, "String too long to send.\n");
-    }
+    do_radio_send((uint8_t*)argv[1], strlen(argv[1]) + 1, console);
 }
 
 #define DEBUG_RADIO_COUNT_NAME  "radio-count"
@@ -1226,19 +1249,8 @@ static void debug_radio_count (uint8_t argc, char **argv,
         uint8_t len = strlen(str);
         str[len] = '\n';
         str[len + 1] = '\0';
-        enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
-                                                           (uint8_t*)str,
-                                                           strlen(str) + 1);
         
-        if (result == RN2483_OP_SUCCESS) {
-            console_send_str(console, str);
-            console_send_str(console, "\n");
-        } else if (result == RN2483_OP_BUSY) {
-            console_send_str(console, "Radio busy.\n");
-        } else if (result == RN2483_OP_TOO_LONG) {
-            console_send_str(console, "String too long to send.\n");
-        }
-        
+        do_radio_send((uint8_t*)str, strlen(str) + 1, console);
         last_send = millis;
         
         while ((millis - last_send) < interval) {
@@ -1363,17 +1375,8 @@ static void debug_telem_test (uint8_t argc, char **argv,
     packet.payload.gps_speed = 700;
     packet.payload.gps_course = 1200;
     
-    enum rn2483_operation_result result =  rn2483_send(&rn2483_g,
-                                                       (uint8_t*)&packet,
-                                                       sizeof packet);
     
-    if (result == RN2483_OP_SUCCESS) {
-        console_send_str(console, "Sending.\n");
-    } else if (result == RN2483_OP_BUSY) {
-        console_send_str(console, "Radio busy.\n");
-    } else if (result == RN2483_OP_TOO_LONG) {
-        console_send_str(console, "String too long to send.\n");
-    }
+    do_radio_send((uint8_t*)&packet, sizeof(packet), console);
 }
 
 #define DEBUG_TELEM_PAUSE_NAME  "telem-pause"

@@ -24,6 +24,9 @@ uint8_t telemetry_paused = 0;
 
 static struct telemetry_api_frame packet_g;
 
+static uint8_t send_transaction;
+static uint8_t send_in_progress;
+
 
 void init_telemetry_service (struct rn2483_desc_t *radio,
                              struct ms5611_desc_t *altimeter,
@@ -41,6 +44,15 @@ void init_telemetry_service (struct rn2483_desc_t *radio,
 
 void telemetry_service (void)
 {
+    if (send_in_progress) {
+        if (rn2483_get_send_state(telemetry_radio_g, send_transaction) ==
+                RN2483_SEND_TRANS_PENDING) {
+            return;
+        }
+        rn2483_clear_send_transaction(telemetry_radio_g, send_transaction);
+        send_in_progress = 0;
+    }
+    
     if (((millis - last_time_g) >= rate_g) && !telemetry_paused) {
         last_time_g = millis;
         
@@ -56,6 +68,7 @@ void telemetry_service (void)
         packet_g.payload.gps_course = gnss_xa1110_descriptor.course;
         packet_g.payload.flags.gps_data_valid = gnss_xa1110_descriptor.last_fix != 0;
         
-        rn2483_send(telemetry_radio_g, (uint8_t*)(&packet_g), sizeof packet_g);
+        rn2483_send(telemetry_radio_g, (uint8_t*)(&packet_g), sizeof packet_g,
+                    &send_transaction);
     }
 }

@@ -36,31 +36,30 @@ static const char* const RN2483_RSP_RX_ERR = "radio_err";
 static const char* const RN2483_RSP_PAUSE_MAC = "4294967245";
 #define RN2483_RSP_PAUSE_MAC_LEN 10
 
+static const char* const RN2483_CMD_RESET = "sys reset\r\n";
+static const char* const RN2483_CMD_WDT = "radio set wdt 0\r\n";
+static const char* const RN2483_CMD_PAUSE_MAC = "mac pause\r\n";
 
-const char* const RN2483_CMD_RESET = "sys reset\r\n";
-const char* const RN2483_CMD_WDT = "radio set wdt 0\r\n";
-const char* const RN2483_CMD_PAUSE_MAC = "mac pause\r\n";
+static const char* const RN2483_CMD_MODE = "radio set mod lora\r\n";
+static const char* const RN2483_CMD_FREQ = "radio set freq ";
+static const char* const RN2483_CMD_PWR = "radio set pwr ";
+static const char* const RN2483_CMD_SF = "radio set sf ";
+static const char* const RN2483_CMD_CRC = "radio set crc ";
+static const char* const RN2483_CMD_IQI = "radio set iqi ";
+static const char* const RN2483_CMD_CR = "radio set cr ";
+static const char* const RN2483_CMD_SYNC = "radio set sync ";
+static const char* const RN2483_CMD_BW = "radio set bw ";
 
-const char* const RN2483_CMD_MODE = "radio set mod lora\r\n";
-const char* const RN2483_CMD_FREQ = "radio set freq ";
-const char* const RN2483_CMD_PWR = "radio set pwr ";
-const char* const RN2483_CMD_SF = "radio set sf ";
-const char* const RN2483_CMD_CRC = "radio set crc ";
-const char* const RN2483_CMD_IQI = "radio set iqi ";
-const char* const RN2483_CMD_CR = "radio set cr ";
-const char* const RN2483_CMD_SYNC = "radio set sync ";
-const char* const RN2483_CMD_BW = "radio set bw ";
+static const char* const RN2483_CMD_TX = "radio tx ";
+static const char* const RN2483_CMD_RX = "radio rx ";
+static const char* const RN2483_CMD_SNR = "radio get snr\r\n";
+static const char* const RN2483_CMD_RSSI = "radio get rssi\r\n";
+static const char* const RN2483_CMD_RXSTOP = "radio rxstop\r\n";
 
-const char* const RN2483_CMD_TX = "radio tx ";
-const char* const RN2483_CMD_RX = "radio rx ";
-const char* const RN2483_CMD_SNR = "radio get snr\r\n";
-const char* const RN2483_CMD_RSSI = "radio get rssi\r\n";
-const char* const RN2483_CMD_RXSTOP = "radio rxstop\r\n";
-
-const char* const RN2483_CMD_SET_PINMODE = "sys set pinmode ";
-const char* const RN2483_CMD_SET_PINDIG = "sys set pindig ";
-const char* const RN2483_CMD_GET_PINDIG = "sys get pindig ";
-const char* const RN2483_CMD_GET_PINANA = "sys get pinana ";
+static const char* const RN2483_CMD_SET_PINMODE = "sys set pinmode ";
+static const char* const RN2483_CMD_SET_PINDIG = "sys set pindig ";
+static const char* const RN2483_CMD_GET_PINDIG = "sys get pindig ";
+static const char* const RN2483_CMD_GET_PINANA = "sys get pinana ";
 
 static const char* const RN2483_STR_ON = "on\r\n";
 static const char* const RN2483_STR_OFF = "off\r\n";
@@ -262,6 +261,27 @@ static uint32_t *get_word_ptr (struct rn2483_desc_t *inst)
     }
     // Convince the compiler that we alligned the pointer correctly and return
     return __builtin_assume_aligned(buffer, 4);
+}
+
+void set_send_trans_state(struct rn2483_desc_t *inst, int n,
+                          enum rn2483_send_trans_state state)
+{
+    unsigned int offset = (RN2483_SEND_TRANSACTION_SIZE * n);
+    inst->send_transactions &= ~(RN2483_SEND_TRANSACTION_MASK << offset);
+    inst->send_transactions |= ((state & RN2483_SEND_TRANSACTION_MASK) <<
+                                offset);
+}
+
+uint8_t find_send_trans(struct rn2483_desc_t *inst,
+                        enum rn2483_send_trans_state state)
+{
+    uint8_t id = 0;
+    for (; id < RN2483_NUM_SEND_TRANSACTIONS; id++) {
+        if (rn2483_get_send_state(inst, id) == state) {
+            break;
+        }
+    }
+    return id;
 }
 
 
@@ -524,8 +544,11 @@ static int rn2483_case_write_bw (struct rn2483_desc_t *inst)
 
 static int rn2483_case_idle (struct rn2483_desc_t *inst)
 {
-    // If we are otherwise idle we should check to see if there are any
-    // GPIO commands that need to send
+    /* Check if we need to be sending anything */
+    if (inst->send_buffer != NULL) {
+        inst->state = RN2483_SEND;
+        return 1;
+    }
     
     /* Check if enough time has elapsed that we should mark our inputs
      dirty */
@@ -581,15 +604,89 @@ static int rn2483_case_idle (struct rn2483_desc_t *inst)
 
 static int rn2483_case_send (struct rn2483_desc_t *inst)
 {
-    // Handle writing of command and reception of response
-    if (!handle_state(inst, inst->buffer, RN2483_RSP_OK, RN2483_RSP_OK_LEN,
-                      RN2483_SEND_WAIT)) {
-        // Got first response to send command
-        // Send has started, wait for the second response
+    if (!inst->waiting_for_line) {
+        // Continue sending command
+        uint8_t cmd_len = (uint8_t)strlen(RN2483_CMD_TX);
+        uint8_t data_len = (uint8_t)inst->send_length * 2;
+        if (inst->out_pos < cmd_len) {
+            // Still sending command
+            inst->out_pos += sercom_uart_put_string(inst->uart, (RN2483_CMD_TX +
+                                                                inst->out_pos));
+            if (inst->out_pos < cmd_len) {
+                // Didn't finish sending command, uart buffer must be full
+                return 0;
+            }
+        }
+        
+        // Send data
+        while (inst->out_pos < (cmd_len + data_len)) {
+            uint8_t data_pos = inst->out_pos - cmd_len;
+            uint8_t i = data_pos / 2;
+            uint8_t shift = (data_pos & 1) ? 0 : 4;
+            
+            uint8_t data = (inst->send_buffer[i] >> shift) & 0xF;
+            char str[2];
+            str[0] = (data < 10) ? ('0' + data) : ('A' + data - 10);
+            str[1] = '\0';
+            
+            uint8_t sent = sercom_uart_put_string(inst->uart, str);
+            
+            if (sent == 0) {
+                // Character was not sent, uart buffer must be full
+                return 0;
+            }
+            
+            inst->out_pos++;
+        }
+        
+        // Sending line terminator
+        if (inst->out_pos == (cmd_len + data_len)) {
+            // Sending "\r\n"
+            inst->out_pos += sercom_uart_put_string(inst->uart, "\r\n");
+            
+            if (inst->out_pos < (cmd_len + data_len + 2)) {
+                // uart buffer must be full
+                return 0;
+            }
+        } else {
+            // Just sending "\n"
+            inst->out_pos += sercom_uart_put_string(inst->uart, "\n");
+            
+            if (inst->out_pos < (cmd_len + data_len + 2)) {
+                // uart buffer must be full
+                return 0;
+            }
+        }
+        
+        // Done sending line
         inst->waiting_for_line = 1;
-    } else if (inst->state == RN2483_FAILED) {
-        // Send failed, go back to idle
-        inst->state = RN2483_IDLE;
+        inst->send_buffer = NULL;
+        
+        // Find send transaction and update state
+        uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_PENDING);
+        set_send_trans_state(inst, id, RN2483_SEND_TRANS_WRITTEN);
+        
+        return 0;
+    } else if (sercom_uart_has_line(inst->uart)) {
+        // Clear output position for next transaction
+        inst->out_pos = 0;
+        // Get the received line
+        sercom_uart_get_line(inst->uart, inst->buffer, RN2483_BUFFER_LEN);
+        
+        if (!strncmp(inst->buffer, RN2483_RSP_OK, RN2483_RSP_OK_LEN)) {
+            // Success! Wait for second response
+            inst->state = RN2483_SEND_WAIT;
+        } else {
+            // Something went wrong, go back to idle state
+            inst->state = RN2483_IDLE;
+            // Got a response
+            inst->waiting_for_line = 0;
+            // Find transaction number for transaction to be updated
+            uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_WRITTEN);
+            // Update transaction state
+            set_send_trans_state(inst, id, RN2483_SEND_TRANS_FAILED);
+        }
+        return 1;
     }
     return 0;
 }
@@ -597,13 +694,25 @@ static int rn2483_case_send (struct rn2483_desc_t *inst)
 static int rn2483_case_send_wait (struct rn2483_desc_t *inst)
 {
     // Wait for second response and return to idle
-    handle_state(inst, inst->buffer, RN2483_RSP_TX_OK, RN2483_RSP_TX_OK_LEN,
-                 RN2483_IDLE);
-    if (inst->state == RN2483_FAILED) {
-        // Send failed, go back to idle
+    if (!handle_state(inst, inst->buffer, RN2483_RSP_TX_OK, RN2483_RSP_TX_OK_LEN,
+                      RN2483_IDLE)) {
+        // Success! Sending is complete
+        // Find transaction number for transaction to be updated
+        uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_WRITTEN);
+        // Update transaction state
+        set_send_trans_state(inst, id, RN2483_SEND_TRANS_DONE);
+    } else if (inst->state == RN2483_FAILED) {
+        // Sending failed, go back to idle
         inst->state = RN2483_IDLE;
+        // Find transaction number for transaction to be updated
+        uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_WRITTEN);
+        // Update transaction state
+        set_send_trans_state(inst, id, RN2483_SEND_TRANS_FAILED);
+    } else {
+        // Still waiting
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 // MARK: Receive State Handlers
