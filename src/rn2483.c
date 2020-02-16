@@ -82,6 +82,25 @@ void rn2483_service (struct rn2483_desc_t *inst)
     }
 }
 
+
+static void cancel_receive (struct rn2483_desc_t *inst)
+{
+    if (inst->state == RN2483_RECEIVE) {
+        // We are in the process of sending the receive command or are waiting
+        // for the first response to the receive command, we need to indicate
+        // that we should abort the receive (if possible) as soon as we are done
+        // starting it
+        inst->state = RN2483_RECEIVE_ABORT;
+    } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
+               (inst->state == RN2483_RECEIVE_WAIT)) {
+        // rxstop command is supported and we are in receive wait, we should
+        // cancel the ongoing reception
+        inst->state = RN2483_RXSTOP;
+        inst->waiting_for_line = 0;
+    }
+}
+
+
 enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
                                           uint8_t const *data, uint8_t length,
                                           uint8_t *transaction_id)
@@ -111,18 +130,9 @@ enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
     if (inst->state == RN2483_IDLE) {
         // If we are idle, jump right to send state
         inst->state = RN2483_SEND;
-    } else if (inst->state == RN2483_RECEIVE) {
-        // We are in the process of sending the receive command or are waiting
-        // for the first response to the receive command, we need to indicate
-        // that we should abort the receive (if possible) as soon as we are done
-        // starting it
-        inst->state = RN2483_RECEIVE_ABORT;
-    } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
-               (inst->state == RN2483_RECEIVE_WAIT)) {
-        // rxstop command is supported and we are in receive wait, we should
-        // cancel the ongoing reception
-        inst->state = RN2483_RXSTOP;
-        inst->waiting_for_line = 0;
+    } else {
+        // Cancel the receive operation if there is one ongoing
+        cancel_receive(inst);
     }
     
     // Start sending right away if possible
@@ -182,21 +192,11 @@ enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
     // Disable continuous receive
     inst->receive = 0;
     
-    if (inst->state == RN2483_RECEIVE) {
-        // We are in the process of sending the receive command or are waiting
-        // for the first response to the receive command, we need to indicate
-        // that we should abort the receive (if possible) as soon as we are done
-        // starting it
-        inst->state = RN2483_RECEIVE_ABORT;
-    } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
-               (inst->state == RN2483_RECEIVE_WAIT)) {
-        // rxstop command is supported and we are in receive wait, we should
-        // cancel the ongoing reception
-        inst->state = RN2483_RXSTOP;
-        inst->waiting_for_line = 0;
-        
-        rn2483_service(inst);
-    }
+    // Cancel any ongoing receive operation
+    cancel_receive(inst);
+    
+    // We may be able to continue on to a new state immediately
+    rn2483_service(inst);
     
     return RN2483_OP_SUCCESS;
 }
@@ -205,6 +205,7 @@ enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
 
 void rn2483_poll_gpio(struct rn2483_desc_t *inst)
 {
+    uint8_t dirty = 0;
     for (enum rn2483_pin pin = 0; pin < RN2483_NUM_PINS; pin++) {
         // Mark value dirty if pin has been explicitly set as an
         // input
@@ -212,8 +213,18 @@ void rn2483_poll_gpio(struct rn2483_desc_t *inst)
              (inst->pins[pin].mode == RN2483_PIN_MODE_ANALOG)) &&
             (inst->pins[pin].mode_explicit)) {
             inst->pins[pin].value_dirty = 1;
+            
+            dirty = 1;
         }
     }
+    
+    if (dirty) {
+        // If any pins need to be polled, cancel any ongoing receive so that we
+        // can poll the gpio right away.
+        cancel_receive(inst);
+    }
+    
+    rn2483_service(inst);
 }
 
 uint8_t rn2483_poll_gpio_in_progress(struct rn2483_desc_t *inst)
@@ -250,6 +261,9 @@ uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst, enum rn2483_pin pin,
                            RN2483_PIN_DESC_VALUE_DIRTY |
                            RN2483_PIN_DESC_MODE_EXP);
     
+    // Cancel any ongoing receive so that we update the gpio status right away.
+    cancel_receive(inst);
+    
     // Run service to start sending command to radio if possible
     rn2483_service(inst);
     
@@ -273,6 +287,8 @@ void rn2483_set_output(struct rn2483_desc_t *inst, enum rn2483_pin pin,
     // Update pin value in cache
     inst->pins[pin].value = value;
     inst->pins[pin].value_dirty = 1;
+    // Cancel any ongoing receive so that we update the gpio status right away.
+    cancel_receive(inst);
     // Run service to start sending command to radio if possible
     rn2483_service(inst);
 }
@@ -282,6 +298,8 @@ void rn2483_toggle_output(struct rn2483_desc_t *inst, enum rn2483_pin pin)
     // Update pin value in cache
     inst->pins[pin].value = !inst->pins[pin].value;
     inst->pins[pin].value_dirty = 1;
+    // Cancel any ongoing receive so that we update the gpio status right away.
+    cancel_receive(inst);
     // Run service to start sending command to radio if possible
     rn2483_service(inst);
 }
