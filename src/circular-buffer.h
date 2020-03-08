@@ -21,6 +21,7 @@ struct circular_buffer_t {
     
     uint16_t head;
     uint16_t tail;
+    uint16_t length;
 };
 
 
@@ -29,29 +30,30 @@ struct circular_buffer_t {
  *
  *  @param buffer The buffer descriptor to be initialized.
  *  @param memory The underlying array for the new buffer.
- *  @param length The length for the buffer.
+ *  @param capacity The size of the buffer.
  */
 static inline void init_circular_buffer(struct circular_buffer_t *buffer,
-                                        uint8_t *memory, uint16_t length)
+                                        uint8_t *memory, uint16_t capacity)
 {
     buffer->buffer = memory;
-    buffer->capacity = length;
+    buffer->capacity = capacity;
     
     buffer->head = 0;
     buffer->tail = 0;
+    buffer->length = 0;
 }
 
 /**
  *  Determine if a circular buffer is empty.
  *
  *  @param buffer The circular buffer for which the empty-ness should be
- *         determined.
+ *                determined.
  *
  *  @return A non-zero value if the buffer is empty, 0 otherwise
  */
-static inline uint8_t circular_buffer_is_empty(struct circular_buffer_t *buffer)
+static inline int circular_buffer_is_empty(struct circular_buffer_t *buffer)
 {
-    return buffer->tail == buffer->head;
+    return buffer->length == 0;
 }
 
 /**
@@ -62,13 +64,13 @@ static inline uint8_t circular_buffer_is_empty(struct circular_buffer_t *buffer)
  *
  *  @return A non-zero value if the buffer is full, 0 otherwise
  */
-static inline uint8_t circular_buffer_is_full(struct circular_buffer_t *buffer)
+static inline int circular_buffer_is_full(struct circular_buffer_t *buffer)
 {
-    return ((buffer->tail + 1) % buffer->capacity) == buffer->head;
+    return buffer->length == buffer->capacity;
 }
 
 /**
- *  Determine the amount of used space in the buffer
+ *  Determine the amount of unused space in the buffer
  *
  *  @param buffer The circular buffer for which the amount of free space should
  *                be found.
@@ -77,13 +79,7 @@ static inline uint8_t circular_buffer_is_full(struct circular_buffer_t *buffer)
  */
 static inline uint16_t circular_buffer_unused(struct circular_buffer_t *buffer)
 {
-    if (circular_buffer_is_empty(buffer)) {
-        return buffer->capacity;
-    } else if (buffer->tail >= buffer->head) {
-        return buffer->tail - buffer->head;
-    } else {
-        return (buffer->capacity - buffer->head) + buffer->tail;
-    }
+    return buffer->capacity - buffer->length;
 }
 
 /**
@@ -94,7 +90,7 @@ static inline uint16_t circular_buffer_unused(struct circular_buffer_t *buffer)
  *
  *  @return The capacity of the buffer.
  */
-static inline uint8_t circular_buffer_capacity(struct circular_buffer_t *buffer)
+static inline uint16_t circular_buffer_capacity(struct circular_buffer_t *buffer)
 {
     return buffer->capacity;
 }
@@ -112,12 +108,15 @@ static inline void circular_buffer_push(struct circular_buffer_t *buffer,
 {
     __disable_irq();
     
+    // If the buffer is full, don't let the tail pass the head
+    if (circular_buffer_is_full(buffer)) {
+        buffer->head = (buffer->head + 1) % buffer->capacity;
+    } else {
+        buffer->length++;
+    }
+    
     buffer->buffer[buffer->tail] = value;
     buffer->tail = (buffer->tail + 1) % buffer->capacity;
-    
-    if (buffer->tail == buffer->head) {
-        buffer->head = (buffer->head + 1) % buffer->capacity;
-    }
     
     __enable_irq();
 }
@@ -131,8 +130,8 @@ static inline void circular_buffer_push(struct circular_buffer_t *buffer,
  *
  *  @return 0 on success, 1 if the buffer is full
  */
-static inline uint8_t circular_buffer_try_push(struct circular_buffer_t *buffer,
-                                               uint8_t value)
+static inline int circular_buffer_try_push(struct circular_buffer_t *buffer,
+                                           uint8_t value)
 {
     if (circular_buffer_is_full(buffer)) {
         return 1;
@@ -151,8 +150,8 @@ static inline uint8_t circular_buffer_try_push(struct circular_buffer_t *buffer,
  *
  *  @return 0 on success, 1 if the buffer is empty
  */
-static inline uint8_t circular_buffer_pop(struct circular_buffer_t *buffer,
-                                          uint8_t *value)
+static inline int circular_buffer_pop(struct circular_buffer_t *buffer,
+                                      uint8_t *value)
 {
     if (circular_buffer_is_empty(buffer)) {
         return 1;
@@ -161,6 +160,7 @@ static inline uint8_t circular_buffer_pop(struct circular_buffer_t *buffer,
         
         *value = buffer->buffer[buffer->head];
         buffer->head = (buffer->head + 1) % buffer->capacity;
+        buffer->length--;
         
         __enable_irq();
         return 0;
@@ -183,7 +183,7 @@ static inline uint16_t circular_buffer_get_head(struct circular_buffer_t *buffer
     
     if (circular_buffer_is_empty(buffer)) {
         return 0;
-    } else if (buffer->head > buffer->tail) {
+    } else if (buffer->head >= buffer->tail) {
         return buffer->capacity - buffer->head;
     } else {
         return buffer->tail - buffer->head;
@@ -202,23 +202,33 @@ static inline uint16_t circular_buffer_get_head(struct circular_buffer_t *buffer
 static inline void circular_buffer_move_head(struct circular_buffer_t *buffer,
                                              uint16_t length)
 {
+    __disable_irq();
+    
     if (circular_buffer_is_empty(buffer)) {
+        __enable_irq();
         return;
     } else if (buffer->head < buffer->tail) {
         if (buffer->head + length < buffer->tail) {
             buffer->head += length;
+            buffer->length -= length;
         } else {
             buffer->head = buffer->tail;
+            buffer->length = 0;
         }
     } else {
         if (buffer->head + length < buffer->capacity) {
             buffer->head += length;
+            buffer->length -= length;
         } else if (((buffer->head + length) % buffer->capacity) < buffer->tail) {
             buffer->head = (buffer->head + length) % buffer->capacity;
+            buffer->length -= length;
         } else {
             buffer->head = buffer->tail;
+            buffer->length = 0;
         }
     }
+    
+    __enable_irq();
 }
 
 /**
@@ -230,17 +240,13 @@ static inline void circular_buffer_move_head(struct circular_buffer_t *buffer,
  *
  *  @return 0 on success, 1 if the buffer is empty
  */
-static inline uint8_t circular_buffer_peak(struct circular_buffer_t *buffer,
-                                           uint8_t *value)
+static inline int circular_buffer_peak(struct circular_buffer_t *buffer,
+                                       uint8_t *value)
 {
     if (circular_buffer_is_empty(buffer)) {
         return 1;
     } else {
-        __disable_irq();
-        
         *value = buffer->buffer[buffer->head];
-        
-        __enable_irq();
         return 0;
     }
 }
@@ -252,17 +258,18 @@ static inline uint8_t circular_buffer_peak(struct circular_buffer_t *buffer,
  *
  *  @return 0 on success, 1 if the buffer is empty
  */
-static inline uint8_t circular_buffer_unpush(struct circular_buffer_t *buffer)
+static inline int circular_buffer_unpush(struct circular_buffer_t *buffer)
 {
     if (circular_buffer_is_empty(buffer)) {
         return 1;
     } else {
         __disable_irq();
-        
+
         if (buffer->tail == 0) {
             buffer->tail = buffer->capacity;
         }
         buffer->tail--;
+        buffer->length--;
         
         __enable_irq();
         return 0;
@@ -278,15 +285,21 @@ static inline uint8_t circular_buffer_unpush(struct circular_buffer_t *buffer)
  *
  *  @return 1 if the character is found, 0 otherwise
  */
-static inline uint8_t circular_buffer_has_char(struct circular_buffer_t *buffer,
-                                               char c)
+static inline int circular_buffer_has_char(struct circular_buffer_t *buffer,
+                                           char c)
 {
-    for (uint16_t i = buffer->head; i != buffer->tail;
-         i = ((i + 1) % buffer->capacity)) {
+    if (circular_buffer_is_empty(buffer)) {
+        return 0;
+    }
+    
+    uint16_t i = buffer->head;
+    do {
         if (buffer->buffer[i] == c) {
             return 1;
         }
-    }
+        
+        i = ((i + 1) % buffer->capacity);
+    } while (i != buffer->tail);
     
     return 0;
 }
@@ -299,17 +312,23 @@ static inline uint8_t circular_buffer_has_char(struct circular_buffer_t *buffer,
  *
  *  @return 1 if a line is found, 0 otherwise
  */
-static inline uint8_t circular_buffer_has_line(struct circular_buffer_t *buffer)
+static inline int circular_buffer_has_line(struct circular_buffer_t *buffer)
 {
-    for (uint16_t i = buffer->head; i != buffer->tail;
-         i = ((i + 1) % buffer->capacity)) {
+    if (circular_buffer_is_empty(buffer)) {
+        return 0;
+    }
+    
+    uint16_t i = buffer->head;
+    do {
         if (buffer->buffer[i] == '\r') {
             uint16_t next = (i + 1) % buffer->capacity;
             if ((next != buffer->tail) && (buffer->buffer[next] == '\n')) {
                 return 1;
             }
         }
-    }
+        
+        i = ((i + 1) % buffer->capacity);
+    } while (i != buffer->tail);
     
     return 0;
 }
@@ -323,6 +342,7 @@ static inline void circular_buffer_clear(struct circular_buffer_t *buffer)
 {
     buffer->head = 0;
     buffer->tail = 0;
+    buffer->length = 0;
 }
 
 #endif /* circular_buffer_h */
