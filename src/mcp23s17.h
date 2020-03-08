@@ -81,6 +81,7 @@ typedef void (*mcp23s17_int_callback)(struct mcp23s17_desc_t *inst,
                                       union mcp23s17_pin_t pin, uint8_t value);
 
 // Ignoring warnings about inefficient alignment for this struct
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
 
 struct mcp23s17_desc_t {

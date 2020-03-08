@@ -224,6 +224,7 @@ union MCP23S17_OLAT_Reg {
 };
 
 // Ignoring warnings about inefficient alignment for this struct
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpacked"
 
 /** Register file for MCP23S17 IO Expander. */
