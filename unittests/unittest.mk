@@ -4,7 +4,7 @@ TEST_SOURCES = $(patsubst %, %.c, $(TESTS))
 TEST_BINARIES = $(patsubst %, ${BINDIR}/%, $(TESTS))
 TEST_GCNO_FILES = $(patsubst %, %.gcno, $(TESTS))
 TEST_GCDA_FILES = $(patsubst %, %.gcda, $(TESTS))
-TEST_PREPROCS = $(patsubst %, %.cpp, $(TESTS))
+TEST_PREPROCS = $(patsubst %, %.i, $(TESTS))
 
 
 # Find a debugger
@@ -57,7 +57,7 @@ $(BINDIR)/% %.gcno: %.c $(COMMON) | $(BINDIR)
 	$<
 	@printf "\n"
 
-%.cpp: %.c
+%.i: %.c
 	$(CC) $(CFLAGS) -E "$(abspath $<)" -o $@
 
 baseline_coverage.info: $(TEST_GCNO_FILES)

@@ -8,5 +8,6 @@ v6-m/
 *.gcno
 *.gcda
 *.info
+*.i
 lcov_report/
 bin/
