@@ -13,14 +13,14 @@ coverage.info: $(COVERAGE_FILES)
 	# Combine all of the coverage reports
 	ls ./*/total_coverage.info | sed 's/^/-a /' | xargs lcov --rc lcov_branch_coverage=1 -o $@
 
-*/total_coverage.info:
+$(COVERAGE_FILES):
 	make -C $(dir $@) -j $(notdir $@)
 
 clean:
 	rm -f coverage.info
 	rm -rf lcov_report
 
-*/clean:
+$(TEST_CLEANS):
 	make -C $(dir $@) -j clean
 
 clean_all: clean $(TEST_CLEANS)
