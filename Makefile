@@ -256,6 +256,8 @@ all: gccversion clean build program
 
 elf: $(OBJDIR)/$(TARGET).elf
 
+hex: $(OBJDIR)/$(TARGET).hex
+
 $(OBJDIR):
 	@mkdir -p $@
 
@@ -305,6 +307,9 @@ $(OBJDIR)/%.elf: $(OBJ)
 	@echo
 	@echo $(MSG_LINKING) $@
 	$(LD) $^ --output $@ $(LDFLAGS)
+
+%.hex: %.elf
+	$(OBJCOPY) -O ihex $< $@
 
 # Compile: create object files from C source files.
 $(OBJDIR)/%.o : $(SRCDIR)/%.c
