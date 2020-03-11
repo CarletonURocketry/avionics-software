@@ -1,0 +1,11 @@
+FROM ubuntu:latest
+
+RUN apt-get update
+RUN apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi make
+RUN apt-get install -y lcov sed
+
+COPY . /app
+
+WORKDIR /app/unittests
+
+RUN make clean_all report
