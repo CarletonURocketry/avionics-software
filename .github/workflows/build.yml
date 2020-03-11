@@ -1,4 +1,4 @@
-name: Compile the project
+name: Build the project
 
 on: [push, pull_request]
 
@@ -11,4 +11,14 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Run make build
-      run: docker build . --file .github/Dockerfile --tag avionics-software:$(date +%s)
+      run: docker build . --file .github/Dockerfile_build --tag avionics-software:$(date +%s)
+
+  tests:
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run unit tests
+      run: docker build . --file .github/Dockerfile_testing --tag avionics-software_testing:$(date +%s)
