@@ -72,23 +72,6 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
         inst->gpio_dirty = 1;
     }
     
-    /* Acquire service function lock */
-    if (inst->service_lock) {
-        // Could not acquire lock, service is already being run
-        return;
-    } else {
-        inst->service_lock = 1;
-    }
-    // This mutex is not foolproof, it is possible for the IO expander interrupt
-    // to occur after the condition has been checked, but before the lock is
-    // updated. This is not an issue however as the service will run fully in
-    // the interrupt routine before it continues running on the main thread. In
-    // this case there is still no chance of the same transaction being queued
-    // twice, the main thread will not start any operations since  by the time
-    // it checks to see if it has any pending operations to start the interrupt
-    // routine will have already cleanly started its pending operation.
-    
-    
     if ((inst->transaction_state != MCP23S17_SPI_NONE) &&
         sercom_spi_transaction_done(inst->spi_inst, inst->spi_transaction_id)) {
         /* The current SPI transaction has finished */
@@ -175,8 +158,6 @@ void mcp23s17_service(struct mcp23s17_desc_t *inst)
             }
         }
     }
-    
-    inst->service_lock = 0;
 }
 
 void mcp23s17_set_pin_mode(struct mcp23s17_desc_t *inst,
@@ -335,6 +316,4 @@ void mcp23s17_handle_interrupt(struct mcp23s17_desc_t *inst)
 {
     // Mark the interrupt registers as needing to be fetched
     inst->interrupts_dirty = 1;
-    // Start fetching the registers immediately if possible
-    mcp23s17_service(inst);
 }
