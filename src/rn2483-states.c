@@ -544,12 +544,6 @@ static int rn2483_case_write_bw (struct rn2483_desc_t *inst)
 
 static int rn2483_case_idle (struct rn2483_desc_t *inst)
 {
-    /* Check if we need to be sending anything */
-    if (inst->send_buffer != NULL) {
-        inst->state = RN2483_SEND;
-        return 1;
-    }
-    
     /* Check if enough time has elapsed that we should mark our inputs
      dirty */
     if (RN2483_GPIO_UPDATE_PERIOD &&
@@ -588,6 +582,12 @@ static int rn2483_case_idle (struct rn2483_desc_t *inst)
             inst->state = RN2483_GET_PIN_VALUE;
         }
         // Handle next state right away
+        return 1;
+    }
+    
+    /* Check if we need to be sending anything */
+    if (inst->send_buffer != NULL) {
+        inst->state = RN2483_SEND;
         return 1;
     }
     
