@@ -28,21 +28,21 @@ extern struct dma_callback_t {
 struct dma_circ_transfer_t {
     DmacDescriptor second_descriptor;
     struct circular_buffer_t *buffer;
-    uint16_t orig_tail;
+    uint16_t length;
     uint8_t valid:1;
 };
 
 
 /**
- *  Initilizes the DMAC to enable DMA transfers and CRC calculations.
+ *  Initializes the DMAC to enable DMA transfers and CRC calculations.
  */
 extern void init_dmac(void);
 
 /**
  *  Transfer all of the data in a circular buffer to a static address.
  *
- *  @param tran A circual buffer transfer descriptor which provides memeory for
- *              the second DMA transfer descriptor if nessesary and holds state.
+ *  @param tran A circular buffer transfer descriptor which provides memory for
+ *              the second DMA transfer descriptor if necessary and holds state.
  *  @param chan The DMA channel to be used.
  *  @param buffer The circular buffer from which data should be read.
  *  @param dest The address of the destination register.
@@ -62,8 +62,8 @@ extern int8_t dma_start_circular_buffer_to_static(
  *  Transfer a buffer of data to a static address (peripheral).
  *
  *  @param chan The DMA channel to be used.
- *  @param buffer The data to be transfered.
- *  @param length The number of bytes which should be transfered.
+ *  @param buffer The data to be transferred.
+ *  @param length The number of bytes which should be transferred.
  *  @param dest The address of the destination register.
  *  @param trigger The trigger which should be used to control the transfer.
  *  @param priority The priority level of the transfer.
@@ -76,10 +76,10 @@ extern void dma_start_buffer_to_static(uint8_t chan, const uint8_t *buffer,
  *  Transfer two buffers of data to a static address (peripheral).
  *
  *  @param chan The DMA channel to be used.
- *  @param buffer1 The data to be transfered.
- *  @param length1 The number of bytes which should be transfered.
- *  @param buffer2 The data to be transfered.
- *  @param length2 The number of bytes which should be transfered.
+ *  @param buffer1 The data to be transferred.
+ *  @param length1 The number of bytes which should be transferred.
+ *  @param buffer2 The data to be transferred.
+ *  @param length2 The number of bytes which should be transferred.
  *  @param descriptor Memory to be used for second DMA descriptor.
  *  @param dest The address of the destination register.
  *  @param trigger The trigger which should be used to control the transfer.
@@ -100,7 +100,7 @@ extern void dma_start_double_buffer_to_static(uint8_t chan,
  *
  *  @param chan The DMA channel to be used.
  *  @param buffer The buffer where data should be placed.
- *  @param length The number of bytes which should be transfered.
+ *  @param length The number of bytes which should be transferred.
  *  @param source The address of the source register.
  *  @param trigger The trigger which should be used to control the transfer.
  *  @param priority The priority level of the transfer.
@@ -122,8 +122,8 @@ extern void dma_start_static_to_buffer_hword(uint8_t chan, uint16_t *buffer,
  *  Repeatedly transfer a static value to a static address (peripheral).
  *
  *  @param chan The DMA channel to be used.
- *  @param source Pointer to the byte to be transfered.
- *  @param length The number of times which the byte should be transfered.
+ *  @param source Pointer to the byte to be transferred.
+ *  @param length The number of times which the byte should be transferred.
  *  @param dest The address of the destination register.
  *  @param trigger The trigger which should be used to control the transfer.
  *  @param priority The priority level of the transfer.
@@ -136,7 +136,7 @@ extern void dma_start_static_to_static(uint8_t chan,
 /**
  *  Cancel an ongoing DMA transaction.
  *
- *  @param chan The DMA for which the transaction should be cancled.
+ *  @param chan The DMA for which the transaction should be canceled.
  */
 extern void dma_abort_transaction(uint8_t chan);
 
@@ -146,7 +146,7 @@ extern void dma_abort_transaction(uint8_t chan);
  *
  *  @param chan The DMA channel to be checked.
  *
- *  @return 1 if the chanel is active, 0 otherwise.
+ *  @return 1 if the channel is active, 0 otherwise.
  */
 inline static uint8_t dma_chan_is_active(uint8_t chan)
 {
