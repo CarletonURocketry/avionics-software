@@ -22,7 +22,7 @@ static enum rn2483_operation_result ground_op_status_g;
 
 
 
-static void ground_radio_recv_callback (struct rn2483_desc_t *inst,
+static int ground_radio_recv_callback (struct rn2483_desc_t *inst,
                                        void *context, uint8_t *data,
                                        uint8_t length, int8_t snr, int8_t rssi)
 {
@@ -30,8 +30,7 @@ static void ground_radio_recv_callback (struct rn2483_desc_t *inst,
         console_send_bytes(ground_console_g, data, length);
         console_send_bytes(ground_console_g, (uint8_t*)&snr, 1);
     }
-    ground_op_status_g =  rn2483_receive(ground_radio_g,
-                                         ground_radio_recv_callback, NULL);
+    return 1;
 }
 
 static void console_ready (struct console_desc_t *console, void *context)

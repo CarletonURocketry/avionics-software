@@ -4,7 +4,7 @@
  * @author Samuel Dewan
  * @date 2019-03-15
  * Last Author: Samuel Dewan
- * Last Edited On: 2019-04-16
+ * Last Edited On: 2020-04-05
  */
 
 #include "gpio.h"
@@ -35,7 +35,7 @@ static struct mcp23s17_desc_t *gpio_mcp23s17_g;
 /**
  *  Array of descriptors for RN2483 radios with GPIO.
  */
-static struct rn2483_desc_t **gpio_rn2483s_g;
+static struct radio_instance_desc *const *gpio_radios_g;
 
 
 /**
@@ -50,33 +50,41 @@ static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
                                              union mcp23s17_pin_t pin,
                                              uint8_t value);
 
+/**
+ *  Returns the a pointer to the radio instance for a given radio number or
+ *  NULL if no such radio is available
+ */
+static struct rn2483_desc_t *gpio_get_rn2483_inst (uint8_t radio_num);
+
 
 #define NUM_GPIO_PIN_INTERRUPTS  64
 static const int8_t gpio_pin_interrupts[] = {
-    //PA0                         PA7
+    //PA0                       PA7
     0,  1,  2,  3,  4,  5,  6,  7,
-    //PA8                         PA15
+    //PA8                       PA15
     -1,  9, 10, 11, 12, 13, 14, 15,
-    //PA16                        PA23
+    //PA16                      PA23
     0,  1,  2,  3,  4,  5,  6,  7,
-    //PA24                        PA31
+    //PA24                      PA31
     12, 13, -2, 15,  8, -2, 10, 11,
-    //PB0                         PB7
+    //PB0                       PB7
     0,  1,  2,  3,  4,  5,  6,  7,
-    //PB8                         PB15
-    8,  9, 10, 11, 12, 13, 14, 15,
-    //PB16                        PB23
+    //PB8                       PB15
+    8,  9, 10, 11, 12, 13,  14, 15,
+    //PB16                      PB23
     0,  1, -2, -2, -2, -2,  6,  7,
-    //PB24                        PB31
-    -2, -2, -2, -2, -2, -2, 14, 15 };
+    //PB24                      PB31
+    -2, -2, -2, -2, -2, -2, 14, 15
+};
 
 
 
 void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
-               uint16_t mcp23s17_int_pin, struct rn2483_desc_t **rn2483s)
+               uint16_t mcp23s17_int_pin,
+               struct radio_instance_desc *const *radios)
 {
     gpio_mcp23s17_g = mcp23s17;
-    gpio_rn2483s_g = rn2483s;
+    gpio_radios_g = radios;
 
     /* Configure External Interrupt Controller */
 
@@ -146,6 +154,7 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
 
 uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
 {
+    struct rn2483_desc_t *rn2483;
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
             // Set or clear DIR
@@ -183,16 +192,18 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
                 return 1;
             }
         case GPIO_RN2483_PIN:
-            if ((mode == GPIO_PIN_OUTPUT_TOTEM) ||
+            rn2483 = gpio_get_rn2483_inst(pin.rn2483.radio);
+            if (rn2483 == NULL) {
+                // Not a valid radio number
+                return 1;
+            } else if ((mode == GPIO_PIN_OUTPUT_TOTEM) ||
                 (mode == GPIO_PIN_OUTPUT_STRONG)) {
                 // Output
-                return rn2483_set_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
-                                           pin.rn2483.pin,
+                return rn2483_set_pin_mode(rn2483, pin.rn2483.pin,
                                            RN2483_PIN_MODE_OUTPUT);
             } else if (mode == GPIO_PIN_INPUT) {
                 // Input
-                return rn2483_set_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
-                                           pin.rn2483.pin,
+                return rn2483_set_pin_mode(rn2483, pin.rn2483.pin,
                                            RN2483_PIN_MODE_INPUT);
             } else {
                 // Not supported
@@ -207,6 +218,7 @@ uint8_t gpio_set_pin_mode(union gpio_pin_t pin, enum gpio_pin_mode mode)
 
 enum gpio_pin_mode gpio_get_pin_mode(union gpio_pin_t pin)
 {
+    struct rn2483_desc_t *rn2483;
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
             if (PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
@@ -236,15 +248,18 @@ enum gpio_pin_mode gpio_get_pin_mode(union gpio_pin_t pin)
                 return GPIO_PIN_OUTPUT_TOTEM;
             }
         case GPIO_RN2483_PIN:
-            if (rn2483_get_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
-                                    pin.rn2483.pin) == RN2483_PIN_MODE_INPUT) {
+            rn2483 = gpio_get_rn2483_inst(pin.rn2483.radio);
+            if (rn2483 == NULL) {
+                // Not a valid radio number
+                return GPIO_PIN_DISABLED;
+            } else if (rn2483_get_pin_mode(rn2483, pin.rn2483.pin) ==
+                            RN2483_PIN_MODE_INPUT) {
                 return GPIO_PIN_INPUT;
-            } else if (rn2483_get_pin_mode(gpio_rn2483s_g[pin.rn2483.radio],
-                                           pin.rn2483.pin) ==
-                       RN2483_PIN_MODE_OUTPUT) {
+            } else if (rn2483_get_pin_mode(rn2483, pin.rn2483.pin) ==
+                            RN2483_PIN_MODE_OUTPUT) {
                 return GPIO_PIN_OUTPUT_TOTEM;
             } else {
-                // Pin can be configured as an analog input, not handled by
+                // Pin could be configured as an analog input, not handled by
                 // GPIO module
                 return GPIO_PIN_DISABLED;
             }
@@ -296,6 +311,7 @@ uint8_t gpio_set_pull(union gpio_pin_t pin, enum gpio_pull_mode pull)
 
 uint8_t gpio_get_input(union gpio_pin_t pin)
 {
+    struct rn2483_desc_t *rn2483;
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
             // Use PORT instead of PORT_IOBUS because reads from PORT_IOBUS
@@ -304,8 +320,12 @@ uint8_t gpio_get_input(union gpio_pin_t pin)
         case GPIO_MCP23S17_PIN:
             return mcp23s17_get_input(gpio_mcp23s17_g, pin.mcp23s17);
         case GPIO_RN2483_PIN:
-            return rn2483_get_input(gpio_rn2483s_g[pin.rn2483.radio],
-                                    pin.rn2483.pin);
+            rn2483 = gpio_get_rn2483_inst(pin.rn2483.radio);
+            if (rn2483 == NULL) {
+                // Not a valid radio number
+                return 0;
+            }
+            return rn2483_get_input(rn2483, pin.rn2483.pin);
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
             return 0;
@@ -315,6 +335,7 @@ uint8_t gpio_get_input(union gpio_pin_t pin)
 
 uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value)
 {
+    struct rn2483_desc_t *rn2483;
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
             if (!PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
@@ -332,8 +353,12 @@ uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value)
             mcp23s17_set_output(gpio_mcp23s17_g, pin.mcp23s17, value);
             return 0;
         case GPIO_RN2483_PIN:
-            rn2483_set_output(gpio_rn2483s_g[pin.rn2483.radio], pin.rn2483.pin,
-                              value);
+            rn2483 = gpio_get_rn2483_inst(pin.rn2483.radio);
+            if (rn2483 == NULL) {
+                // Not a valid radio number
+                return 1;
+            }
+            rn2483_set_output(rn2483, pin.rn2483.pin, value);
             return 0;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
@@ -344,6 +369,7 @@ uint8_t gpio_set_output(union gpio_pin_t pin, uint8_t value)
 
 uint8_t gpio_toggle_output(union gpio_pin_t pin)
 {
+    struct rn2483_desc_t *rn2483;
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
             if (!PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.INEN) {
@@ -357,8 +383,12 @@ uint8_t gpio_toggle_output(union gpio_pin_t pin)
             mcp23s17_toggle_output(gpio_mcp23s17_g, pin.mcp23s17);
             return 0;
         case GPIO_RN2483_PIN:
-            rn2483_toggle_output(gpio_rn2483s_g[pin.rn2483.radio],
-                                 pin.rn2483.pin);
+            rn2483 = gpio_get_rn2483_inst(pin.rn2483.radio);
+            if (rn2483 == NULL) {
+                // Not a valid radio number
+                return 1;
+            }
+            rn2483_toggle_output(rn2483, pin.rn2483.pin);
             return 0;
         case GPIO_RFM69HCW_PIN:
             // Not yet supported
@@ -589,6 +619,17 @@ static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
             }
         }
     }
+}
+
+static struct rn2483_desc_t *gpio_get_rn2483_inst (uint8_t radio_num)
+{
+    for (struct radio_instance_desc *const *radio = gpio_radios_g;
+            *radio != NULL;  radio++) {
+        if ((*radio)->radio_num == radio_num) {
+            return &(*radio)->rn2483;
+        }
+    }
+    return NULL;
 }
 
 void EIC_Handler (void)
