@@ -94,7 +94,7 @@ void console_send_bytes (struct console_desc_t *console,
 }
 
 uint16_t console_send_bytes_async (struct console_desc_t *console,
-                                          const uint8_t *data, uint16_t length)
+                                   const uint8_t *data, uint16_t length)
 {
     if (console->type == CONSOLE_TYPE_UART) {
         // SERCOM UART
@@ -107,6 +107,66 @@ uint16_t console_send_bytes_async (struct console_desc_t *console,
     }
 #endif
     return 0;
+}
+
+int console_has_line(struct console_desc_t *console)
+{
+    if (console->type == CONSOLE_TYPE_UART) {
+        // SERCOM UART
+        if ((console->line_delimiter != '\0') && sercom_uart_has_delim(
+                                                    console->interface.uart,
+                                                    console->line_delimiter)) {
+            return 1;
+        } else if ((console->line_delimiter == '\0') && sercom_uart_has_line(
+                                                    console->interface.uart)) {
+            return 1;
+        }
+    }
+#ifdef ID_USB
+    else if (console->type == CONSOLE_TYPE_USB_CDC) {
+        // USB
+        if ((console->line_delimiter != '\0') && usb_cdc_has_delim(
+                                                    console->interface.usb_cdc,
+                                                    console->line_delimiter)) {
+            return 1;
+        } else if ((console->line_delimiter == '\0') && usb_cdc_has_line(
+                                                    console->interface.usb_cdc)) {
+            return 1;
+        }
+    }
+#endif
+    return 0;
+}
+
+void console_get_line (struct console_desc_t *console, char *str, uint16_t len)
+{
+    if (console->type == CONSOLE_TYPE_UART) {
+        // SERCOM UART
+        if ((console->line_delimiter != '\0') && sercom_uart_has_delim(
+                                                    console->interface.uart,
+                                                    console->line_delimiter)) {
+            sercom_uart_get_line_delim(console->interface.uart,
+                                       console->line_delimiter, str, len);
+        } else if ((console->line_delimiter == '\0') && sercom_uart_has_line(
+                                                    console->interface.uart)) {
+            sercom_uart_get_line(console->interface.uart, str, len);
+        }
+    }
+#ifdef ID_USB
+    else if (console->type == CONSOLE_TYPE_USB_CDC) {
+        // USB
+        if ((console->line_delimiter != '\0') && usb_cdc_has_delim(
+                                                console->interface.usb_cdc,
+                                                console->line_delimiter)) {
+            usb_cdc_get_line_delim(console->interface.usb_cdc,
+                                   console->line_delimiter, str, len);
+        } else if ((console->line_delimiter == '\0') && usb_cdc_has_line(
+                                                console->interface.usb_cdc)) {
+            usb_cdc_get_line(console->interface.usb_cdc, str, len);
+        }
+    }
+#endif
+    return;
 }
 
 void console_set_line_callback (struct console_desc_t *console,

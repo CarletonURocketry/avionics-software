@@ -28,13 +28,15 @@ static void cli_help (uint8_t argc, char **argv, struct console_desc_t *console,
         return;
     } else if (argc == 2) {
         // Get help for a specific command
-        for (uint8_t i = 0; i < cli->num_functions; i++) {
-            if (!strcasecmp(argv[1], cli->functions[i].name)) {
-                console_send_str(console, cli->functions[i].help_string);
+        for (const struct cli_func_desc_t *cmd = cli->functions;
+                    cmd->func != NULL; cmd++) {
+            if (!strcasecmp(argv[1], cmd->name)) {
+                console_send_str(console, cmd->help_string);
                 console_send_str(console, "\n");
                 return;
             }
         }
+
         console_send_str(console, cli_unknown_str_0);
         console_send_str(console, argv[1]);
         console_send_str(console, cli_unknown_str_1);
@@ -44,8 +46,9 @@ static void cli_help (uint8_t argc, char **argv, struct console_desc_t *console,
     }
     
     console_send_str(console, "\nAvailable Commands:\n");
-    for (uint8_t i = 0; i < cli->num_functions; i++) {
-        console_send_str(console, cli->functions[i].name);
+    for (const struct cli_func_desc_t *cmd = cli->functions;
+                cmd->func != NULL; cmd++) {
+        console_send_str(console, cmd->name);
         console_send_str(console, "\n");
     }
 }
@@ -81,10 +84,11 @@ static void cli_line_callback (char *line, struct console_desc_t *console,
         command_found = 1;
     } else {
         // Search function list
-        for (int i = 0; i < cli->num_functions; i++) {
-            if (!strcasecmp(args[0], cli->functions[i].name)) {
-                cli->functions[i].func(num_args, args, console);
-                
+        for (const struct cli_func_desc_t *cmd = cli->functions;
+                    cmd->func != NULL; cmd++) {
+            if (!strcasecmp(args[0], cmd->name)) {
+                cmd->func(num_args, args, console);
+
                 command_found = 1;
                 break;
             }
@@ -113,12 +117,10 @@ static void cli_init_callback (struct console_desc_t *console, void *context)
 
 void init_cli (struct cli_desc_t *cli, struct console_desc_t *console,
                const char *prompt,
-               const struct cli_func_desc_t *const functions,
-               uint8_t num_functions)
+               const struct cli_func_desc_t *const functions)
 {
     cli->prompt = prompt;
     cli->functions = functions;
-    cli->num_functions = num_functions;
     
     console_set_line_callback(console, cli_line_callback, (void*)cli);
     console_set_init_callback(console, cli_init_callback, (void*)cli);
