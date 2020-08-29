@@ -14,7 +14,9 @@
 
 #include "sercom-uart.h"
 
-#define RN2483_BUFFER_LEN   256
+// Buffer length is enough send a 128 byte packet:
+//      (128 * 2) + tx cmd length (9)
+#define RN2483_BUFFER_LEN   265
 
 #define RN2483_FREQ_MIN 433050000UL
 #define RN2483_FREQ_MAX 434790000UL
@@ -39,6 +41,7 @@ enum rn2483_state {
     RN2483_PAUSE_MAC,
     RN2483_WRITE_MODE,
     RN2483_WRITE_FREQ,
+    RN2483_UPDATE_FREQ,
     RN2483_WRITE_PWR,
     RN2483_WRITE_SF,
     RN2483_WRITE_CRC,
@@ -46,12 +49,14 @@ enum rn2483_state {
     RN2483_WRITE_CR,
     RN2483_WRITE_SYNC,
     RN2483_WRITE_BW,
+    RN2483_WRITE_PRLEN,
     RN2483_IDLE,
     RN2483_SEND,
     RN2483_SEND_WAIT,
     RN2483_RECEIVE,
     RN2483_RECEIVE_ABORT,
-    RN2483_RECEIVE_WAIT,
+    RN2483_RX_OK_WAIT,
+    RN2483_RX_DATA_WAIT,
     RN2483_GET_SNR,
     RN2483_GET_RSSI,
     RN2483_RXSTOP,
@@ -160,10 +165,12 @@ enum rn2483_send_trans_state {
 
 /**
  *  Type for callback function used for receiving data.
+ *
+ *  Returns 0 to stop receiving, a non-zero value to continue.
  */
-typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
-                                     uint8_t *data, uint8_t length, int8_t snr,
-                                     int8_t rssi);
+typedef int (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
+                                    uint8_t *data, uint8_t length, int8_t snr,
+                                    int8_t rssi);
 
 #define RN2483_PIN_DESC_VALUE(x)    (x & 0x3FF)
 #define RN2483_PIN_DESC_MODE(x)     ((x & 0x3) << 10)
@@ -194,8 +201,32 @@ typedef void (*rn2483_recv_callback)(struct rn2483_desc_t *inst, void *context,
                                                 & RN2483_VER_NUM_REV_MASK))
 
 #define RN2483_SEND_TRANSACTION_SIZE    3
-#define RN2483_NUM_SEND_TRANSACTIONS    3
+#define RN2483_NUM_SEND_TRANSACTIONS    4
 #define RN2483_SEND_TRANSACTION_MASK    ((1 << 3) - 1)
+
+/**
+ *  Describes all relevant RN2483 radio settings.
+ */
+struct rn2483_lora_settings_t {
+    /** Centre frequency */
+    uint32_t freq:31;
+    /** Whether the I and Q streams should be inverted */
+    uint32_t invert_qi:1;
+    /** Preamble length */
+    uint16_t preamble_length;
+    /** Sync word */
+    uint8_t sync_byte;
+    /** Power level  */
+    int8_t power;
+    /** LoRa spreading factor */
+    enum rn2483_sf spreading_factor:3;
+    /** LoRa coding rate */
+    enum rn2483_cr coding_rate:2;
+    /** Bandwidth */
+    enum rn2483_bw bandwidth:2;
+    /** Whether a CRC should be added to the data */
+    uint8_t crc:1;
+};
 
 /**
  *  Descriptor for RN2483 radio module driver instance.
@@ -212,29 +243,17 @@ struct rn2483_desc_t {
     
     /** Pointer to buffer of data to be send */
     const uint8_t *send_buffer;
-    
-    /** Stores the last time at which the GPIO registers where polled */
-    uint32_t last_polled;
-    
+
     /** Radio configuration information */
-    struct {
-        /** Centre frequency */
-        uint32_t freq:31;
-        /** Whether the I and Q streams should be inverted */
-        uint32_t invert_qi:1;
-        /** Sync word */
-        uint8_t sync_byte;
-        /** Power level  */
-        int8_t power;
-        /** LoRa spreading factor */
-        enum rn2483_sf spreading_factor:3;
-        /** LoRa coding rate */
-        enum rn2483_cr coding_rate:2;
-        /** Bandwidth */
-        enum rn2483_bw bandwidth:2;
-        /** Whether a CRC should be added to the data */
-        uint8_t crc:1;
-    } settings;
+    struct rn2483_lora_settings_t *settings;
+
+    union {
+        /** Stores the last time at which the GPIO registers where polled */
+        uint32_t last_polled;
+        /** Number of times the driver has attempted to reset the radio
+            module */
+        uint32_t reset_try_count;
+    };
     
     /** Buffer used for marshaling commands and receiving responses */
     char buffer[RN2483_BUFFER_LEN];
@@ -247,15 +266,15 @@ struct rn2483_desc_t {
             /** Mode for this pin */
             enum rn2483_pin_mode mode:2;
             /** Indicates whether the mode for this pin has been changes since
-             it was last written to the module */
+                it was last written to the module */
             uint16_t mode_dirty:1;
             /** Indicates whether the locally cached value for this pin needs to
-             be updated from the module (for an input) or written to the
-             module (for an output) */
+                be updated from the module (for an input) or written to the
+                module (for an output) */
             uint16_t value_dirty:1;
             /** Indicates whether the mode for this pin has been explicitly set,
-             which would indicate that application code cares about this pin
-             and if it is an input it should be polled automatically */
+                which would indicate that application code cares about this pin
+                and if it is an input it should be polled automatically */
             uint16_t mode_explicit:1;
         };
         uint16_t raw;
@@ -265,14 +284,22 @@ struct rn2483_desc_t {
     uint16_t version;
     
     /** Information about send transactions */
-    uint16_t send_transactions:9;
-    
+    uint16_t send_transactions:12;
+    /** Flag that indicates when new settings need to be written to the radio */
+    uint16_t settings_dirty:1;
+    /** Flag that indicates when a new frequency needs to be written to the
+        radio */
+    uint16_t frequency_dirty:1;
+    /** Whether the radio should return to receiving after sending any other
+        command */
+    uint8_t receive:1;
+
     /** Length of data in send buffer */
-    uint16_t send_length:7;
+    uint8_t send_length;
     
     /** Pointer for sending commands over multiple calls to service if UART
-     buffer becomes full */
-    uint8_t out_pos;
+        buffer becomes full */
+    uint8_t position;
     
     /** Pin which is the target of the current GPIO command */
     enum rn2483_pin current_pin:8;
@@ -284,9 +311,6 @@ struct rn2483_desc_t {
     uint8_t waiting_for_line:1;
     /** Whether the command to be sent next has been marshaled */
     uint8_t cmd_ready:1;
-    /** Whether the radio should return to receiving after sending any other
-        command */
-    uint8_t receive:1;
 };
 
 /**
@@ -294,21 +318,11 @@ struct rn2483_desc_t {
  *
  *  @param inst The instance of the driver to be initialized
  *  @param uart The uart instance used to communicate with the radio
- *  @param freq Centre frequency in hertz, from 433050000 to 434790000
- *  @param power Power level in dBm, from -3 to 14
- *  @param spreading_factor LoRa spreading factor
- *  @param coding_rate LoRa coding rate
- *  @param bandwidth Bandwidth
- *  @param send_crc Whether a CRC should be added to the data
- *  @param invert_qi Whether the I and Q streams should be inverted
- *  @param sync_byte Sync word
+ *  @param settings Pointer to structure containing LoRa settings
  */
 extern void init_rn2483 (struct rn2483_desc_t *inst,
-                         struct sercom_uart_desc_t *uart, uint32_t freq,
-                         int8_t power, enum rn2483_sf spreading_factor,
-                         enum rn2483_cr coding_rate, enum rn2483_bw bandwidth,
-                         uint8_t send_crc, uint8_t invert_qi,
-                         uint8_t sync_byte);
+                         struct sercom_uart_desc_t *uart,
+                         struct rn2483_lora_settings_t *settings);
 
 /**
  *  Service to be run in each iteration of the main loop.
@@ -382,6 +396,155 @@ extern enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
 enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst);
 
 /**
+ *  Set the center frequency in an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure to be modified
+ *  @param frequency New Centre frequency in hertz, from 433050000 to 434790000
+ */
+static inline void rn2483_settings_set_freq (struct rn2483_lora_settings_t *s,
+                                             uint32_t frequency)
+{
+    if (frequency > RN2483_FREQ_MAX) {
+        s->freq = RN2483_FREQ_MAX;
+    } else if (frequency < RN2483_FREQ_MIN) {
+        s->freq = RN2483_FREQ_MIN;
+    } else {
+        s->freq = frequency;
+    }
+}
+
+/**
+ *  Get the center frequency from an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure
+ *
+ *  @return The configured center frequency in hertz.
+ */
+static inline uint32_t rn2483_settings_get_freq (struct rn2483_lora_settings_t *s)
+{
+    return s->freq;
+}
+
+/**
+ *  Set the RF related settings in an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure to be modified
+ *  @param power Power level in dBm, from -3 to 14
+ *  @param spreading_factor LoRa spreading factor
+ *  @param coding_rate LoRa coding rate
+ *  @param bandwidth Bandwidth
+ */
+static inline void rn2483_settings_set_rf (struct rn2483_lora_settings_t *s,
+                                           int8_t power,
+                                           enum rn2483_sf spreading_factor,
+                                           enum rn2483_cr coding_rate,
+                                           enum rn2483_bw bandwidth)
+{
+    if (power > RN2483_PWR_MAX) {
+        s->power = RN2483_PWR_MAX;
+    } else if (power < RN2483_PWR_MIN) {
+        s->power = RN2483_PWR_MIN;
+    } else {
+        s->power = power;
+    }
+    s->spreading_factor = spreading_factor;
+    s->coding_rate = coding_rate;
+    s->bandwidth = bandwidth;
+}
+
+/**
+ *  Get the RF related settings from an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure
+ *  @param power Pointer to where power level in dBm will be stored
+ *  @param spreading_factor Pointer to where LoRa spreading factor will be
+ *                          stored
+ *  @param coding_rate Pointer to where LoRa coding rate will be stored
+ *  @param bandwidth Pointer to where bandwidth will be stored
+ */
+static inline void rn2483_settings_get_rf (struct rn2483_lora_settings_t *s,
+                                           int8_t *power,
+                                           enum rn2483_sf *spreading_factor,
+                                           enum rn2483_cr *coding_rate,
+                                           enum rn2483_bw *bandwidth)
+{
+    *power = s->power;
+    *spreading_factor = s->spreading_factor;
+    *coding_rate = s->coding_rate;
+    *bandwidth = s->bandwidth;
+}
+
+/**
+ *  Set the synchronization settings in an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure to be modified
+ *  @param send_crc Whether a CRC should be added to the data
+ *  @param invert_qi Whether the I and Q streams should be inverted
+ *  @param sync_byte Sync word
+ *  @param preamble_length Length of preamble in symbols
+ */
+static inline void rn2483_settings_set_sync (struct rn2483_lora_settings_t *s,
+                                             uint8_t send_crc,
+                                             uint8_t invert_qi,
+                                             uint8_t sync_byte,
+                                             uint16_t preamble_length)
+{
+    s->crc = send_crc;
+    s->invert_qi = invert_qi;
+    s->sync_byte = sync_byte;
+    s->preamble_length = preamble_length;
+}
+
+/**
+ *  Get the synchronization settings from an RN2483 settings structure.
+ *
+ *  @param s Pointer to the settings structure
+ *  @param send_crc Pointer to where whether a CRC should be added to the data
+ *                  will be stored
+ *  @param invert_qi Pointer to where whether the I and Q streams should be
+ *                   inverted will be stored
+ *  @param sync_byte Pointer to where the sync word will be stored
+ *  @param preamble_length Pointer to where the length of preamble in symbols
+ *                         will be stored
+ */
+static inline void rn2483_settings_get_sync (struct rn2483_lora_settings_t *s,
+                                             uint8_t *send_crc,
+                                             uint8_t *invert_qi,
+                                             uint8_t *sync_byte,
+                                             uint16_t *preamble_length)
+{
+    *send_crc = s->crc;
+    *invert_qi = s->invert_qi;
+    *sync_byte = s->sync_byte;
+    *preamble_length = s->preamble_length;
+}
+
+/**
+ *  Indicates to the radio driver that the settings structure for a radio has
+ *  changed and that all of the radio settings (including the frequency) need to
+ *  be sent to the radio again.
+ *
+ *  @note The settings will be updated after any ongoing transmission or
+ *        reception that is already in the data stage has completed but before
+ *        any new transmission or reception starts.
+ *
+ *  @param inst The instance for which the settings need to be updated.
+ */
+extern void rn2483_update_settings(struct rn2483_desc_t *inst);
+
+/**
+ *  Indicates to the radio driver that the frequency in the settings structure
+ *  for a radio has changed and that it needs to be sent to the radio again.
+ *
+ *  @note The frequency will be updated after any ongoing transmission or
+ *        reception that is already in the data stage has completed but before
+ *        any new transmission or reception starts.
+ *
+ *  @param inst The instance for which the frequency needs to be updated.
+ */
+extern void rn2483_update_frequency_settings(struct rn2483_desc_t *inst);
+
+/**
  *  Poll the radio modules for updates on any pins which have been set as
  *  inputs.
  *
@@ -424,8 +587,8 @@ extern uint8_t rn2483_poll_gpio_in_progress(struct rn2483_desc_t *inst);
  *  @return 1 if polling is in progress, 0 otherwise
  */
 static inline uint8_t rn2483_poll_gpio_pin_in_progress(
-                                                       struct rn2483_desc_t *inst,
-                                                       enum rn2483_pin pin)
+                                                    struct rn2483_desc_t *inst,
+                                                    enum rn2483_pin pin)
 {
     return inst->pins[pin].value_dirty;
 }
@@ -451,8 +614,12 @@ extern uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst,
  *
  *  @return The current mode of the pin
  */
-extern enum rn2483_pin_mode rn2483_get_pin_mode(struct rn2483_desc_t *inst,
-                                                enum rn2483_pin pin);
+static inline enum rn2483_pin_mode rn2483_get_pin_mode(
+                                                    struct rn2483_desc_t *inst,
+                                                    enum rn2483_pin pin)
+{
+    return inst->pins[pin].mode;
+}
 
 /**
  *  Get the value from a pin which is configured as an input.

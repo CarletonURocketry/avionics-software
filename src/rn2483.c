@@ -25,35 +25,10 @@
 
 
 void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
-                  uint32_t freq, int8_t power, enum rn2483_sf spreading_factor,
-                  enum rn2483_cr coding_rate, enum rn2483_bw bandwidth,
-                  uint8_t send_crc, uint8_t invert_qi, uint8_t sync_byte)
+                  struct rn2483_lora_settings_t *settings)
 {
     inst->uart = uart;
-    
-    
-    if (freq > RN2483_FREQ_MAX) {
-        inst->settings.freq = RN2483_FREQ_MAX;
-    } else if (freq < RN2483_FREQ_MIN) {
-        inst->settings.freq = RN2483_FREQ_MIN;
-    } else {
-        inst->settings.freq = freq;
-    }
-    
-    if (power > RN2483_PWR_MAX) {
-        inst->settings.power = RN2483_PWR_MAX;
-    } else if (power < RN2483_PWR_MIN) {
-        inst->settings.power = RN2483_PWR_MIN;
-    } else {
-        inst->settings.power = power;
-    }
-    
-    inst->settings.spreading_factor = spreading_factor;
-    inst->settings.coding_rate = coding_rate;
-    inst->settings.bandwidth = bandwidth;
-    inst->settings.crc = !!send_crc;
-    inst->settings.invert_qi = !!invert_qi;
-    inst->settings.sync_byte = sync_byte;
+    inst->settings = settings;
     
     // Initialize GPIO pins to inputs
     for (enum rn2483_pin pin = 0; pin < RN2483_NUM_PINS; pin++) {
@@ -66,7 +41,8 @@ void init_rn2483 (struct rn2483_desc_t *inst, struct sercom_uart_desc_t *uart,
     
     inst->waiting_for_line = 0;
     inst->cmd_ready = 0;
-    inst->out_pos = 0;
+    inst->position = 0;
+    inst->reset_try_count = 0;
 }
 
 void rn2483_service (struct rn2483_desc_t *inst)
@@ -82,7 +58,9 @@ void rn2483_service (struct rn2483_desc_t *inst)
     }
 }
 
-
+/**
+ *  Start the process of canceling an ongoing receive operation if there is one.
+ */
 static void cancel_receive (struct rn2483_desc_t *inst)
 {
     if (inst->state == RN2483_RECEIVE) {
@@ -92,7 +70,7 @@ static void cancel_receive (struct rn2483_desc_t *inst)
         // starting it
         inst->state = RN2483_RECEIVE_ABORT;
     } else if ((inst->version >= RN2483_MIN_FW_RXSTOP) &&
-               (inst->state == RN2483_RECEIVE_WAIT)) {
+               (inst->state == RN2483_RX_OK_WAIT)) {
         // rxstop command is supported and we are in receive wait, we should
         // cancel the ongoing reception
         inst->state = RN2483_RXSTOP;
@@ -108,13 +86,13 @@ enum rn2483_operation_result rn2483_send (struct rn2483_desc_t *inst,
     // Check that we are not already sending something and for message length
     if (inst->send_buffer != NULL) {
         return RN2483_OP_BUSY;
-    } else if (length > ((RN2483_BUFFER_LEN - (RN2483_CMD_TX_LEN + 2)) / 2)) {
+    } else if (length > 127) {
         // Message is too large to be sent
         return RN2483_OP_TOO_LONG;
     }
     
     // Check for an open transaction slot
-    uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_INVALID);\
+    uint8_t id = find_send_trans(inst, RN2483_SEND_TRANS_INVALID);
     if (id == RN2483_NUM_SEND_TRANSACTIONS) {
         return RN2483_OP_BUSY;
     }
@@ -182,7 +160,8 @@ enum rn2483_operation_result rn2483_receive (struct rn2483_desc_t *inst,
 enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
 {
     if (!inst->receive && (inst->state != RN2483_RECEIVE) &&
-        (inst->state != RN2483_RECEIVE_WAIT)) {
+                          (inst->state != RN2483_RX_OK_WAIT) &&
+                          (inst->state != RN2483_RX_DATA_WAIT)) {
         // No receive to cancel
         return RN2483_OP_BAD_STATE;
     } else if (inst->state == RN2483_FAILED) {
@@ -199,6 +178,43 @@ enum rn2483_operation_result rn2483_receive_stop (struct rn2483_desc_t *inst)
     rn2483_service(inst);
     
     return RN2483_OP_SUCCESS;
+}
+
+
+
+void rn2483_update_settings(struct rn2483_desc_t *inst)
+{
+    if (inst->state == RN2483_IDLE) {
+        // If we are idle, jump right to first initialization state
+        inst->state = RN2483_WRITE_WDT;
+        inst->settings_dirty = 0;
+        inst->frequency_dirty = 0;
+    } else {
+        // Cancel the receive operation if there is one ongoing
+        cancel_receive(inst);
+        // Indicate that we should update the settings asap
+        inst->settings_dirty = 1;
+    }
+
+    // Start the update right away if possible
+    rn2483_service(inst);
+}
+
+void rn2483_update_frequency_settings(struct rn2483_desc_t *inst)
+{
+    if (inst->state == RN2483_IDLE) {
+        // If we are idle, jump right to updating the frequency
+        inst->state = RN2483_UPDATE_FREQ;
+        inst->frequency_dirty = 0;
+    } else {
+        // Cancel the receive operation if there is one ongoing
+        cancel_receive(inst);
+        // Indicate that we should update the frequency asap
+        inst->frequency_dirty = 1;
+    }
+
+    // Start the update right away if possible
+    rn2483_service(inst);
 }
 
 
@@ -245,6 +261,7 @@ uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst, enum rn2483_pin pin,
 {
     // If the mode has not changed, don't bother sending command to radio
     if (inst->pins[pin].mode == mode) {
+        inst->pins[pin].mode_explicit = 1;
         return 0;
     }
     
@@ -268,12 +285,6 @@ uint8_t rn2483_set_pin_mode(struct rn2483_desc_t *inst, enum rn2483_pin pin,
     rn2483_service(inst);
     
     return 0;
-}
-
-enum rn2483_pin_mode rn2483_get_pin_mode(struct rn2483_desc_t *inst,
-                                         enum rn2483_pin pin)
-{
-    return inst->pins[pin].mode;
 }
 
 void rn2483_set_output(struct rn2483_desc_t *inst, enum rn2483_pin pin,

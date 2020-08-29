@@ -25,7 +25,7 @@ enum sky13414_state {
     SKY13414_RF3 = 0b010,
     /** Antenna pin connected to RF4 pin */
     SKY13414_RF4 = 0b011,
-    /** Antenna pin internally disconected */
+    /** Antenna pin internally disconnected */
     SKY13414_NONE = 0b100,
     /** Antenna pin connected to 50 Ohm load */
     SKY13414_50_OHM = 0b101,
@@ -47,7 +47,7 @@ struct sky13414_desc_t {
 /**
  *  Initialize an instance of the SKY13414 antenna switch driver.
  *
- *  @param inst Pointer to the instance structure to be initalized
+ *  @param inst Pointer to the instance structure to be initialized
  *  @param radio Pointer to the RN2483 driver instance on which the GPIO pins
  *               are located
  *  @param v1 RN2483 GPIO pin connected to the V1 pin of the antenna switch
