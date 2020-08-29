@@ -40,8 +40,8 @@ int main (int argc, char **argv)
         // Check that the power was set to the maximum value
         ut_assert(settings.power == 14);
         // Check that the other values where set correctly
-        ut_assert(settings.spreading_factor == RN2483_CR_4_8);
-        ut_assert(settings.coding_rate == RN2483_SF_SF10);
+        ut_assert(settings.spreading_factor == RN2483_SF_SF10);
+        ut_assert(settings.coding_rate == RN2483_CR_4_8);
         ut_assert(settings.bandwidth == RN2483_BW_500);
     }
 
