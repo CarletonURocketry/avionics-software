@@ -80,6 +80,10 @@ extern struct sercom_i2c_desc_t i2c_g;
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
 #define UART0_ECHO 0
+/* Group number for UART TX pin */
+#define UART0_TX_PIN_GROUP 0
+/* Pin number for UART TX pin */
+#define UART0_TX_PIN_NUM 4
 /* UART Instance */
 extern struct sercom_uart_desc_t uart0_g;
 
@@ -93,6 +97,10 @@ extern struct sercom_uart_desc_t uart0_g;
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
 #define UART1_ECHO 0
+/* Group number for UART TX pin */
+#define UART1_TX_PIN_GROUP 0
+/* Pin number for UART TX pin */
+#define UART1_TX_PIN_NUM 16
 /* UART Instance */
 extern struct sercom_uart_desc_t uart1_g;
 
@@ -106,6 +114,10 @@ extern struct sercom_uart_desc_t uart1_g;
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
 #define UART2_ECHO 0
+/* Group number for UART TX pin */
+#define UART2_TX_PIN_GROUP 0
+/* Pin number for UART TX pin */
+#define UART2_TX_PIN_NUM 12
 /* UART Instance */
 extern struct sercom_uart_desc_t uart2_g;
 
@@ -119,6 +131,10 @@ extern struct sercom_uart_desc_t uart2_g;
 /* Define as one if UART should echo received bytes and provide line editing,
  0 otherwise */
 #define UART3_ECHO 0
+/* Group number for UART TX pin */
+#define UART3_TX_PIN_GROUP 0
+/* Pin number for UART TX pin */
+#define UART3_TX_PIN_NUM 22
 /* UART Instance */
 extern struct sercom_uart_desc_t uart3_g;
 

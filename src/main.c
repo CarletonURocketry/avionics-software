@@ -340,7 +340,8 @@ int main(void)
 #define UART0_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart0_g, UART0_SERCOM_INST, UART0_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO,
+                     UART0_TX_PIN_GROUP, UART0_TX_PIN_NUM);
 #endif
     
     // Init UART 1
@@ -349,7 +350,8 @@ int main(void)
 #define UART1_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart1_g, UART1_SERCOM_INST, UART1_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO,
+                     UART1_TX_PIN_GROUP, UART1_TX_PIN_NUM);
 #endif
     
     // Init UART 2
@@ -358,7 +360,8 @@ int main(void)
 #define UART2_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart2_g, UART2_SERCOM_INST, UART2_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO,
+                     UART2_TX_PIN_GROUP, UART2_TX_PIN_NUM);
 #endif
     
     // Init UART 3
@@ -367,7 +370,8 @@ int main(void)
 #define UART3_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart3_g, UART3_SERCOM_INST, UART3_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO,
+                     UART2_TX_PIN_GROUP, UART2_TX_PIN_NUM);
 #endif
     
     // Init ADC
@@ -537,6 +541,22 @@ static void main_loop (void)
     
 #ifdef I2C_SERCOM_INST
     sercom_i2c_service(&i2c_g);
+#endif
+
+#ifdef UART0_SERCOM_INST
+    sercom_uart_service(&uart0_g);
+#endif
+
+#ifdef UART1_SERCOM_INST
+    sercom_uart_service(&uart1_g);
+#endif
+
+#ifdef UART2_SERCOM_INST
+    sercom_uart_service(&uart2_g);
+#endif
+
+#ifdef UART3_SERCOM_INST
+    sercom_uart_service(&uart3_g);
 #endif
     
 #ifdef ENABLE_IO_EXPANDER
