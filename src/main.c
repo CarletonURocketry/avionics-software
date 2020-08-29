@@ -33,6 +33,8 @@
 #include "ms5611.h"
 #include "rn2483.h"
 
+#include "radio-transport.h"
+
 #include "ground.h"
 #include "telemetry.h"
 
@@ -72,11 +74,155 @@ struct sercom_uart_desc_t uart3_g;
 struct mcp23s17_desc_t io_expander_g;
 #endif
 
-#ifdef ENABLE_LORA_RADIO
-struct rn2483_desc_t rn2483_g;
+#ifdef ENABLE_LORA
+// This structure must be 4 bytes aligned because the radio transport module
+// uses the two least significant bits of a pointer to this structure to store
+// other information.
+struct radio_transport_desc radio_transport_g __attribute__((__aligned__(4)));
 
-static struct rn2483_desc_t *rn2483_list_g[] = { &rn2483_g, NULL };
+#ifdef LORA_RADIO_0_UART
+static struct radio_instance_desc radio_0_g;
+#ifdef LORA_RADIO_0_ANT_MASK
+static struct radio_antmgr_desc radio_antmgr_0_g;
 #endif
+#endif
+#ifdef LORA_RADIO_1_UART
+static struct radio_instance_desc radio_1_g;
+#ifdef LORA_RADIO_1_ANT_MASK
+static struct radio_antmgr_desc radio_antmgr_1_g;
+#endif
+#endif
+#ifdef LORA_RADIO_2_UART
+static struct radio_instance_desc radio_2_g;
+#ifdef LORA_RADIO_2_ANT_MASK
+static struct radio_antmgr_desc radio_antmgr_2_g;
+#endif
+#endif
+#ifdef LORA_RADIO_3_UART
+static struct radio_instance_desc radio_3_g;
+#ifdef LORA_RADIO_3_ANT_MASK
+static struct radio_antmgr_desc radio_antmgr_3_g;
+#endif
+#endif
+
+/** Array of pointers to radio instances that are in use. */
+struct radio_instance_desc *const radios_g[] =
+{
+#ifdef LORA_RADIO_0_UART
+        &radio_0_g,
+#endif
+#ifdef LORA_RADIO_1_UART
+        &radio_1_g,
+#endif
+#ifdef LORA_RADIO_2_UART
+        &radio_2_g,
+#endif
+#ifdef LORA_RADIO_3_UART
+        &radio_3_g
+#endif
+        NULL
+};
+
+// Check that in use uart descriptors are at least 4 byte aligned
+#ifdef LORA_RADIO_0_UART
+_Static_assert((((uintptr_t)&LORA_RADIO_0_UART) & 0b11) == 0, "UART descriptor "
+               "for radio 0 must be 4 byte aligned.");
+#endif
+#ifdef LORA_RADIO_1_UART
+_Static_assert((((uintptr_t)&LORA_RADIO_1_UART) & 0b11) == 0, "UART descriptor "
+               "for radio 1 must be 4 byte aligned.");
+#endif
+#ifdef LORA_RADIO_2_UART
+_Static_assert((((uintptr_t)&LORA_RADIO_2_UART) & 0b11) == 0, "UART descriptor "
+               "for radio 2 must be 4 byte aligned.");
+#endif
+#ifdef LORA_RADIO_3_UART
+_Static_assert((((uintptr_t)&LORA_RADIO_3_UART) & 0b11) == 0, "UART descriptor "
+               "for radio 3 must be 4 byte aligned.");
+#endif
+
+#define UART_EMBED_NUM(u, i) ((struct sercom_uart_desc_t *)(((uintptr_t)&u) | i))
+
+/**
+ *  Array of pointers to the sercom uart instance for each active radio.
+ *  The least significant 2 bits of each address is used to encode the radio
+ *  number.
+ */
+static struct sercom_uart_desc_t *const radio_uarts_g[] =
+{
+#ifdef LORA_RADIO_0_UART
+    UART_EMBED_NUM(LORA_RADIO_0_UART, 0),
+#endif
+#ifdef LORA_RADIO_1_UART
+    UART_EMBED_NUM(LORA_RADIO_1_UART, 1),
+#endif
+#ifdef LORA_RADIO_2_UART
+    UART_EMBED_NUM(LORA_RADIO_2_UART, 2),
+#endif
+#ifdef LORA_RADIO_3_UART
+    UART_EMBED_NUM(LORA_RADIO_3_UART, 3),
+#endif
+    NULL
+};
+
+/** Array of antenna switch information for each active radio. */
+static const struct radio_antenna_info radio_antennas_g[] =
+{
+#ifdef LORA_RADIO_0_UART
+    (struct radio_antenna_info) {
+#if defined(LORA_RADIO_0_ANT_MASK)
+        .antmgr = &radio_antmgr_0_g,
+        .antenna_mask = LORA_RADIO_0_ANT_MASK,
+        .fixed_antenna_num = 0
+#elif defined(LORA_RADIO_0_ANT_FIXED)
+        .fixed_antenna_num = LORA_RADIO_0_ANT_FIXED
+#else
+        .antmgr = NULL
+#endif
+    },
+#endif
+#ifdef LORA_RADIO_1_UART
+    (struct radio_antenna_info) {
+#if defined(LORA_RADIO_1_ANT_MASK)
+        .antmgr = &radio_antmgr_1_g,
+        .antenna_mask = LORA_RADIO_1_ANT_MASK,
+        .fixed_antenna_num = 0
+#elif defined(LORA_RADIO_1_ANT_FIXED)
+        .fixed_antenna_num = LORA_RADIO_1_ANT_FIXED
+#else
+        .antmgr = NULL
+#endif
+    },
+#endif
+#ifdef LORA_RADIO_2_UART
+    (struct radio_antenna_info) {
+#if defined(LORA_RADIO_2_ANT_MASK)
+        .antmgr = &radio_antmgr_2_g,
+        .antenna_mask = LORA_RADIO_2_ANT_MASK,
+        .fixed_antenna_num = 0
+#elif defined(LORA_RADIO_2_ANT_FIXED)
+        .fixed_antenna_num = LORA_RADIO_2_ANT_FIXED
+#else
+        .antmgr = NULL
+#endif
+    },
+#endif
+#ifdef LORA_RADIO_3_UART
+    (struct radio_antenna_info) {
+#if defined(LORA_RADIO_3_ANT_MASK)
+        .antmgr = &radio_antmgr_3_g,
+        .antenna_mask = LORA_RADIO_3_ANT_MASK,
+        .fixed_antenna_num = 0
+#elif defined(LORA_RADIO_3_ANT_FIXED)
+        .fixed_antenna_num = LORA_RADIO_3_ANT_FIXED
+#else
+        .antmgr = NULL
+#endif
+    },
+#endif
+};
+
+#endif /* ENABLE_LORA */
 
 #ifdef ENABLE_ALTIMETER
 struct ms5611_desc_t altimeter_g;
@@ -340,7 +486,8 @@ int main(void)
 #define UART0_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart0_g, UART0_SERCOM_INST, UART0_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART0_DMA_CHAN, UART0_ECHO,
+                     UART0_TX_PIN_GROUP, UART0_TX_PIN_NUM);
 #endif
     
     // Init UART 1
@@ -349,7 +496,8 @@ int main(void)
 #define UART1_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart1_g, UART1_SERCOM_INST, UART1_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART1_DMA_CHAN, UART1_ECHO,
+                     UART1_TX_PIN_GROUP, UART1_TX_PIN_NUM);
 #endif
     
     // Init UART 2
@@ -358,7 +506,8 @@ int main(void)
 #define UART2_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart2_g, UART2_SERCOM_INST, UART2_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART2_DMA_CHAN, UART2_ECHO,
+                     UART2_TX_PIN_GROUP, UART2_TX_PIN_NUM);
 #endif
     
     // Init UART 3
@@ -367,7 +516,8 @@ int main(void)
 #define UART3_DMA_CHAN -1
 #endif
     init_sercom_uart(&uart3_g, UART3_SERCOM_INST, UART3_BAUD, F_CPU,
-                     GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO);
+                     GCLK_CLKCTRL_GEN_GCLK0, UART3_DMA_CHAN, UART3_ECHO,
+                     UART2_TX_PIN_GROUP, UART2_TX_PIN_NUM);
 #endif
     
     // Init ADC
@@ -428,31 +578,30 @@ int main(void)
     
     // Debug CLI
 #ifdef ENABLE_DEBUG_CLI
-    init_cli(&cli_g, &console_g, "> ", debug_commands_funcs,
-             debug_commands_num_funcs);
+    init_cli(&cli_g, &console_g, "> ", debug_commands_funcs);
 #endif
     
-    // LoRa Radio
-#ifdef ENABLE_LORA_RADIO
-    init_rn2483(&rn2483_g, &LORA_UART, LORA_FREQ, LORA_POWER,
-                LORA_SPREADING_FACTOR, LORA_CODING_RATE, LORA_BANDWIDTH,
-                LORA_CRC, LORA_INVERT_IQ, LORA_SYNC_WORD);
+    // LoRa Radios
+#ifdef ENABLE_LORA
+    init_radio_transport(&radio_transport_g, radios_g, radio_uarts_g,
+                         radio_antennas_g, LORA_RADIO_SEARCH_ROLE,
+                         LORA_DEVICE_ADDRESS);
 #endif
     
     // GPIO
 #ifdef ENABLE_IO_EXPANDER
     init_mcp23s17(&io_expander_g, 0, &spi_g, 100, IO_EXPANDER_CS_PIN_MASK,
                   IO_EXPANDER_CS_PIN_GROUP);
-#ifdef ENABLE_LORA_RADIO
+#ifdef ENABLE_LORA
     init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN,
-              rn2483_list_g);
+              radios_g);
 #else
     init_gpio(GCLK_CLKCTRL_GEN_GCLK0, &io_expander_g, IO_EXPANDER_INT_PIN,
               NULL);
 #endif
 #else
-#ifdef ENABLE_LORA_RADIO
-    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0, rn2483_list_g);
+#ifdef ENABLE_LORA
+    init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0, radios_g);
 #else
     init_gpio(GCLK_CLKCTRL_GEN_GCLK0, NULL, 0, NULL);
 #endif
@@ -538,6 +687,22 @@ static void main_loop (void)
 #ifdef I2C_SERCOM_INST
     sercom_i2c_service(&i2c_g);
 #endif
+
+#ifdef UART0_SERCOM_INST
+    sercom_uart_service(&uart0_g);
+#endif
+
+#ifdef UART1_SERCOM_INST
+    sercom_uart_service(&uart1_g);
+#endif
+
+#ifdef UART2_SERCOM_INST
+    sercom_uart_service(&uart2_g);
+#endif
+
+#ifdef UART3_SERCOM_INST
+    sercom_uart_service(&uart3_g);
+#endif
     
 #ifdef ENABLE_IO_EXPANDER
     mcp23s17_service(&io_expander_g);
@@ -555,8 +720,8 @@ static void main_loop (void)
     console_service(&gnss_console_g);
 #endif
     
-#ifdef ENABLE_LORA_RADIO
-    rn2483_service(&rn2483_g);
+#ifdef ENABLE_LORA
+    radio_transport_service(&radio_transport_g);
 #endif
     
 #ifdef ENABLE_GROUND_SERVICE
@@ -583,10 +748,10 @@ void HardFault_Handler(void)
     
     uint8_t port = DEBUG0_LED_PIN.internal.port;
     uint32_t mask = (1 << DEBUG0_LED_PIN.internal.pin);
+
+    PORT->Group[port].DIRSET.reg = mask;
     
     for (;;) {
-        
-        
         PORT->Group[port].OUTSET.reg = mask;
         uint64_t n = 1000000;
         while (n--) {

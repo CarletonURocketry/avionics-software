@@ -3,8 +3,8 @@
  * @desc Unified driver for internal and external GPIO
  * @author Samuel Dewan
  * @date 2019-03-15
- * Last Author:
- * Last Edited On:
+ * Last Author: Samuel Dewan
+ * Last Edited On: 2020-04-05
  */
 
 #ifndef gpio_h
@@ -14,6 +14,7 @@
 
 #include "mcp23s17.h"
 #include "rn2483.h"
+#include "radio-transport.h"
 
 #define GPIO_MAX_EXTERNAL_IO_INTERRUPTS 8
 
@@ -114,11 +115,11 @@ typedef void (*gpio_interrupt_cb)(union gpio_pin_t pin, uint8_t value);
  *  @param mcp23s17 An MCP23S17 instance for external GPIO, can be NULL, must be
  *                  initialized if not NULL
  *  @param mcp23s17_int_pin Pin number for the MCP23S17 interrupt pin
- *  @param rn2483 An RN2483 instance for external GPIO, can be NULL, must be
- *                initialized if not NULL
+ *  @param radios List of RN2483 radios that can be used for GPIO
  */
 extern void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
-                      uint16_t mcp23s17_int_pin, struct rn2483_desc_t **rn2483);
+                      uint16_t mcp23s17_int_pin,
+                      struct radio_instance_desc *const *radios);
 
 /**
  *  Set the mode of a pin.

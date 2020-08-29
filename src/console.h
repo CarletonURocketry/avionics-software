@@ -120,6 +120,25 @@ extern uint16_t console_send_bytes_async (struct console_desc_t *console,
                                           const uint8_t *data, uint16_t length);
 
 /**
+ *  Determine if there is a line available on a console.
+ *
+ *  @param console The console which should be checked for a line
+ *
+ *  @return Zero if the console does not have a line, a non-zero value otherwise
+ */
+extern int console_has_line(struct console_desc_t *console);
+
+/**
+ *  Get a line from a console.
+ *
+ *  @param Console The console to get a line from
+ *  @param str The buffer where the line should be stored
+ *  @param len The maximum number of characters that can be stored in the buffer
+ */
+extern void console_get_line(struct console_desc_t *console, char *str,
+                             uint16_t len);
+
+/**
  *  Set the function which should be called when a full line has been received.
  *  The function will be passed the line as a string, a pointer to the console
  *  on which to the line was received and a pointer to an object which contains

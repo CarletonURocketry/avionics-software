@@ -24,7 +24,7 @@
 #define RN2483_CMD_TX_LEN 9
 
 
-typedef int (*rn2483_stat_handler_t)(struct rn2483_desc_t *inst);
+typedef int (*rn2483_state_handler_t)(struct rn2483_desc_t *inst);
 
 /**
  *  Array of functions for handling FSM states.
@@ -32,7 +32,7 @@ typedef int (*rn2483_stat_handler_t)(struct rn2483_desc_t *inst);
  *  Each state handler returns 0 if the service function should return or 1 if
  *  the service function should call the handler for the next state immediately.
  */
-extern const rn2483_stat_handler_t rn2483_state_handlers[];
+extern const rn2483_state_handler_t rn2483_state_handlers[];
 
 /** Set the current state of a transaction entry */
 extern void set_send_trans_state(struct rn2483_desc_t *inst, int n,

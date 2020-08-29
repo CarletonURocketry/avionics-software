@@ -13,14 +13,6 @@
 #include <string.h>
 #include <ctype.h>
 
-
-/**
- *  Start any pending transactions.
- *
- *  @param uart The console for which the service should be run.
- */
-static void sercom_uart_service (struct sercom_uart_desc_t *uart);
-
 static void sercom_uart_isr (Sercom *sercom, uint8_t inst_num, void *state);
 static void sercom_uart_dma_callback (uint8_t chan, void *state);
 
@@ -29,7 +21,7 @@ static void sercom_uart_dma_callback (uint8_t chan, void *state);
 void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
                        uint32_t baudrate, uint32_t core_freq,
                        uint32_t core_clock_mask, int8_t dma_channel,
-                       uint8_t echo)
+                       uint8_t echo, uint8_t tx_pin_group, uint8_t tx_pin_num)
 {
     uint8_t instance_num = sercom_get_inst_num(sercom);
     
@@ -105,6 +97,20 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
             .state = (void*)descriptor
         };
     }
+
+    // Configure break condition state
+    descriptor->break_duration = 0;
+    descriptor->break_pending = 0;
+
+    // Store TX pin info
+    descriptor->tx_pin_group = tx_pin_group;
+    descriptor->tx_pin_num = tx_pin_num;
+
+    /* Configure TX pin */
+    // Set TX pin as output
+    PORT->Group[tx_pin_group].DIRSET.reg = (1 << tx_pin_num);
+    // Set TX pin output low
+    PORT->Group[tx_pin_group].OUTCLR.reg = (1 << tx_pin_num);
     
     /* Enable SERCOM instance */
     sercom->USART.CTRLA.bit.ENABLE = 0b1;
@@ -311,6 +317,19 @@ uint8_t sercom_uart_out_buffer_empty (struct sercom_uart_desc_t *uart)
     return circular_buffer_is_empty(&uart->out_buffer);
 }
 
+void sercom_uart_send_break (struct sercom_uart_desc_t *uart,
+                             uint8_t duration)
+{
+    if (duration == 0) {
+        return;
+    }
+
+    uart->break_duration = duration;
+    uart->break_pending = 1;
+
+    sercom_uart_service(uart);
+}
+
 void sercom_uart_service (struct sercom_uart_desc_t *uart)
 {
     /* Acquire service function lock */
@@ -320,7 +339,41 @@ void sercom_uart_service (struct sercom_uart_desc_t *uart)
     } else {
         uart->service_lock = 1;
     }
-    
+
+    /* Check if currently sending data */
+    if ((uart->use_dma && dma_chan_is_active(uart->dma_chan)) ||
+        (!uart->use_dma && uart->sercom->USART.INTENSET.bit.DRE)) {
+        // Sending data is already in progress
+        uart->service_lock = 0;
+        return;
+    }
+
+    /* Break condition */
+    if ((uart->break_duration != 0) && !uart->break_pending) {
+        // Currently sending a break condition
+        if ((millis - uart->break_start_time) > uart->break_duration) {
+            // Break time is complete
+            // Switch TX pin back to being controlled by SERCOM
+            PORT->Group[uart->tx_pin_group].PINCFG[uart->tx_pin_num].bit.PMUXEN
+                                                                            = 1;
+            uart->break_duration = 0;
+        } else {
+            uart->service_lock = 0;
+            return;
+        }
+    }
+
+    if (uart->break_pending && (uart->break_duration != 0)) {
+        // Need to send a break condition
+        // Disable SERCOM control of TX pin
+        PORT->Group[uart->tx_pin_group].PINCFG[uart->tx_pin_num].bit.PMUXEN = 0;
+        uart->break_start_time = millis;
+        uart->break_pending = 0;
+        uart->service_lock = 0;
+        return;
+    }
+
+    /* Data */
     if (circular_buffer_is_empty(&uart->out_buffer)) {
         // No data to be sent
         uart->service_lock = 0;

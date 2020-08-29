@@ -165,24 +165,24 @@ DEBUG_ARGS += --openocd-port $(OPENOCD_PORT)
 
 # Use user provided OpenOCD if specified
 ifdef OPENOCD_PATH
-DEBUG_ARGS += --openocd $(OPENOCD_PATH)
+DEBUG_ARGS += --openocd "$(OPENOCD_PATH)"
 endif
 
 # Use GDB from toolchain if one is specified
 ifdef CORTEX_TOOLCHAIN_BIN
-DEBUG_ARGS += --gdb $(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb
+DEBUG_ARGS += --gdb "$(CORTEX_TOOLCHAIN_BIN)/arm-none-eabi-gdb"
 endif
 
-# Select OpenOCD Interface
+# Select OpenOCD interface
 ifdef OPENOCD_INTERFACE
-DEBUG_ARGS += --interface $(OPENOCD_INTERFACE)
+DEBUG_ARGS += --interface "$(OPENOCD_INTERFACE)"
 endif
 
 # Use a device file as the GDB server if one is proved, useful for Black Magic
 # Probe. Note that the debug script will not attach to the target automatically,
 # the user needs to perform the scan and attach manually after GDB opens.
 ifdef GDB_FILE
-DEBUG_ARGS += --gdb-file $(GDB_FILE)
+DEBUG_ARGS += --gdb-file "$(GDB_FILE)"
 endif
 
 
@@ -329,7 +329,7 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	@echo $(MSG_COMPILING) $<
 	$(COMPILE.cpp) "$(abspath $<)" -o $@
 
-$(OBJDIR)/.depend:  $(SRC) $(OBJDIR)
+$(OBJDIR)/.depend: $(SRC) | $(OBJDIR)
 	$(COMPILE.c) -MM $(SRC)  | \
 	sed -E 's#^(.*\.o: *)$(SRCDIR)/(.*/)?(.*\.(c|cpp|S))#$(OBJDIR)/\2\1$(SRCDIR)/\2\3#' > $@
 

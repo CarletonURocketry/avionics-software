@@ -39,7 +39,7 @@ void init_dmac(void)
     DMAC->CTRL.reg = (DMAC_CTRL_LVLEN0 | DMAC_CTRL_LVLEN1 | DMAC_CTRL_LVLEN2 |
                       DMAC_CTRL_LVLEN3);
     
-    /* Enable DMAC interupts */
+    /* Enable DMAC interrupts */
     NVIC_SetPriority (DMAC_IRQn, DMA_IRQ_PRIORITY);
     NVIC_EnableIRQ(DMAC_IRQn);
 
@@ -72,12 +72,12 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
     DMAC->CHCTRLB.reg = (DMAC_CHCTRLB_TRIGACT_BEAT |
                          DMAC_CHCTRLB_TRIGSRC(trigger) |
                          DMAC_CHCTRLB_LVL(priority));
-    // Enable transfer complete interupt
+    // Enable transfer complete interrupt
     DMAC->CHINTENSET.bit.TCMPL = 0b1;
     
     /* Configure transfer descriptor(s) */
     // Ensure that the step size setting does not apply to source address,
-    // enable incrementing of source address, set beatsize to one byte and mark
+    // enable incrementing of source address, set beat size to one byte and mark
     // descriptor as valid
     dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_DST |
                                           DMAC_BTCTRL_SRCINC |
@@ -102,7 +102,7 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
         // Enable interupt on block completion
         dmacDescriptors_g[chan].BTCTRL.bit.BLOCKACT =
                                                 DMAC_BTCTRL_BLOCKACT_INT_Val;
-    }   else {
+    } else {
         // Select block transfer count
         dmacDescriptors_g[chan].BTCNT.reg = (buffer->capacity - buffer->head);
         
@@ -143,7 +143,7 @@ int8_t dma_start_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
     
     /* Set up transfer descriptor */
     tran->buffer = buffer;
-    tran->orig_tail = buffer->tail;
+    tran->length = buffer->length;
     tran->valid = 0b1;
     dmaCircBufferTransfers[chan] = tran;
     
@@ -404,7 +404,7 @@ void DMAC_Handler (void)
     // channel configuration
     uint8_t old_chan = DMAC->CHID.bit.ID;
     
-    // Iterate through all of the channels whith pending interupts by selecting
+    // Iterate through all of the channels with pending interupts by selecting
     // the lowest channel with an interupt from the interupt pending register
     // until there are no channels with pending interupts left.
     while (DMAC->INTPEND.reg & (DMAC_INTPEND_SUSP | DMAC_INTPEND_TCMPL |
@@ -421,8 +421,9 @@ void DMAC_Handler (void)
             if (dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid) {
                 // A circular buffer DMA transfer has finished
                 // The head of the buffer must be moved
-                dmaCircBufferTransfers[DMAC->CHID.bit.ID]->buffer->head =
-                        dmaCircBufferTransfers[DMAC->CHID.bit.ID]->orig_tail;
+                circular_buffer_move_head(
+                            dmaCircBufferTransfers[DMAC->CHID.bit.ID]->buffer,
+                            dmaCircBufferTransfers[DMAC->CHID.bit.ID]->length);
                 // The transaction is done now, so we need to mark it invalid
                 dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid = 0b0;
             }
@@ -449,8 +450,3 @@ void DMAC_Handler (void)
     // Restore previously selected channel
     DMAC->CHID.bit.ID = old_chan;
 }
-
-
-
-
-

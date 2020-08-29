@@ -25,7 +25,9 @@
  */
 struct sercom_uart_desc_t {
     Sercom *sercom;
-    
+
+    uint32_t break_start_time;
+
     /** Circular buffer for data to be transmitted */
     char out_buffer_mem[SERCOM_UART_OUT_BUFFER_LEN];
     struct circular_buffer_t out_buffer;
@@ -34,22 +36,32 @@ struct sercom_uart_desc_t {
     struct circular_buffer_t in_buffer;
     
     uint8_t sercom_instnum;
-    
+
+    uint8_t tx_pin_num:5;
+    uint8_t tx_pin_group:3;
+
+    uint8_t break_duration;
+
     /** DMA channel for data transmission */
     uint8_t dma_chan:4;
     uint8_t use_dma:1;
     
     uint8_t echo:1;
     
-    /** Flag used to unsure that the service function is not executed in an
-     interrupt while it is already being run in the main thread */
+    /** Flag used to ensure that the service function is not executed in an
+        interrupt while it is already being run in the main thread */
     uint8_t service_lock:1;
+
+    uint8_t break_pending:1;
     
     struct dma_circ_transfer_t dma_tran;
 };
 
 /**
  *  Initialize a SERCOM instance for use as a serial console
+ *
+ *  @note Before calling this function all of the pins for the sercom should
+ *        have their pin-muxes configured and enabled.
  *
  *  @param descriptor The descriptor to be populated for this console instance.
  *  @param sercom Pointer to the SERCOM instance's registers.
@@ -61,11 +73,14 @@ struct sercom_uart_desc_t {
  *                     value for interrupt driven communication.
  *  @param echo If true bytes received will be treated as characters and
  *              echoed and simple line editing (backspace) will be possible.
+ *  @param tx_pin_group Group number for TX pin
+ *  @param tx_pin_num Pin number for TX pin
  */
 extern void init_sercom_uart(struct sercom_uart_desc_t *descriptor,
                              Sercom *sercom, uint32_t baudrate,
                              uint32_t core_freq, uint32_t core_clock_mask,
-                             int8_t dma_channel, uint8_t echo);
+                             int8_t dma_channel, uint8_t echo,
+                             uint8_t tx_pin_group, uint8_t tx_pin_num);
 
 /**
  *  Queue a string to be written to the UART.
@@ -189,8 +204,26 @@ extern char sercom_uart_get_char (struct sercom_uart_desc_t *uart);
  *  Determine if the out buffer of a UART is empty.
  *
  *  @param uart The UART for which the empty-ness of the out buffer should
- *                 be determined.
+ *              be determined.
  */
 extern uint8_t sercom_uart_out_buffer_empty (struct sercom_uart_desc_t *uart);
+
+/**
+ *  Set the TX line low for a given period of time.
+ *
+ *  @param uart The uart descriptor
+ *  @param duration Duration of break condition in milliseconds, if 0 no break
+ *                  will be sent
+ */
+extern void sercom_uart_send_break (struct sercom_uart_desc_t *uart,
+                                    uint8_t duration);
+
+/**
+ *  Start any pending transactions.
+ *
+ *  @param uart The console for which the service should be run.
+ */
+void sercom_uart_service (struct sercom_uart_desc_t *uart);
+
 
 #endif /* sercom_uart_h */
