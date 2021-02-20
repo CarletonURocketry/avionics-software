@@ -58,6 +58,14 @@ struct spi_out_buffer{
     uint8_t empty:1;
 };
 
+struct spi_in_buffer{
+    uint8_t in_buffer[12]; // not sure what length to make this
+    // uint8_t out_buffer[12]; // not sure what length to make this
+    uint8_t spi_transaction_id;
+    uint8_t empty:1;
+    uint8_t *completed; // a pointer to a boolean to set to 1 when the transaction has been completed
+};
+
 struct mcp2518fd_desc {
     /** SPI instance used to communicate with the device */ 
     struct sercom_spi_desc_t *spi_inst;
@@ -71,8 +79,11 @@ struct mcp2518fd_desc {
     uint8_t next_out_buffer;
     // could make this a point to the next buffer and not an index, but not sure
     uint8_t num_out_buffers;
+    uint8_t next_in_buffer;
+    uint8_t num_in_buffers;
 
     struct spi_out_buffer spi_out_buffer[8];
     // How many out buffers do we need?
     // Should we make the buffers as big as they need to be? Need to actually be 8 + the spi commands etc
+    struct spi_in_buffer spi_in_buffer[8];
 };
