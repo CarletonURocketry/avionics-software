@@ -22,7 +22,7 @@
  */
 struct sercom_spi_transaction_t {
     /** The buffer from which data is sent. */
-    uint8_t *out_buffer;
+    uint8_t const *out_buffer;
     /** The buffer into which received data is placed. */
     uint8_t *in_buffer;
     /** The number of bytes to be sent. */
@@ -45,9 +45,15 @@ struct sercom_spi_transaction_t {
 
     /** Flag set if the receive stage has been initialized. */
     uint8_t rx_started:1;
+
+    /** Flag set to indicate that the input and output stages of
+        this transactions should happen at the same time. */
+    uint8_t simultaneous:1;
     /** Flag to indicate that there are further parts to follow within the same
         transaction. */
     uint8_t multi_part:1;
+    /** Flag that indicates that this transaction is part of a session */
+    uint8_t session:1;
 };
 
 /**
@@ -78,6 +84,8 @@ struct sercom_spi_desc_t {
     uint8_t tx_use_dma:1;
     /** Flag which is set if DMA should be used for receiving. */
     uint8_t rx_use_dma:1;
+    /** Flag to indicate whether there is currently an active session. */
+    uint8_t in_session:1;
     /** Flag used to unsure that the service function is not executed in an
         interrupt while it is already being run in the main thread */
     uint8_t service_lock:1;
@@ -88,7 +96,7 @@ struct sercom_spi_desc_t {
  */
 struct sercom_spi_transaction_part_t {
     /** Buffer from which data will be sent */
-    uint8_t *out_buffer;
+    uint8_t const *out_buffer;
     /** Buffer into which received data will be placed */
     uint8_t * in_buffer;
     /** Number of bytes to be sent */
@@ -144,7 +152,7 @@ extern uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
                                 uint8_t * in_buffer, uint16_t in_length);
 
 /**
- *  Queue and SPI transaction that required multiple parts without raising the
+ *  Queue an SPI transaction that requires multiple parts without raising the
  *  CS line.
  *
  *  @param spi_inst The SPI instance to use
@@ -154,6 +162,8 @@ extern uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
  *  @param cs_pin_group The group index of the chip select pin of the
  *                      peripheral.
  *  @param cs_pin_mask The mask for the chip select pin of the peripheral.
+ *
+ *  @return 0 if successful, a non-zero value otherwise.
  */
 extern uint8_t sercom_spi_start_multi_part(struct sercom_spi_desc_t *spi_inst,
                                     struct sercom_spi_transaction_part_t *parts,
@@ -181,5 +191,121 @@ extern uint8_t sercom_spi_transaction_done(struct sercom_spi_desc_t *spi_inst,
  */
 extern uint8_t sercom_spi_clear_transaction(struct sercom_spi_desc_t *spi_inst,
                                             uint8_t trans_id);
+
+/**
+ *  Queue a session transaction. When a session transaction is at the head of
+ *  the queue, the queue will not advance until the session is ended with
+ *  sercom_spi_end_session(). The CS line is not de-asserted between
+ *  transactions within a session.
+ *
+ *  Multiple transaction can be performed within a session by calling
+ *  sercom_spi_start_session_transaction(), however the module that started the
+ *  session is responsible for sequencing the the transactions, only a single
+ *  transaction can be queued at once within a session. Multi-part transactions
+ *  are not supported in sessions.
+ *
+ *  Session have a single transaction ID which is reused for all transactions
+ *  within the session.
+ *
+ *  The following steps are required to use a session:
+ *      1) Call sercom_spi_start_session() to queue the session.
+ *      2) Use sercom_spi_start_session_transaction() to queue a transaction
+ *         within the session.
+ *      3) Poll sercom_spi_transaction_done() to wait for the transaction to
+ *         complete.
+ *      4) Repeat steps 2 and 3 as many time as needed. The CS pin will not be
+ *         raised between transactions and no transactions that are not part of
+ *         the session will be run.
+ *      5) When finished with the session (and all transactions within the
+ *         session are completed) run sercom_spi_end_session() to end the
+ *         session. At this point the CS pin will be de-asserted and the SPI
+ *         driver will move on to other queued transactions that are not part of
+ *         the session.
+ *
+ *  @note Do not call sercom_spi_clear_transaction() on sessions. Use
+ *        sercom_spi_end_session() instead.
+ *
+ *  @param spi_inst The SPI instance to use.
+ *  @param trans_id The transaction identifier for the created session will be
+ *                  placed here.
+ *  @param baudrate The baudrate to be used for all transactions in the session.
+ *  @param cs_pin_group The group index of the chip select pin of the
+ *                      peripheral.
+ *  @param cs_pin_mask The mask for the chip select pin of the peripheral.
+ *
+ *  @return 0 if session is queued successfully, a non-zero value otherwise.
+ */
+extern uint8_t sercom_spi_start_session(struct sercom_spi_desc_t *spi_inst,
+                                        uint8_t *trans_id, uint32_t baudrate,
+                                        uint8_t cs_pin_group,
+                                        uint32_t cs_pin_mask);
+
+/**
+ *  Queue a transaction within a session.
+ *
+ *  @note Only one transaction can exist within a session at a time. This
+ *        function may fail is you do not wait for sercom_spi_transaction_done()
+ *        to indicate that the session does not have an active/pending
+ *        transaction before using this function.
+ *
+ *  @param spi_inst The SPI instance to use.
+ *  @param trans_id The transaction ID for the session to which the transaction
+ *                  should be added.
+ *  @param out_buffer The buffer from which data should be sent.
+ *  @param out_length The number of bytes to be sent.
+ *  @param in_buffer The buffer where received data will be placed.
+ *  @param in_length The number of bytes to be received.
+ *
+ *  @return 0 if transaction is successfully queued.
+ */
+extern uint8_t sercom_spi_start_session_transaction(
+                                            struct sercom_spi_desc_t *spi_inst,
+                                            uint8_t trans_id,
+                                            uint8_t const *out_buffer,
+                                            uint16_t out_length,
+                                            uint8_t * in_buffer,
+                                            uint16_t in_length);
+
+/**
+ *  Queue a transaction within a session that will send and receive at the same
+ *  time.
+ *
+ *  @note Only one transaction can exist within a session at a time. This
+ *        function may fail is you do not wait for sercom_spi_transaction_done()
+ *        to indicate that the session does not have an active/pending
+ *        transaction before using this function.
+ *
+ *  @param spi_inst The SPI instance to use.
+ *  @param trans_id The transaction ID for the session to which the transaction
+ *                  should be added.
+ *  @param out_buffer The buffer from which data should be sent.
+ *  @param in_buffer The buffer where received data will be placed.
+ *  @param in_length The number of bytes to be sent and received simultaneously.
+ *
+ *  @return 0 if transaction is successfully queued.
+ */
+extern uint8_t sercom_spi_start_simultaneous_session_transaction(
+                                            struct sercom_spi_desc_t *spi_inst,
+                                            uint8_t trans_id,
+                                            uint8_t const *out_buffer,
+                                            uint8_t * in_buffer,
+                                            uint16_t length);
+
+extern uint8_t sercom_spi_session_active(struct sercom_spi_desc_t *spi_inst,
+                                         uint8_t trans_id);
+
+/**
+ *  End a session.
+ *
+ *  @note This function will fail if the session being ended has a currently
+ *        active transaction.
+ *
+ *  @param The SPI instance to use.
+ *  @param trans_id Transaction ID for the session to be ended.
+ *
+ *  @return 0 if session ended successfully, a non-zero value otherwise.
+ */
+extern uint8_t sercom_spi_end_session(struct sercom_spi_desc_t *spi_inst,
+                                      uint8_t trans_id);
 
 #endif /* sercom_spi_h */

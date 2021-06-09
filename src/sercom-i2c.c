@@ -421,8 +421,8 @@ static inline void sercom_i2c_end_transaction (
                                                struct sercom_i2c_desc_t *i2c_inst,
                                                struct transaction_t *t)
 {
-    t->done = 1;
-    t->active = 0;
+    // Mark transaction as done and not active
+    transaction_queue_set_done(t);
     
     // Disable MB and SM interrupts
     i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |

@@ -16,7 +16,7 @@
 #define SERCOM_SPI_BAUD_FALLBACK    1000000UL
 
 
-static const uint8_t spi_dummy_byte = 0;
+static const uint8_t spi_dummy_byte = 0xFF;
 
 
 static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state);
@@ -83,6 +83,8 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
                            SERCOM_SPI_TRANSACTION_QUEUE_LENGTH,
                            descriptor->states,
                            sizeof(struct sercom_spi_transaction_t));
+    descriptor->in_session = 0;
+    descriptor->service_lock = 0;
 
 
     // Configure DMA
@@ -108,9 +110,9 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
 
 static inline void init_transaction(struct transaction_t *t, uint32_t baudrate,
                                     uint8_t cs_pin_group, uint32_t cs_pin_mask,
-                                    uint8_t *out_buffer, uint16_t out_length,
-                                    uint8_t * in_buffer, uint16_t in_length,
-                                    uint8_t multi_part)
+                                    uint8_t const *out_buffer,
+                                    uint16_t out_length, uint8_t * in_buffer,
+                                    uint16_t in_length, uint8_t multi_part)
 {
     struct sercom_spi_transaction_t *state =
                                     (struct sercom_spi_transaction_t*)t->state;
@@ -124,6 +126,8 @@ static inline void init_transaction(struct transaction_t *t, uint32_t baudrate,
     state->cs_pin_mask = cs_pin_mask;
     state->rx_started = 0;
     state->multi_part = multi_part;
+    state->session = 0;
+    state->simultaneous = 0;
 
     state->bytes_out = 0;
     state->bytes_in = 0;
@@ -184,6 +188,14 @@ uint8_t sercom_spi_start_multi_part(struct sercom_spi_desc_t *spi_inst,
 uint8_t sercom_spi_transaction_done(struct sercom_spi_desc_t *spi_inst,
                                     uint8_t trans_id)
 {
+    // We run the SPI service here because we could theoretically get stalled if
+    // the interrupt that signals the end of a transaction happens while the
+    // main loop is in the exact wrong place in the sercom_spi_service function
+    // and a transaction is pending.
+    // If such a stall has happened we will get the next transaction started
+    // here.
+    sercom_spi_service(spi_inst);
+    
     return transaction_queue_is_done(
                             transaction_queue_get(&spi_inst->queue, trans_id));
 }
@@ -191,8 +203,211 @@ uint8_t sercom_spi_transaction_done(struct sercom_spi_desc_t *spi_inst,
 uint8_t sercom_spi_clear_transaction(struct sercom_spi_desc_t *spi_inst,
                                      uint8_t trans_id)
 {
-    return transaction_queue_invalidate(
-                            transaction_queue_get(&spi_inst->queue, trans_id));
+    struct transaction_t *t = transaction_queue_get(&spi_inst->queue, trans_id);
+    struct sercom_spi_transaction_t *s =
+                                    (struct sercom_spi_transaction_t*)t->state;
+
+    if (s->session) {
+        // Cannot clear a session, need to use sercom_spi_end_session() instead
+        return 1;
+    }
+
+    return transaction_queue_invalidate(t);
+}
+
+uint8_t sercom_spi_start_session(struct sercom_spi_desc_t *spi_inst,
+                                 uint8_t *trans_id, uint32_t baudrate,
+                                 uint8_t cs_pin_group, uint32_t cs_pin_mask)
+{
+    // Try to get a transaction queue entry
+    struct transaction_t *t = transaction_queue_add(&spi_inst->queue);
+    if (t == NULL) {
+        return 1;
+    }
+
+    struct sercom_spi_transaction_t *const state =
+                                    (struct sercom_spi_transaction_t*)t->state;
+
+    // Zero out all of the elements that are specific to individual transactions
+    state->out_buffer = NULL;
+    state->in_buffer = NULL;
+    state->out_length = 0;
+    state->in_length = 0;
+    state->bytes_in = 0;
+    state->bytes_out = 0;
+    state->rx_started = 0;
+    state->simultaneous = 0;
+
+    // Initialize elements that are constant for all transaction in the session
+    state->baudrate = baudrate;
+    state->cs_pin_mask = cs_pin_mask;
+    state->cs_pin_group = cs_pin_group;
+    state->multi_part = 0;
+    state->session = 1;
+
+    // Mark the transaction as done since this session does not yet have valid
+    // transaction in it
+    transaction_queue_set_done(t);
+
+    // Mark transaction as valid
+    transaction_queue_set_valid(t);
+
+    // Store the transaction ID
+    *trans_id = t->transaction_id;
+
+    // Run the service to start a transaction if possible
+    sercom_spi_service(spi_inst);
+    return 0;
+}
+
+uint8_t sercom_spi_start_session_transaction(struct sercom_spi_desc_t *spi_inst,
+                                             uint8_t trans_id,
+                                             uint8_t const *out_buffer,
+                                             uint16_t out_length,
+                                             uint8_t * in_buffer,
+                                             uint16_t in_length)
+{
+    // Get the transaction structure for the session transaction
+    struct transaction_t *t = transaction_queue_get(&spi_inst->queue, trans_id);
+
+    if (t == NULL) {
+        // Session does not exist
+        return 1;
+    }
+
+    // Get the current state for the session transaction
+    struct sercom_spi_transaction_t *const s =
+                                    (struct sercom_spi_transaction_t*)t->state;
+
+    if (!s->session) {
+        // Transaction is not a session
+        return 1;
+    }
+
+    if (!t->done) {
+        // There is already a transaction ongoing or ready to start in this
+        // session
+        return 1;
+    }
+
+    // Configure the state for this transaction
+    s->out_buffer = out_buffer;
+    s->in_buffer = in_buffer;
+    s->out_length = out_length;
+    s->in_length = in_length;
+    s->bytes_in = 0;
+    s->bytes_out = 0;
+    s->rx_started = 0;
+    s->simultaneous = 0;
+
+    // Mark this transaction as not being done yet so that it can be started
+    t->done = 0;
+
+    // Run the service to start the transaction if possible
+    sercom_spi_service(spi_inst);
+    return 0;
+}
+
+uint8_t sercom_spi_start_simultaneous_session_transaction(
+                                            struct sercom_spi_desc_t *spi_inst,
+                                            uint8_t trans_id,
+                                            uint8_t const *out_buffer,
+                                            uint8_t * in_buffer,
+                                            uint16_t length)
+{
+    // Get the transaction structure for the session transaction
+    struct transaction_t *t = transaction_queue_get(&spi_inst->queue, trans_id);
+
+    if (t == NULL) {
+        // Session does not exist
+        return 1;
+    }
+
+    // Get the current state for the session transaction
+    struct sercom_spi_transaction_t *const s =
+    (struct sercom_spi_transaction_t*)t->state;
+
+    if (!s->session) {
+        // Transaction is not a session
+        return 1;
+    }
+
+    if (!t->done) {
+        // There is already a transaction ongoing or ready to start in this
+        // session
+        return 1;
+    }
+
+    // Configure the state for this transaction
+    s->out_buffer = out_buffer;
+    s->in_buffer = in_buffer;
+    s->out_length = 0;
+    s->in_length = length;
+    s->bytes_in = 0;
+    s->bytes_out = 0;
+    s->rx_started = 0;
+    s->simultaneous = 1;
+
+    // Mark this transaction as not being done yet so that it can be started
+    t->done = 0;
+
+    // Run the service to start the transaction if possible
+    sercom_spi_service(spi_inst);
+    return 0;
+}
+
+uint8_t sercom_spi_session_active(struct sercom_spi_desc_t *spi_inst,
+                                  uint8_t trans_id)
+{
+    if (!spi_inst->in_session) {
+        return 0;
+    }
+
+    struct transaction_t *t = transaction_queue_get_head(&spi_inst->queue);
+    return t->transaction_id == trans_id;
+}
+
+uint8_t sercom_spi_end_session(struct sercom_spi_desc_t *spi_inst,
+                               uint8_t trans_id)
+{
+    // Acquire service function lock, we are going to mess with the head of the
+    // transaction queue in ways that could go badly if the service function is
+    // run from an interrupt at the same time.
+    if (spi_inst->service_lock) {
+        // Could not acquire lock, service is already being run
+        return 1;
+    } else {
+        spi_inst->service_lock = 1;
+    }
+
+    // Check if the session we are ending is currently ongoing
+    uint8_t const is_active = sercom_spi_session_active(spi_inst, trans_id);
+
+    struct transaction_t *const trans = transaction_queue_get(&spi_inst->queue,
+                                                              trans_id);
+    struct sercom_spi_transaction_t *const s =
+                                (struct sercom_spi_transaction_t*)trans->state;
+
+    uint8_t const ret = transaction_queue_invalidate(trans);
+
+    if (ret != 0) {
+        // Could not invalidate transaction
+        spi_inst->service_lock = 0;
+        return ret;
+    }
+
+    if (is_active) {
+        // We just ended the current session
+        spi_inst->in_session = 0;
+        // De-assert CS line
+        PORT->Group[s->cs_pin_group].OUTSET.reg = s->cs_pin_mask;
+        // We might be able to start another transaction that was queued after
+        // the session
+        sercom_spi_service(spi_inst);
+    }
+
+    spi_inst->service_lock = 0;
+    return 0;
 }
 
 
@@ -209,59 +424,84 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
         // Could not acquire lock, service is already being run
         return;
     } else {
+        // Note that an interrupt could happen between when we check the service
+        // lock and when we set the service lock. We don't care about this
+        // because the entire service function will have run through in the ISR
+        // before we set the service lock bit. This lock is not to protect
+        // against multiple concurrent threads, it is just to keep the service
+        // function from being started in an ISR if it is already in the middle
+        // of being run in the main loop.
         spi_inst->service_lock = 1;
     }
 
-    struct transaction_t *t = transaction_queue_next(&spi_inst->queue);
-    if (t == NULL) {
-        // No pending transactions
-        spi_inst->service_lock = 0;
-        return;
+    struct transaction_t *t = NULL;
+
+    if (spi_inst->in_session) {
+        // The head of the transaction queue is an active session
+        t = transaction_queue_get_head(&spi_inst->queue);
     } else {
-        // Start the next transaction
-        struct sercom_spi_transaction_t *s =
+        // Get the next transaction to be started
+        t = transaction_queue_next(&spi_inst->queue);
+
+        if (t == NULL) {
+            // No pending transactions
+            goto done;
+        }
+    }
+
+    struct sercom_spi_transaction_t *const s =
                                     (struct sercom_spi_transaction_t*)t->state;
 
-        /* Mark transaction as active */
-        t->active = 1;
+    if (s->session && !spi_inst->in_session) {
+        // We are entering a new session
+        spi_inst->in_session = 1;
+    }
 
-        /* Set baudrate */
-        uint8_t baud_error = sercom_calc_sync_baud(s->baudrate,
+    if (spi_inst->in_session && t->done) {
+        // There is nothing to do for this session right now
+        goto done;
+    }
+
+    /* Start the next transaction */
+    // Mark transaction as active
+    t->active = 1;
+
+    // Set baudrate
+    uint8_t const baud_error = sercom_calc_sync_baud(s->baudrate,
                                             spi_inst->core_frequency,
                                             &(spi_inst->sercom->SPI.BAUD.reg));
-        if (baud_error) {
-            // Fallback to safe baud value
-            sercom_calc_sync_baud(SERCOM_SPI_BAUD_FALLBACK,
-                                  spi_inst->core_frequency,
-                                  &(spi_inst->sercom->SPI.BAUD.reg));
-        }
+    if (baud_error) {
+        // Fall back to safe baud value
+        sercom_calc_sync_baud(SERCOM_SPI_BAUD_FALLBACK,
+                              spi_inst->core_frequency,
+                              &(spi_inst->sercom->SPI.BAUD.reg));
+    }
 
-        /* Enable SERCOM instance */
-        spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b1;
+    // Enable SERCOM instance
+    spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b1;
 
-        /* Wait for SERCOM instance to be enabled */
-        while (spi_inst->sercom->SPI.SYNCBUSY.bit.ENABLE);
+    // Wait for SERCOM instance to be enabled
+    while (spi_inst->sercom->SPI.SYNCBUSY.bit.ENABLE);
 
-        /* Assert CS line */
-        PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
-        
-        /* Begin transmission */
-        if (spi_inst->tx_use_dma && s->out_length) {
-            // Use DMA to transmit out buffer
-            dma_start_buffer_to_static(spi_inst->tx_dma_chan, s->out_buffer,
+    // Assert CS line
+    PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
+
+    // Begin transmission
+    if (spi_inst->tx_use_dma && (s->out_length != 0)) {
+        // Use DMA to transmit out buffer
+        dma_start_buffer_to_static(spi_inst->tx_dma_chan, s->out_buffer,
                             s->out_length,
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
                             SERCOM_DMA_TX_PRIORITY);
-        } else if (spi_inst->tx_use_dma) {
-            // Simulate DMA transmission of out buffer having completed
-            sercom_spi_dma_callback(spi_inst->tx_dma_chan, (void*)spi_inst);
-        } else {
-            // Use interrupts
-            spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
-        }
+    } else {
+        // We are using interrupt driven transmission and/or this transaction
+        // does not have any out stage. Either way, the DRE interrupt will do
+        // the right thing.
+        spi_inst->sercom->SPI.INTENSET.bit.DRE = 0b1;
     }
 
+done:
     spi_inst->service_lock = 0;
 }
 
@@ -272,19 +512,19 @@ static inline void sercom_spi_end_transaction (
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
 
-    t->done = 1;
-    t->active = 0;
-    
     // Disable DRE and RXC interrupts
     spi_inst->sercom->SPI.INTENCLR.reg = (SERCOM_SPI_INTENCLR_DRE |
                                           SERCOM_SPI_INTENCLR_RXC);
 
-    // Deassert the CS pin if there are no futher parts to this transaction
-    if (!s->multi_part) {
+    // Mark transaction as done and not active
+    transaction_queue_set_done(t);
+
+    // Deassert the CS pin if there are no further parts to this transaction
+    if (!s->multi_part && !s->session) {
         PORT->Group[s->cs_pin_group].OUTSET.reg = s->cs_pin_mask;
     }
 
-    // Disable Reciever and SERCOM
+    // Disable Receiver and SERCOM
     spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b0;
     spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b0;
 
@@ -316,10 +556,17 @@ static inline void sercom_spi_start_reception (
 
     s->rx_started = 1;
 
-    if (spi_inst->tx_use_dma) {
+    if (spi_inst->tx_use_dma && !s->simultaneous) {
         // Start DMA transaction to write dummy bytes
         dma_start_static_to_static(
                             spi_inst->tx_dma_chan, &spi_dummy_byte,
+                            s->in_length,
+                            (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
+                            sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
+                            SERCOM_DMA_TX_PRIORITY);
+    } else if (spi_inst->tx_use_dma) {
+        // Start DMA transaction to write non-dummy bytes
+        dma_start_buffer_to_static(spi_inst->tx_dma_chan, s->out_buffer,
                             s->in_length,
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
@@ -334,26 +581,39 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
 {
     struct sercom_spi_desc_t *spi_inst = (struct sercom_spi_desc_t*)state;
     struct transaction_t *t = transaction_queue_get_active(&spi_inst->queue);
+    if (t == NULL) {
+        return;
+    }
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
 
+    uint8_t virtual_txc = 0;
+
     // Data Register Empty
     if (sercom->SPI.INTENSET.bit.DRE && sercom->SPI.INTFLAG.bit.DRE) {
-        if (s->bytes_out < s->out_length) {
+        if ((s->bytes_out < s->out_length) || (s->simultaneous &&
+                                               s->rx_started &&
+                                               (s->bytes_in < s->in_length))) {
             // Send next byte
             sercom->SPI.DATA.reg = s->out_buffer[s->bytes_out];
             s->bytes_out++;
-        } else if (!s->in_length) {
+        } else if (s->in_length == 0) {
             // Transaction is complete
             sercom->SPI.INTENSET.bit.TXC = 0b1;
-        }  else if ((s->bytes_in < s->in_length) ||
-                    (s->bytes_in < (s->in_length - 1))) {
+        }  else if (s->bytes_in < s->in_length) {
             if (!s->rx_started) {
                 /* Let the transmission end and start reception in the TXC ISR */
                 // Disable DRE ISR so that we don't get stuck in it infinitely
                 sercom->SPI.INTENCLR.bit.DRE = 0b1;
-                // Enable TXC ISR
-                sercom->SPI.INTENSET.bit.TXC = 0b1;
+                if (s->bytes_out != 0) {
+                    // Enable TXC ISR
+                    sercom->SPI.INTENSET.bit.TXC = 0b1;
+                } else {
+                    // Since we didn't actually send any bytes the TXC interrupt
+                    // will not be asserted. Use a flag to jump into TCX
+                    // handling code later in this call to the ISR.
+                    virtual_txc = 1;
+                }
             } else {
                 // Send dummy byte
                 sercom->SPI.DATA.reg = spi_dummy_byte;
@@ -370,7 +630,8 @@ static void sercom_spi_isr (Sercom *sercom, uint8_t inst_num, void *state)
     }
 
     // Transmit Complete
-    if (sercom->SPI.INTENSET.bit.TXC && sercom->SPI.INTFLAG.bit.TXC) {
+    if ((sercom->SPI.INTENSET.bit.TXC && sercom->SPI.INTFLAG.bit.TXC) ||
+            virtual_txc) {
         sercom->SPI.INTENCLR.bit.TXC = 0b1;
         if (s->in_length) {
             // Need to enable receiver

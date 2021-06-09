@@ -164,6 +164,19 @@ static inline void *transaction_queue_get_active(
 }
 
 /**
+ *  Get the transaction from the head of a queue.
+ *
+ *  @param queue The queue for which the head should be returned.
+ *
+ *  @return The head transaction from the queue.
+ */
+static inline struct transaction_t *transaction_queue_get_head(
+                                            struct transaction_queue_t *queue)
+{
+    return &queue->buffer[queue->head];
+}
+
+/**
  *  Find the next free transaction and initilize it.
  *
  *  @param queue The queue which should be searched.
@@ -240,6 +253,7 @@ static inline uint8_t transaction_queue_is_done(struct transaction_t *trans)
 static inline void transaction_queue_set_done(struct transaction_t *trans)
 {
     trans->done = 1;
+    trans->active = 0;
 }
 
 
