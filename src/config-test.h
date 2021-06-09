@@ -21,6 +21,8 @@
 #include "radio-transport.h"
 #include "radio-antmgr.h"
 
+#include "sdspi.h"
+
 //
 //
 //  General
@@ -298,5 +300,20 @@ extern struct ms5611_desc_t altimeter_g;
 #define ENABLE_GNSS
 /* UART used to communicate with GNSS */
 #define GNSS_UART uart2_g
+
+//
+//
+// SD SPI
+//
+//
+
+#define ENABLE_SDSPI
+#define SDSPI_BAUDRATE_INIT     250000UL
+#define SDSPI_BAUDRATE          12000000UL
+#define SDSPI_USE_CRC   1
+
+#ifdef ENABLE_SDSPI
+extern struct sdspi_desc_t sdspi_g;
+#endif
 
 #endif /* config_test_h */

@@ -40,7 +40,7 @@
 #include "ground.h"
 #include "telemetry.h"
 
-#include "sd.h"
+#include "sdspi.h"
 
 //MARK: Constants
 
@@ -240,8 +240,8 @@ struct console_desc_t gnss_console_g;
 struct console_desc_t ground_station_console_g;
 #endif
 
-#ifdef ENABLE_SD_CARD_SERVICE
-struct sd_desc_t sd_g;
+#ifdef ENABLE_SDSPI
+struct sdspi_desc_t sdspi_g;
 #endif
 
 // Stores 2 ^ TRACE_BUFFER_MAGNITUDE_PACKETS packets.
@@ -429,8 +429,8 @@ static inline void init_io (void)
     PORT_IOBUS->Group[IO_EXPANDER_CS_PIN_GROUP].OUTSET.reg = IO_EXPANDER_CS_PIN_MASK;
 
     // SD CS pin
-    PORT_IOBUS->Group[SD_CS_PIN_GROUP].DIRSET.reg = SD_CS_PIN_MASK;
-    PORT_IOBUS->Group[SD_CS_PIN_GROUP].OUTSET.reg = SD_CS_PIN_MASK;
+    PORT_IOBUS->Group[SDSPI_CS_PIN_GROUP].DIRSET.reg = SDSPI_CS_PIN_MASK;
+    PORT_IOBUS->Group[SDSPI_CS_PIN_GROUP].OUTSET.reg = SDSPI_CS_PIN_MASK;
 }
 
 int main(void)
@@ -624,7 +624,12 @@ int main(void)
     gpio_set_pin_mode(STAT_R_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_pin_mode(STAT_G_LED_PIN, GPIO_PIN_OUTPUT_TOTEM);
     gpio_set_output(STAT_G_LED_PIN, 1);
-    
+
+#ifdef ENABLE_SDSPI
+    init_sdpsi(&sdspi_g, &spi_g, SDSPI_CS_PIN_MASK, SDSPI_CS_PIN_GROUP,
+               SDSPI_DETECT_PIN);
+#endif
+
     // Ground station console
 #ifdef ENABLE_GROUND_SERVICE
 #ifdef GROUND_UART
@@ -644,10 +649,6 @@ int main(void)
     // Telemetry service
 #ifdef ENABLE_TELEMETRY_SERVICE
     init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
-#endif
-
-#ifdef ENABLE_SD_CARD_SERVICE
-    init_sd_card(&sd_g);
 #endif
 
     // Start Watchdog Timer
@@ -745,8 +746,8 @@ static void main_loop (void)
     telemetry_service();
 #endif
 
-#ifdef ENABLE_SD_CARD_SERVICE
-    sd_card_service(&sd_g);
+#ifdef ENABLE_SDSPI
+    sdspi_service(&sdspi_g);
 #endif
 }
 
