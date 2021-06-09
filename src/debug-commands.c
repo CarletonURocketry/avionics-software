@@ -16,6 +16,7 @@
 #include "debug-commands-analog.h"
 #include "debug-commands-sensors.h"
 #include "debug-commands-radio.h"
+#include "debug-commands-sd.h"
 
 // MARK: Helpers
 void debug_print_fixed_point (struct console_desc_t *console, int32_t value,
@@ -103,5 +104,7 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_RADIO_RX_HELP},
     {.func = debug_radio_tx, .name = DEBUG_RADIO_TX_NAME,
         .help_string = DEBUG_RADIO_TX_HELP},
+    {.func = debug_sdspi, .name = DEBUG_SDSPI_NAME,
+        .help_string = DEBUG_SDSPI_HELP},
     {.func = NULL, .name = NULL, .help_string = NULL}
 };
