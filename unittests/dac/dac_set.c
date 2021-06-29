@@ -21,7 +21,7 @@ int main (int argc, char **argv)
     {
         reset();
         dac.DATA.reg = 0xAAAA; // Set data to something that is not 0
-        dac_set((uint16_t)0);
+        dac_set(0, (uint16_t)0);
 
         ut_assert(dac.DATA.reg == (uint16_t)0);
     }
@@ -29,7 +29,7 @@ int main (int argc, char **argv)
     // Set the DAC's output register to a value of 0x8000.
     {
         reset();
-        dac_set((uint16_t)0x8000);
+        dac_set(0, (uint16_t)0x8000);
 
         ut_assert(dac.DATA.reg == (uint16_t)0x8000);
     }
@@ -37,7 +37,7 @@ int main (int argc, char **argv)
     // Set the DAC's output register to a value of 0xFFFF.
     {
         reset();
-        dac_set((uint16_t)0xFFFF);
+        dac_set(0, (uint16_t)0xFFFF);
 
         ut_assert(dac.DATA.reg == (uint16_t)0xFFFF);
     }

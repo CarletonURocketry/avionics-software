@@ -20,8 +20,17 @@ DEBUGGER = gdb
 endif
 
 # Include directories
-CFLAGS += -I"${SRCDIR}" -I"$(SRCDIR)/samd21/include" -I"$(SRCDIR)/samd21/source"
+CFLAGS += -I"${SRCDIR}" -I"$(SRCDIR)/targets/sam/samd21/cmsis/include"
+CFLAGS += -I"$(SRCDIR)/targets/sam/samd21/cmsis/source"
+CFLAGS += -I"${SRCDIR}/targets/sam/cmsis_core/include"
+CFLAGS += -I"${SRCDIR}/targets/sam/samd21"
+CFLAGS += -I"${SRCDIR}/targets/sam/src"
+CFLAGS += -I"${SRCDIR}/boards/mcu/rev_b"
+CFLAGS += -I"${SRCDIR}/variants/test"
 CFLAGS += -I"${SRCDIR}/../unittests"
+
+# Required macros
+CFLAGS += -D__SAMD21J18A__ -DF_CPU=48000000UL -DSAMD2x
 
 # Source file definitions
 CFLAGS += -DSOURCE_C="\"$(SOURCE).c\"" -DSOURCE_H="\"$(SOURCE).h\""

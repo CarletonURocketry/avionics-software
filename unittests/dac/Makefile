@@ -1,4 +1,4 @@
-SOURCE=dac
+SOURCE=targets/sam/src/dac
 COMMON=common.c
 
 TESTS = dac_set \

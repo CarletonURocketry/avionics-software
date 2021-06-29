@@ -22,7 +22,7 @@ int main (int argc, char **argv)
     {
         reset();
         dac.DATA.reg = 0x0;
-        uint16_t ret = dac_get_value();
+        uint16_t ret = dac_get_value(0);
 
         ut_assert(ret == 0x0);
     }
@@ -31,7 +31,7 @@ int main (int argc, char **argv)
     {
         reset();
         dac.DATA.reg = 0x8000;
-        uint16_t ret = dac_get_value();
+        uint16_t ret = dac_get_value(0);
 
         ut_assert(ret == 0x8000);
     }
@@ -40,7 +40,7 @@ int main (int argc, char **argv)
     {
         reset();
         dac.DATA.reg = 0xFFFF;
-        uint16_t ret = dac_get_value();
+        uint16_t ret = dac_get_value(0);
 
         ut_assert(ret == 0xFFFF);
     }

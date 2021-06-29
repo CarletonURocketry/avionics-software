@@ -23,7 +23,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_INT1V_Val;
         dac.DATA.reg = (uint16_t)0;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 0);
     }
@@ -33,7 +33,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_AVCC_Val;
         dac.DATA.reg = (uint16_t)0;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 0);
     }
@@ -43,7 +43,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_INT1V_Val;
         dac.DATA.reg = (uint16_t)55704;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 849);
     }
@@ -53,7 +53,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_AVCC_Val;
         dac.DATA.reg = (uint16_t)16880;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 849);
     }
@@ -63,7 +63,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_INT1V_Val;
         dac.DATA.reg = (uint16_t)UINT16_MAX;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 1000);
     }
@@ -73,7 +73,7 @@ int main (int argc, char **argv)
         reset();
         dac.CTRLB.bit.REFSEL = DAC_CTRLB_REFSEL_AVCC_Val;
         dac.DATA.reg = (uint16_t)UINT16_MAX;
-        uint16_t ret = dac_get_value_millivolts();
+        uint16_t ret = dac_get_value_millivolts(0);
 
         ut_assert(ret == 3300);
     }
