@@ -10,20 +10,31 @@
 #ifndef global_h
 #define global_h
 
-#define DONT_USE_CMSIS_INIT
-#include "samd21/include/samd21j18a.h"
-#include "samd21/include/compiler.h"
+// Include target.h for millis and MCU specific headers
+#include "target.h"
 
+#include <stdint.h>
 #include <stddef.h> // NULL
 
 
-#define VERSION_STRING "CU InSpace 2019 Avionics Software\n"
-#define BUILD_STRING "Built "__DATE__" at "__TIME__" with arm-none-eabi-gcc "__VERSION__"\n"
+#define VERSION_STRING "CU InSpace 2021 Avionics Software\n"
+#define BUILD_STRING "Built "__DATE__" at "__TIME__" with arm-none-eabi-gcc "\
+                     __VERSION__"\n"
 
-/**
- *  Number of milliseconds elapsed since system was reset
- */
-extern volatile uint32_t millis;
+// Initalization functions
+extern void init_target(void);
+extern void init_board(void);
+extern void init_variant(void);
+
+// Service functions
+extern void board_service(void);
+extern void variant_service(void);
+
+// Clock control functions (defined in target.c)
+extern void enable_bus_clock(enum peripheral_bus_clock clock);
+extern void disable_bus_clock(enum peripheral_bus_clock clock);
+extern void set_perph_generic_clock(enum peripheral_generic_clock channel,
+                                    uint32_t clock_mask);
 
 /**
  *  Variable which can be incremented by any thread to prevent the main loop

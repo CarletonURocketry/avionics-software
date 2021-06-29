@@ -29,6 +29,13 @@ extern void debug_did (uint8_t argc, char **argv,
                        struct console_desc_t *console);
 
 
+#define DEBUG_RCAUSE_NAME   "rcause"
+#define DEBUG_RCAUSE_HELP   "Get reset cause."
+
+extern void debug_rcause (uint8_t argc, char **argv,
+                          struct console_desc_t *console);
+
+
 #define DEBUG_I2C_SCAN_NAME  "i2c-scan"
 #define DEBUG_I2C_SCAN_HELP  "Scan for devices on the I2C bus."
 

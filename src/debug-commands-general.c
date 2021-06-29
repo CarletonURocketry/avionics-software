@@ -12,7 +12,11 @@
 #include "debug-commands.h"
 
 #include <ctype.h>
-#include "config.h"
+
+#include "variant.h"
+#include "board.h"
+#include "target.h"
+#include "gpio.h"
 #include "wdt.h"
 #include "sercom-i2c.h"
 #include "sercom-spi.h"
@@ -23,8 +27,9 @@ void debug_version (uint8_t argc, char **argv, struct console_desc_t *console)
 {
     console_send_str(console, VERSION_STRING);
     console_send_str(console, BUILD_STRING);
-    console_send_str(console, "Configuration: ");
-    console_send_str(console, CONFIG_STRING);
+    console_send_str(console, "Target: "TARGET_STRING"\n");
+    console_send_str(console, "Board: "BOARD_STRING"\n");
+    console_send_str(console, "Variant: "VARIANT_STRING"\n");
 }
 
 // MARK: DID
@@ -37,13 +42,29 @@ void debug_did (uint8_t argc, char **argv, struct console_desc_t *console)
     str[1] = 'x';
 
     console_send_str(console, "Serial Number: ");
+#if defined(SAMD2x)
     utoa(*((uint32_t*)0x0080A00C), str + 2, 16);
+#elif defined(SAMx5x)
+    utoa(*((uint32_t*)0x008061FC), str + 2, 16);
+#endif
     console_send_str(console, str);
+#if defined(SAMD2x)
     utoa(*((uint32_t*)0x0080A040), str + 2, 16);
+#elif defined(SAMx5x)
+    utoa(*((uint32_t*)0x00806010), str + 2, 16);
+#endif
     console_send_str(console, str+2);
+#if defined(SAMD2x)
     utoa(*((uint32_t*)0x0080A044), str + 2, 16);
+#elif defined(SAMx5x)
+    utoa(*((uint32_t*)0x00806014), str + 2, 16);
+#endif
     console_send_str(console, str+2);
+#if defined(SAMD2x)
     utoa(*((uint32_t*)0x0080A048), str + 2, 16);
+#elif defined(SAMx5x)
+    utoa(*((uint32_t*)0x00806018), str + 2, 16);
+#endif
     console_send_str(console, str+2);
 
     console_send_str(console, "\n\nDevice Identification: ");
@@ -87,30 +108,74 @@ void debug_did (uint8_t argc, char **argv, struct console_desc_t *console)
     console_send_str(console, "\n");
 }
 
+// MARK: Reset Cause
+
+void debug_rcause (uint8_t argc, char **argv, struct console_desc_t *console)
+{
+    console_send_str(console, "Last reset due to: ");
+#if defined(SAMD2x)
+    switch (PM->RCAUSE.reg) {
+#elif defined(SAMx5x)
+    switch (RSTC->RCAUSE.reg) {
+#endif
+        case (1 << 0):
+            console_send_str(console, "power on reset\n");
+            break;
+        case (1 << 1):
+            console_send_str(console, "BOD12\n");
+            break;
+        case (1 << 2):
+            console_send_str(console, "BOD33\n");
+            break;
+#if defined(SAMx5x)
+        case (1 << 3):
+            console_send_str(console, "NVM\n");
+            break;
+#endif
+        case (1 << 4):
+            console_send_str(console, "external reset\n");
+            break;
+        case (1 << 5):
+            console_send_str(console, "watchdog\n");
+            break;
+        case (1 << 6):
+            console_send_str(console, "system reset request\n");
+            break;
+#if defined(SAMx5x)
+        case (1 << 7):
+            console_send_str(console, "backup\n");
+            break;
+#endif
+        default:
+            console_send_str(console, "unknown\n");
+            break;
+    }
+}
+
 // MARK: I2C Scan
 
 void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
 {
     // Start a scan of the I2C bus
     uint8_t i2c_t_id;
-    sercom_i2c_start_scan(&i2c_g, &i2c_t_id);
+    sercom_i2c_start_scan(&i2c0_g, &i2c_t_id);
 
     // Wait for scan to complete
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t_id)) wdt_pat();
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t_id)) wdt_pat();
 
     // Check if scan completed successfully
-    switch (sercom_i2c_transaction_state(&i2c_g, i2c_t_id)) {
+    switch (sercom_i2c_transaction_state(&i2c0_g, i2c_t_id)) {
         case I2C_STATE_BUS_ERROR:
             console_send_str(console, "Scan failed: Bus Error\n");
-            sercom_i2c_clear_transaction(&i2c_g, i2c_t_id);
+            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
             return;
         case I2C_STATE_ARBITRATION_LOST:
             console_send_str(console, "Scan failed: Arbitration Lost\n");
-            sercom_i2c_clear_transaction(&i2c_g, i2c_t_id);
+            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
             return;
         case I2C_STATE_SLAVE_NACK:
             console_send_str(console, "Scan failed: Slave NACK\n");
-            sercom_i2c_clear_transaction(&i2c_g, i2c_t_id);
+            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
             return;
         default:
             // Success!
@@ -122,7 +187,7 @@ void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
 
     console_send_str(console, "Available Devices:\n");
     for (int i = 0; i < 128; i++) {
-        if (sercom_i2c_device_available(&i2c_g, i2c_t_id, i)) {
+        if (sercom_i2c_device_available(&i2c0_g, i2c_t_id, i)) {
             console_send_str(console, "0b");
             utoa(i, str, 2);
             for (int j = strlen(str); j < 7; j++) {
@@ -141,7 +206,7 @@ void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
     }
 
     // Clear transaction
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t_id);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
 }
 
 // MARK: IO Expander Regs
@@ -149,6 +214,9 @@ void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
 void debug_io_exp_regs (uint8_t argc, char **argv,
                         struct console_desc_t *console)
 {
+#ifndef ENABLE_IO_EXPANDER
+    console_send_str(console, "IO expander not enabled.\n");
+#else
     uint8_t address = 0;
 
     if (argc > 2) {
@@ -171,7 +239,7 @@ void debug_io_exp_regs (uint8_t argc, char **argv,
 
 
     uint8_t t_id;
-    uint8_t s = sercom_spi_start(&spi_g, &t_id, 8000000UL,
+    uint8_t s = sercom_spi_start(&spi0_g, &t_id, 8000000UL,
                                  IO_EXPANDER_CS_PIN_GROUP,
                                  IO_EXPANDER_CS_PIN_MASK, command, 2,
                                  (uint8_t*)&registers, 10);
@@ -181,11 +249,11 @@ void debug_io_exp_regs (uint8_t argc, char **argv,
         return;
     }
 
-    while (!sercom_spi_transaction_done(&spi_g, t_id)) wdt_pat();
-    sercom_spi_clear_transaction(&spi_g, t_id);
+    while (!sercom_spi_transaction_done(&spi0_g, t_id)) wdt_pat();
+    sercom_spi_clear_transaction(&spi0_g, t_id);
 
     command[1] = 0x0B;
-    s = sercom_spi_start(&spi_g, &t_id, 8000000UL, IO_EXPANDER_CS_PIN_GROUP,
+    s = sercom_spi_start(&spi0_g, &t_id, 8000000UL, IO_EXPANDER_CS_PIN_GROUP,
                          IO_EXPANDER_CS_PIN_MASK, command, 2,
                          (uint8_t*)&registers.IOCON, 11);
 
@@ -207,8 +275,8 @@ void debug_io_exp_regs (uint8_t argc, char **argv,
     debug_print_byte_with_pad(console, "  INTCONA: 0b", registers.INTCON[0].reg, "\n");
     debug_print_byte_with_pad(console, "  INTCONB: 0b", registers.INTCON[1].reg, "\n\n");
 
-    while (!sercom_spi_transaction_done(&spi_g, t_id)) wdt_pat();
-    sercom_spi_clear_transaction(&spi_g, t_id);
+    while (!sercom_spi_transaction_done(&spi0_g, t_id)) wdt_pat();
+    sercom_spi_clear_transaction(&spi0_g, t_id);
 
     debug_print_byte_with_pad(console, "   IOCON: 0b", registers.IOCON.reg, "\n\n");
     debug_print_byte_with_pad(console, "   GPPUA: 0b", registers.GPPU[0].reg, "\n");
@@ -224,6 +292,7 @@ void debug_io_exp_regs (uint8_t argc, char **argv,
     wdt_pat();
     debug_print_byte_with_pad(console, "   OLATA: 0b", registers.OLAT[0].reg, "\n");
     debug_print_byte_with_pad(console, "   OLATB: 0b", registers.OLAT[1].reg, "\n");
+#endif
 }
 
 // MARK: GPIO
@@ -271,6 +340,7 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
             pin.internal.pin = pin_num;
         }
     } else if ((argv[2][0] == 'e') && ((argv[2][1] == 'a') || (argv[2][1] == 'b'))) {
+#ifdef ENABLE_IO_EXPANDER
         // Try and parse pin as an IO expander pin number
         uint32_t pin_num = strtoul(argv[2] + 2, &end, 10);
         if ((*end == '\0') && (pin_num < 8)) {
@@ -278,6 +348,10 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
             pin.mcp23s17.port = (argv[2][1] == 'a') ? MCP23S17_PORT_A : MCP23S17_PORT_B;
             pin.mcp23s17.pin = pin_num;
         }
+#else
+        console_send_str(console, "IO expander not enabled.\n");
+        return;
+#endif
     } else if (argv[2][0] == 'r') {
         // Try and parse pin as a RN2483 pin number
         uint32_t radio_num = strtoul(argv[2] + 1, &end, 10);
@@ -419,6 +493,7 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
 
                 out_val = !!(PORT->Group[pin.internal.port].OUT.reg & (1 << pin.internal.pin));
                 break;
+#ifdef ENABLE_IO_EXPANDER
             case GPIO_MCP23S17_PIN:
                 console_send_str(console, "IO expander pin: Port ");
                 console_send_str(console, pin.mcp23s17.port ? "B" : "A");
@@ -428,6 +503,7 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
 
                 out_val = !!(io_expander_g.registers.OLAT[pin.mcp23s17.port].reg & (1 << pin.mcp23s17.pin));
                 break;
+#endif
             case GPIO_RN2483_PIN:
                 console_send_str(console, "RN2483 pin: Radio ");
                 utoa(pin.rn2483.radio, str, 10);
@@ -441,6 +517,8 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
                 break;
             case GPIO_RFM69HCW_PIN:
                 // Not yet supported
+                break;
+            default:
                 break;
         }
 
@@ -496,12 +574,14 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
             case GPIO_INTERNAL_PIN:
                 // Does not need to be polled
                 break;
+#ifdef ENABLE_IO_EXPANDER
             case GPIO_MCP23S17_PIN:
                 mcp23s17_poll(&io_expander_g);
                 while (mcp23s17_poll_in_progress(&io_expander_g)) {
                     mcp23s17_service(&io_expander_g);
                 }
                 break;
+#endif
             case GPIO_RN2483_PIN:
                 // TODO:
                 //                rn2483_poll_gpio_pin(&rn2483_g, pin.rn2483.pin);
@@ -511,6 +591,8 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
                 break;
             case GPIO_RFM69HCW_PIN:
                 // Not yet supported
+                break;
+            default:
                 break;
         }
 

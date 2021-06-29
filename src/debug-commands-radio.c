@@ -11,9 +11,11 @@
 
 #include "debug-commands.h"
 
-#include "config.h"
+#include "variant.h"
+#include "board.h"
 #include "wdt.h"
 #include "sercom-uart.h"
+#include "radio-transport.h"
 #include "radio-types.h"
 #include "radio-antmgr.h"
 #include "radio-packet-layout.h"

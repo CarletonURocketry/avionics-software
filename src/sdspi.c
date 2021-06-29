@@ -39,9 +39,13 @@
  *  all the time.
  */
 
+#include "board.h"
+
 #include "sdspi.h"
 #include "sdspi-states.h"
 #include "sd.h"
+
+#ifdef ENABLE_SDSPI
 
 /**
  * init_sdspi()
@@ -244,3 +248,5 @@ struct sd_funcs const sdspi_sd_funcs = {
     .write = &sdspi_write,
     .get_status = sdspi_get_sd_status
 };
+
+#endif // ENABLE_SDSPI

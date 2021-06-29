@@ -11,7 +11,9 @@
 
 #include <string.h>
 
-#include "config.h"
+#include "board.h"
+
+#ifdef ENABLE_SDSPI
 
 #ifndef SDSPI_USE_CRC
 #define SDSPI_USE_CRC 0
@@ -892,7 +894,7 @@ static enum sdspi_blk_write_state_result sdspi_handle_write_block(
         default:
             // Should never happen
             sdspi_end_spi_session(inst);
-            return SDSPI_BLK_READ_RES_FAILED;
+            return SDSPI_BLK_WRITE_RES_FAILED;
     }
 
     if (end_session) {
@@ -912,8 +914,10 @@ static enum sdspi_blk_write_state_result sdspi_handle_write_block(
  */
 static int sdspi_case_handler_not_present(struct sdspi_desc_t *inst)
 {
-    // Check if SD card is present now
-    if (gpio_get_input(inst->card_detect_pin) == 0) {
+    // Check if SD card is present now, if we don't have an SD detect pin we
+    // just assume that the card is present
+    if (gpio_pin_is_invalid(inst->card_detect_pin) ||
+        (gpio_get_input(inst->card_detect_pin) == 0)) {
         // Card is present
 
         if (!inst->card_present) {
@@ -1955,3 +1959,5 @@ const sdspi_state_handler_t sdspi_state_handlers[] = {
     sdspi_case_handler_failed,                  // SDSPI_TOO_MANY_INIT_RETRIES
     sdspi_case_handler_failed                   // SDSPI_FAILED
 };
+
+#endif // ENABLE_SDSPI

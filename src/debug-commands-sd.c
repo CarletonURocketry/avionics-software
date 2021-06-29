@@ -11,11 +11,13 @@
 
 #include "debug-commands.h"
 
+#include "board.h"
 #include "sd.h"
 #include "sdspi.h"
-#include "config.h"
+#include "wdt.h"
 
 
+#ifdef ENABLE_SDSPI
 
 struct debug_sd_cb_context {
     uint32_t num_blocks;
@@ -82,6 +84,7 @@ static void debug_sd_read(uint8_t argc, char **argv,
 
     while (!context.debug_sdspi_cb_called) {
         sdspi_service(&sdspi_g);
+        wdt_pat();
     }
 
     char buf[16];
@@ -97,6 +100,7 @@ static void debug_sd_read(uint8_t argc, char **argv,
                 }
                 console_send_str(console, buf);
             }
+            wdt_pat();
             console_send_str(console, "\n");
         }
         console_send_str(console, "\n");
@@ -179,6 +183,7 @@ static void debug_sd_write(uint8_t argc, char **argv,
 
     while (!context.debug_sdspi_cb_called) {
         sdspi_service(&sdspi_g);
+        wdt_pat();
     }
 
     // Print summary
@@ -200,7 +205,7 @@ static void debug_sd_write(uint8_t argc, char **argv,
     console_send_str(console, " blocks written.\n");
 }
 
-
+#endif // ENABLE_SDSPI
 
 
 // MARK: SDSPI

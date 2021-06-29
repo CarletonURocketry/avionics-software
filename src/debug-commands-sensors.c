@@ -11,7 +11,8 @@
 
 #include "debug-commands.h"
 
-#include "config.h"
+#include "variant.h"
+#include "board.h"
 #include "wdt.h"
 #include "sercom-i2c.h"
 #include "mcp23s17-registers.h"
@@ -29,103 +30,103 @@ void debug_alt_prom (uint8_t argc, char **argv, struct console_desc_t *console)
 
     // 0: Factory data and setup
     uint8_t cmd = 0b10100000;
-    sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_generic(&i2c0_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "0: 0x");
     utoa(__builtin_bswap16(data), str, 16);
     console_send_str(console, str);
     console_send_str(console, " (Factory data and setup)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C1: Pressure Sensitivity
-    //sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
+    //sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
     cmd = 0b10100010;
-    sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_generic(&i2c0_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C1: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Pressure sensitivity)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C2: Pressure offset
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10100100, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C2: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Pressure offset)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C3: Temperature coefficient of pressure sensitivity
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10100110, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10100110, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C3: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of pressure sensitivity)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C4: Temperature coefficient of pressure offset
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101000, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10101000, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C4: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of pressure offset)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C5: Reference temperature
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101010, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10101010, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C5: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Reference temperature)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // C6: Temperature coefficient of the temperature
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1110110, 0b10101100, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1110110, 0b10101100, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "C6: ");
     utoa(__builtin_bswap16(data), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (Temperature coefficient of the temperature)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 
     // 7: Serial code and CRC
     cmd = 0b10100111;
-    sercom_i2c_start_generic(&i2c_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_generic(&i2c0_g, &i2c_t, 0b1110110, &cmd, 1, (uint8_t*)&data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "7: 0x");
     utoa(__builtin_bswap16(data), str, 16);
     console_send_str(console, str);
     console_send_str(console, " (Serial code and CRC)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 }
 
 // MARK: IMU Who Am I
@@ -137,16 +138,16 @@ void debug_imu_wai (uint8_t argc, char **argv, struct console_desc_t *console)
     char str[9];
 
     // Who Am I
-    sercom_i2c_start_reg_read(&i2c_g, &i2c_t, 0b1101000, 0x75, &data, 2);
-    while (!sercom_i2c_transaction_done(&i2c_g, i2c_t)) {
-        sercom_i2c_service(&i2c_g);
+    sercom_i2c_start_reg_read(&i2c0_g, &i2c_t, 0b1101000, 0x75, &data, 2);
+    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t)) {
+        sercom_i2c_service(&i2c0_g);
         wdt_pat();
     }
     console_send_str(console, "Who Am I: 0x");
     utoa(data, str, 16);
     console_send_str(console, str);
     console_send_str(console, " (Gyroscope and Accelerometer)\n");
-    sercom_i2c_clear_transaction(&i2c_g, i2c_t);
+    sercom_i2c_clear_transaction(&i2c0_g, i2c_t);
 }
 
 // MARK: Altimeter

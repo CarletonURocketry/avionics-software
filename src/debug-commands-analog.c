@@ -13,7 +13,8 @@
 
 #include <string.h>
 #include <ctype.h>
-#include "config.h"
+
+#include "board.h"
 #include "wdt.h"
 #include "adc.h"
 #include "dac.h"
@@ -22,7 +23,8 @@
 
 void debug_temp (uint8_t argc, char **argv, struct console_desc_t *console)
 {
-    // Read temperature log values from
+#if defined(SAMD2x)
+    // Read temperature log values from NVM
     uint8_t room_temp_val_int = (uint8_t)(((*((uint32_t*)
                                               NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_ADDR)) &
                                            NVMCTRL_FUSES_ROOM_TEMP_VAL_INT_Msk) >>
@@ -108,10 +110,15 @@ void debug_temp (uint8_t argc, char **argv, struct console_desc_t *console)
     utoa(hot_adc_val, str, 16);
     console_send_str(console, str);
     console_send_str(console, "\n");
+#elif defined(SAMx5x)
+    console_send_str(console, "Command not implemented for SAME54.\n");
+#endif
 }
 
 
 // MARK: Analog
+
+#if defined(ENABLE_ADC) && defined(SAMD2x)
 
 static void debug_analog_print_channel (struct console_desc_t *console,
                                         uint8_t channel, int32_t parsed_value,
@@ -150,8 +157,13 @@ static void debug_analog_print_channel (struct console_desc_t *console,
     }
 }
 
+#endif
+
 void debug_analog (uint8_t argc, char **argv, struct console_desc_t *console)
 {
+#if !defined(ENABLE_ADC)
+    console_send_str(console, "ADC driver is not enabled.\n");
+#elif defined(SAMD2x)
     char str[16];
 
     console_send_str(console, "Last sweep was at ");
@@ -232,11 +244,14 @@ void debug_analog (uint8_t argc, char **argv, struct console_desc_t *console)
         channel_mask ^= t;
         wdt_pat();
     }
+#elif defined(SAMx5x)
+    console_send_str(console, "Not yet implemented for SAME54.\n");
+#endif
 }
 
 // MARK: ADC INIT
 
-#ifndef ENABLE_ADC
+#if !defined(ENABLE_ADC) && defined(SAMD2x)
 
 struct pin_t {
     uint8_t num:5;
@@ -281,10 +296,10 @@ static void adc_set_pmux (uint8_t channel)
 
 void debug_adc_init (uint8_t argc, char **argv, struct console_desc_t *console)
 {
-#ifdef ENABLE_ADC
+#if defined(ENABLE_ADC)
     console_send_str(console, "ADC driver is enabled. Use \"analog\" command "
                      "instead\n");
-#else
+#elif defined(SAMD2x)
     adc_set_pmux(18);
     adc_set_pmux(17);
     adc_set_pmux(16);
@@ -335,12 +350,14 @@ void debug_adc_init (uint8_t argc, char **argv, struct console_desc_t *console)
     ADC->CTRLA.bit.ENABLE = 1;
     // Wait for synchronization
     while (ADC->STATUS.bit.SYNCBUSY);
+#elif defined(SAMx5x)
+    console_send_str(console, "Not yet implemented for SAME54.\n");
 #endif
 }
 
 // MARK: ADC Read
 
-#ifndef ENABLE_ADC
+#if !defined(ENABLE_ADC) && defined(SAMD2x)
 static volatile uint16_t adc_results[0x1C];
 static volatile uint32_t adc_result_ready;
 static volatile uint8_t adc_current_chan;
@@ -367,10 +384,10 @@ static void print_adc_result (struct console_desc_t *console, uint8_t channel)
 
 void debug_adc_read (uint8_t argc, char **argv, struct console_desc_t *console)
 {
-#ifdef ENABLE_ADC
+#if defined(ENABLE_ADC)
     console_send_str(console, "ADC driver is enabled. Use \"analog\" command "
                      "instead\n");
-#else
+#elif defined(SAMD2x)
 
     if ((argc < 2) || (argc > 3)) {
         console_send_str(console, DEBUG_ADC_READ_HELP);
@@ -415,10 +432,12 @@ void debug_adc_read (uint8_t argc, char **argv, struct console_desc_t *console)
     for (uint8_t i = scan_start; i <= scan_end; i++) {
         print_adc_result(console, i);
     }
+#elif defined(SAMx5x)
+    console_send_str(console, "Not yet implemented for SAME54.\n");
 #endif
 }
 
-#ifndef ENABLE_ADC
+#if !defined(ENABLE_ADC) && defined(SAMD2x)
 void ADC_Handler (void)
 {
     if (ADC->INTFLAG.bit.RESRDY) {
@@ -502,9 +521,17 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
     } else if (argc == 3) {
         if (!strncasecmp(argv[1], "init", 4)) {
             if (!strcasecmp(argv[2], "1v")) {
-                init_dac(GCLK_CLKCTRL_GEN_GCLK0, DAC_REF_1V, 1, 1);
+#if defined(SAMD2x)
+                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_1V, 1, 1, 1);
+#elif defined(SAMx5x)
+                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_1V, 1, 1, 1);
+#endif
             } else if (!strcasecmp(argv[2], "3.3v")) {
-                init_dac(GCLK_CLKCTRL_GEN_GCLK0, DAC_REF_AVCC, 1, 1);
+#if defined(SAMD2x)
+                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_AVCC, 1, 1, 1);
+#elif defined(SAMx5x)
+                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_AVCC, 1, 1, 1);
+#endif
             } else {
                 console_send_str(console, "DAC not initialized, run 'dac init "\
                                  "1V' or 'dac init 3.3V'.\n");
@@ -555,9 +582,9 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
             if (!has_decimal) {
                 value *= 1000;
             }
-            dac_set_millivolts(value);
+            dac_set_millivolts(0, value);
         } else if (mode == DEBUG_DAC_MODE_RAW) {
-            dac_set(value);
+            dac_set(0, value);
         }
     }
 
@@ -565,9 +592,9 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
 
     // Print current DAC value
     console_send_str(console, "DAC value: ");
-    utoa(dac_get_value(), str, 10);
+    utoa(dac_get_value(0), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (");
-    debug_print_fixed_point(console, dac_get_value_millivolts(), 3);
+    debug_print_fixed_point(console, dac_get_value_millivolts(0), 3);
     console_send_str(console, ")\n");
 }

@@ -131,7 +131,7 @@ extern int console_has_line(struct console_desc_t *console);
 /**
  *  Get a line from a console.
  *
- *  @param Console The console to get a line from
+ *  @param console The console to get a line from
  *  @param str The buffer where the line should be stored
  *  @param len The maximum number of characters that can be stored in the buffer
  */

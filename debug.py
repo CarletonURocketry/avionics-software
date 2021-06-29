@@ -16,6 +16,7 @@ import io
 import socket
 import shutil
 import time
+import tempfile
 
 # IO class to read lines from socket
 class SocketIO(io.RawIOBase):
@@ -60,14 +61,21 @@ parser = argparse.ArgumentParser(description='Run OpenOCD and GDB.')
 parser.add_argument('binary', nargs='?', default=None, help='Binary to debug.')
 parser.add_argument('--gdb', help='Path to GDB executable.')
 parser.add_argument('--openocd', help='Path to OpenOCD executable.')
-parser.add_argument('--interface', default='cmsis', help='Programming interface.')
+parser.add_argument('--interface', default='cmsis',
+                    help='Programming interface.')
 parser.add_argument('--host', default='localhost', help='GDB server host.')
 parser.add_argument('--gdb-port', default=2331, type=int,
                     help='GDB server port.')
 parser.add_argument('--openocd-port', default=4444, type=int,
                     help='OpenOCD command port.')
+parser.add_argument('--chip-name', default='at91samd21j18', help='Chip name ' +
+                    'for OpenOCD config (defaults to at91samd21j18).')
+parser.add_argument('--chip-config', default='target/at91samdXX.cfg',
+                    help='Configuration file for chip to be sourced by ' +
+                    'OpenOCD (defaults to target/at91samdXX.cfg).')
 parser.add_argument('--gdb-file', default=None,
-                    help='File (pipe or serial interface) to connect to with GDB')
+                    help='File (pipe or serial interface) to connect to with ' +
+                    'GDB')
 parser.add_argument('--upload', default=False, action="store_true",
                     help='Upload binary to target.')
 parser.add_argument('--reset', nargs='?', default=None, const="run",
@@ -109,21 +117,6 @@ if args.gdb_file is None and not send_tcp_command(args.host, args.gdb_port):
 
 debug_print("OpenOCD at: {0}".format(openocd_path), args.verbose)
 
-# Find OpenOCD config
-openocd_cfg = None
-
-if openocd_path is not None:
-    # Need to find a config file for OpenOCD
-    if args.interface.casefold() == "cmsis":
-        openocd_cfg = "openocd.cfg"
-    else:
-        openocd_cfg = "openocd-{0}.cfg".format(args.interface.casefold())
-    
-    if openocd_cfg is not None and not os.path.isfile(openocd_cfg):
-        sys.exit("Could not find config file \"{0}\".".format(openocd_cfg))
-
-debug_print("OpenOCD config: {0}".format(openocd_cfg), args.verbose)
-
 # Find GDB
 gdb_path = args.gdb
 gdb_arch_cmd = None
@@ -146,12 +139,34 @@ elif not os.access(gdb_path, os.X_OK):
 
 debug_print("GDB at: {0}".format(gdb_path), args.verbose)
 
+# Generate OpenOCD configuration file
+openocd_cfg = None
+if openocd_path is not None:
+    openocd_cfg = tempfile.NamedTemporaryFile()
+
+    speed = 4000
+    if (args.interface.casefold() == "cmsis" or
+            args.interface.casefold() == "cmsis-dap"):
+        openocd_cfg.write(b"# CMSIS-DAP Debugger\nadapter driver cmsis-dap\n")
+        speed = 2000
+    else:
+        openocd_cfg.write(f"adapter driver {args.interface.casefold()}".encode("utf-8"))
+    openocd_cfg.write(b"transport select swd\n\n")
+    openocd_cfg.write(f"# Adapter settings\nadapter speed {speed}\n\n".encode("utf-8"))
+    openocd_cfg.write(f"# Chip info\nset CHIPNAME {args.chip_name}\n".encode("utf-8"))
+    openocd_cfg.write(b"set ENDIAN little\n")
+    openocd_cfg.write(f"source [find {args.chip_config}]\n\n".encode("utf-8"))
+    openocd_cfg.write(b"# GDB Server Configuration\ngdb_port 2331\n")
+    openocd_cfg.flush()
+
+    print(openocd_cfg.name)
+
 # Launch OpenOCD
 openocd_proc = None
 
 if openocd_path is not None:
     debug_print("Starting OpenOCD", args.verbose)
-    openocd_proc = subprocess.Popen([openocd_path, "-f", openocd_cfg, "-l",
+    openocd_proc = subprocess.Popen([openocd_path, "-f", openocd_cfg.name, "-l",
                                      "/dev/null"], preexec_fn = os.setsid,
                                      stderr = subprocess.DEVNULL)
     # TODO: Find a way to detect when OpenOCD is ready to accept connections
@@ -170,6 +185,7 @@ if args.upload:
         print()
         if openocd_proc is not None:
             openocd_proc.kill()
+        openocd_cfg.close()
         sys.exit("GDB is available but OpenOCD does not appear to be running.")
     print(" done.")
 
@@ -185,6 +201,7 @@ if args.reset:
         print()
         if openocd_proc is not None:
             openocd_proc.kill()
+        openocd_cfg.close()
         sys.exit("GDB is available but OpenOCD does not appear to be running.")
     print(" done.")
 
@@ -193,6 +210,7 @@ if args.no_debug:
     # Kill OpenOCD if we launched it
     if openocd_proc is not None:
         openocd_proc.kill()
+    openocd_cfg.close()
     sys.exit(0)
    
 # Marshal GDB arguments
@@ -218,3 +236,7 @@ gdb_proc.wait()
 # If we started OpenOCD, kill it
 if openocd_proc is not None:
     openocd_proc.kill()
+
+# Close our OpenOCD configutation file if we made one
+if openocd_path is not None:
+    openocd_cfg.close()

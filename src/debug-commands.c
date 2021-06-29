@@ -67,6 +67,8 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
     {.func = debug_version, .name = DEBUG_VERSION_NAME,
         .help_string = DEBUG_VERSION_HELP},
     {.func = debug_did, .name = DEBUG_DID_NAME, .help_string = DEBUG_DID_HELP},
+    {.func = debug_rcause, .name = DEBUG_RCAUSE_NAME,
+        .help_string = DEBUG_RCAUSE_HELP},
     {.func = debug_i2c_scan, .name = DEBUG_I2C_SCAN_NAME,
         .help_string = DEBUG_I2C_SCAN_HELP},
     {.func = debug_io_exp_regs, .name = DEBUG_IO_EXP_REGS_NAME,

@@ -104,7 +104,7 @@ extern void ms5611_service (struct ms5611_desc_t *inst);
  *
  * @param inst The MS5611 driver instance
  *
- * @return The most recently measured pressure in hundredths of a mbar
+ * @return The most recently measured pressure in Pascals (hundredths of a mbar)
  */
 static inline int32_t ms5611_get_pressure (struct ms5611_desc_t *inst)
 {
