@@ -25,23 +25,23 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
                        uint8_t echo, uint8_t tx_pin_group, uint8_t tx_pin_num)
 {
     uint8_t instance_num = sercom_get_inst_num(sercom);
-    
+
     /* Enable the APBC clock for the SERCOM instance */
     enable_bus_clock(sercom_get_bus_clk(instance_num));
 
     /* Select the core clock for the SERCOM instance */
     set_perph_generic_clock(sercom_get_gclk(instance_num), core_clock_mask);
-    
+
     /* Reset SERCOM instance */
     sercom->USART.CTRLA.bit.SWRST = 0b1;
     // Wait for reset to complete
     while (sercom->USART.SYNCBUSY.bit.SWRST);
-    
+
     /* Find baud setting */
     uint16_t baud = 0;
     uint8_t sampr = 0;
-    sercom_calc_async_baud(baudrate, F_CPU, &baud, &sampr);
-    
+    sercom_calc_async_baud(baudrate, core_freq, &baud, &sampr);
+
     /* Configure CTRL Reg A */
     // Internal clock, asynchronous mode, choose RX and TX pins, sample rate,
     // LSB first, run in standby
@@ -60,10 +60,10 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
                                SERCOM_USART_CTRLB_TXEN);
     // Wait for synchronization
     while(sercom->USART.SYNCBUSY.bit.CTRLB);
-    
+
     /* Configure interrupts */
     sercom->USART.INTENSET.bit.RXC = 0b1; // RX Complete
-    
+
     sercom_handlers[instance_num] = (struct sercom_handler_t) {
         .dre_handler = sercom_uart_isr_dre,
         .rxc_handler = sercom_uart_isr_rxc,
@@ -72,12 +72,12 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
 
     sercom_enable_interupts(instance_num, (SERCOM_USART_INTFLAG_DRE |
                                            SERCOM_USART_INTFLAG_RXC));
-    
+
     /* Setup Descriptor */
     descriptor->sercom = sercom;
     descriptor->sercom_instnum = instance_num;
     descriptor->echo = echo;
-    
+
     // Configure buffers
     init_circular_buffer(&descriptor->out_buffer,
                          (uint8_t*)descriptor->out_buffer_mem,
@@ -85,7 +85,7 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     init_circular_buffer(&descriptor->in_buffer,
                          (uint8_t*)descriptor->in_buffer_mem,
                          SERCOM_UART_IN_BUFFER_LEN);
-    
+
     // Configure DMA
     if ((dma_channel >= 0) && (dma_channel < DMAC_CH_NUM)) {
         descriptor->dma_chan = (uint8_t)dma_channel;
@@ -108,9 +108,9 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
     /* Configure TX pin */
     // Set TX pin as output
     PORT->Group[tx_pin_group].DIRSET.reg = (1 << tx_pin_num);
-    // Set TX pin output low
-    PORT->Group[tx_pin_group].OUTCLR.reg = (1 << tx_pin_num);
-    
+    // Set TX pin output high
+    PORT->Group[tx_pin_group].OUTSET.reg = (1 << tx_pin_num);
+
     /* Enable SERCOM instance */
     sercom->USART.CTRLA.bit.ENABLE = 0b1;
 }

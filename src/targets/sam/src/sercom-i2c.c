@@ -381,8 +381,8 @@ static inline void sercom_i2c_begin_generic (
                                            );
     } else {
         /* Start transaction interrupt driven */
-        i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENCLR_MB |
-                                               SERCOM_I2CM_INTENCLR_SB);
+        i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENSET_MB |
+                                               SERCOM_I2CM_INTENSET_SB);
         i2c_inst->sercom->I2CM.ADDR.bit.ADDR = state->dev_address |
                                                 !(state->generic.out_length);
     }
@@ -468,7 +468,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
     } else {
         i2c_inst->service_lock = 1;
     }
-    
+
     if (transaction_queue_head_active(&i2c_inst->queue)) {
         // There is already a transaction in progress
         struct transaction_t *t =
@@ -488,8 +488,8 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
             } else {
                 // Begin reading bytes interrupt driven
                 i2c_inst->sercom->I2CM.INTENSET.reg = (
-                                                    SERCOM_I2CM_INTENCLR_MB |
-                                                    SERCOM_I2CM_INTENCLR_SB);
+                                                    SERCOM_I2CM_INTENSET_MB |
+                                                    SERCOM_I2CM_INTENSET_SB);
                 s->state = I2C_STATE_RX;
                 i2c_inst->sercom->I2CM.ADDR.bit.ADDR = (s->dev_address |
                                                         1);
@@ -498,13 +498,13 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
                     s->state == I2C_STATE_WAIT_FOR_DONE) {
             // The I2C bus has returned to idle, we can let the CPU sleep again
             allow_sleep();
-            
+
             // End transaction
             s->state = I2C_STATE_DONE;
-            
+
             t->done = 1;
             t->active = 0;
-            
+
             // Disable MB and SM interrupts
             i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |
                                                    SERCOM_I2CM_INTENCLR_SB |
@@ -514,7 +514,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         i2c_inst->service_lock = 0;
         return;
     }
-    
+
     // If we are waiting for idle and the bus is now idle, we should stop
     // waiting for idle.
     if (i2c_inst->wait_for_idle &&
@@ -526,7 +526,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         i2c_inst->service_lock = 0;
         return;
     }
-    
+
     // No transaction in progress, check if one needs to be started
     struct transaction_t *t = transaction_queue_next(&i2c_inst->queue);
     if (t == NULL) {
@@ -537,10 +537,10 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         // Start the next transaction
         struct sercom_i2c_transaction_t *s =
                             (struct sercom_i2c_transaction_t*)t->state;
-        
+
         /* Mark transaction as active */
         t->active = 1;
-        
+
         /* Begin transaction */
         switch (s->type) {
             case I2C_TRANSACTION_GENERIC:
@@ -553,8 +553,8 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
             case I2C_TRANSACTION_SCAN:
                 // Start by sending first address
                 i2c_inst->sercom->I2CM.INTENSET.reg =
-                                                (SERCOM_I2CM_INTENCLR_MB |
-                                                 SERCOM_I2CM_INTENCLR_SB);
+                                                (SERCOM_I2CM_INTENSET_MB |
+                                                 SERCOM_I2CM_INTENSET_SB);
                 i2c_inst->sercom->I2CM.ADDR.bit.ADDR = s->dev_address;
                 s->dev_address += 2;
                 break;
@@ -567,7 +567,7 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
         // Keep checking if the bus has become idle as often as possible
         //inhibit_sleep();
     }
-    
+
     i2c_inst->service_lock = 0;
 }
 

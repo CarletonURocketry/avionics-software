@@ -55,69 +55,69 @@ static inline void init_io (void)
 {
 #ifdef ENABLE_SPI0
     // SPI 0 (SERCOM6)
-    PORT->Group[2].PMUX[2].bit.PMUXE = 0x3;     // PC04: MOSI (Pad 0)
+    PORT->Group[2].PMUX[2].bit.PMUXE = 0x2;     // PC04: MOSI (Pad 0)
     PORT->Group[2].PINCFG[4].bit.PMUXEN = 1;
-    PORT->Group[2].PMUX[2].bit.PMUXO = 0x3;     // PC05: SCK (Pad 1)
+    PORT->Group[2].PMUX[2].bit.PMUXO = 0x2;     // PC05: SCK (Pad 1)
     PORT->Group[2].PINCFG[5].bit.PMUXEN = 1;
-    PORT->Group[2].PMUX[3].bit.PMUXE = 0x3;     // PC06: MISO (Pad 2)
+    PORT->Group[2].PMUX[3].bit.PMUXE = 0x2;     // PC06: MISO (Pad 2)
     PORT->Group[2].PINCFG[6].bit.PMUXEN = 1;
 #endif
 
 #ifdef ENABLE_SPI1
     // SPI 1 (SERCOM5)
-    PORT->Group[1].PMUX[8].bit.PMUXE = 0x3;     // PB16: MOSI (Pad 0)
+    PORT->Group[1].PMUX[8].bit.PMUXE = 0x2;     // PB16: MOSI (Pad 0)
     PORT->Group[1].PINCFG[16].bit.PMUXEN = 1;
-    PORT->Group[1].PMUX[8].bit.PMUXO = 0x3;     // PB17: SCK (Pad 1)
+    PORT->Group[1].PMUX[8].bit.PMUXO = 0x2;     // PB17: SCK (Pad 1)
     PORT->Group[1].PINCFG[17].bit.PMUXEN = 1;
-    PORT->Group[1].PMUX[9].bit.PMUXE = 0x3;     // PB18: MISO (Pad 2)
+    PORT->Group[1].PMUX[9].bit.PMUXE = 0x2;     // PB18: MISO (Pad 2)
     PORT->Group[1].PINCFG[18].bit.PMUXEN = 1;
 #endif
 
 #ifdef ENABLE_I2C0
     // I2C 0 (SERCOM7)
-    PORT->Group[3].PMUX[4].bit.PMUXE = 0x3;     // PD08: SDA (Pad 0)
+    PORT->Group[3].PMUX[4].bit.PMUXE = 0x2;     // PD08: SDA (Pad 0)
     PORT->Group[3].PINCFG[8].bit.PMUXEN = 0b1;
-    PORT->Group[3].PMUX[4].bit.PMUXO = 0x3;     // PD09: SCL (Pad 1)
+    PORT->Group[3].PMUX[4].bit.PMUXO = 0x2;     // PD09: SCL (Pad 1)
     PORT->Group[3].PINCFG[9].bit.PMUXEN = 0b1;
 #endif
 
 #ifdef ENABLE_I2C1
     // I2C 1 (SERCOM2)
-    PORT->Group[0].PMUX[6].bit.PMUXE = 0x3;     // PA12: SDA (Pad 0)
+    PORT->Group[0].PMUX[6].bit.PMUXE = 0x2;     // PA12: SDA (Pad 0)
     PORT->Group[0].PINCFG[12].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[6].bit.PMUXO = 0x3;     // PA13: SCL (Pad 1)
+    PORT->Group[0].PMUX[6].bit.PMUXO = 0x2;     // PA13: SCL (Pad 1)
     PORT->Group[0].PINCFG[13].bit.PMUXEN = 0b1;
 #endif
 
 #ifdef ENABLE_UART0
     // UART 0 (SERCOM1)
-    PORT->Group[0].PMUX[8].bit.PMUXE = 0x3;     // PA16: TX (Pad 0)
+    PORT->Group[0].PMUX[8].bit.PMUXE = 0x2;     // PA16: TX (Pad 0)
     PORT->Group[0].PINCFG[16].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[8].bit.PMUXO = 0x3;     // PA17: RX (Pad 1)
+    PORT->Group[0].PMUX[8].bit.PMUXO = 0x2;     // PA17: RX (Pad 1)
     PORT->Group[0].PINCFG[17].bit.PMUXEN = 0b1;
 #endif
 
 #ifdef ENABLE_UART1
     // UART 1 (SERCOM0)
-    PORT->Group[2].PMUX[8].bit.PMUXO = 0x4;     // PC17: TX (Pad 0)
+    PORT->Group[2].PMUX[8].bit.PMUXO = 0x3;     // PC17: TX (Pad 0)
     PORT->Group[2].PINCFG[17].bit.PMUXEN = 0b1;
-    PORT->Group[2].PMUX[8].bit.PMUXE = 0x4;     // PC16: RX (Pad 1)
+    PORT->Group[2].PMUX[8].bit.PMUXE = 0x3;     // PC16: RX (Pad 1)
     PORT->Group[2].PINCFG[16].bit.PMUXEN = 0b1;
 #endif
 
 #ifdef ENABLE_UART2
     // UART 2 (SERCOM3)
-    PORT->Group[2].PMUX[11].bit.PMUXO = 0x4;    // PC23: TX (Pad 0)
+    PORT->Group[2].PMUX[11].bit.PMUXO = 0x3;    // PC23: TX (Pad 0)
     PORT->Group[2].PINCFG[23].bit.PMUXEN = 0b1;
-    PORT->Group[2].PMUX[11].bit.PMUXE = 0x4;    // PC22: RX (Pad 1)
+    PORT->Group[2].PMUX[11].bit.PMUXE = 0x3;    // PC22: RX (Pad 1)
     PORT->Group[2].PINCFG[22].bit.PMUXEN = 0b1;
 #endif
 
 #ifdef ENABLE_UART3
     // UART 3 (SERCOM4)
-    PORT->Group[1].PMUX[13].bit.PMUXO = 0x4;    // PB27: TX (Pad 0)
+    PORT->Group[1].PMUX[13].bit.PMUXO = 0x3;    // PB27: TX (Pad 0)
     PORT->Group[1].PINCFG[27].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[13].bit.PMUXE = 0x4;    // PB26: RX (Pad 1)
+    PORT->Group[1].PMUX[13].bit.PMUXE = 0x3;    // PB26: RX (Pad 1)
     PORT->Group[1].PINCFG[26].bit.PMUXEN = 0b1;
 #endif
 
