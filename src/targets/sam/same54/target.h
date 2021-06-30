@@ -33,6 +33,7 @@
 #define SAME54_CLK_MSK_48MHZ    GCLK_PCHCTRL_GEN_GCLK2  // DFLL48M
 #define SAME54_CLK_MSK_32KHZ    GCLK_PCHCTRL_GEN_GCLK3  // XOSC32K
 #define SAME54_CLK_MSK_12MHZ    GCLK_PCHCTRL_GEN_GCLK4  // XOSC0 or DFLL48M / 4
+#define SAME54_CLK_MSK_100MHZ   GCLK_PCHCTRL_GEN_GCLK5  // DPLL1
 
 /**
  *  Enum that defines common names for SAM peripheral clock channels that can be

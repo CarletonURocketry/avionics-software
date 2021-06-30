@@ -185,6 +185,50 @@ static void init_clocks (void)
 #endif
 
 
+    /* Configure DPLL1 to generate 100 MHz clock with XOSC32K as reference */
+    // Set Loop Divider Ratio
+    // Fdplln = Fckr * (LDR + 1 + (LDRFRAC/32))
+    OSCCTRL->Dpll[1].DPLLRATIO.reg = (OSCCTRL_DPLLRATIO_LDR(3050) |
+                                      OSCCTRL_DPLLRATIO_LDRFRAC(24));
+    // Wait for syncronization of ratio register
+    while (OSCCTRL->Dpll[1].DPLLSYNCBUSY.reg & OSCCTRL_DPLLSYNCBUSY_DPLLRATIO);
+    // Reference clock is XOSC32K, enable wake up fast and lock bypass to work
+    // around silicon errata.
+    OSCCTRL->Dpll[1].DPLLCTRLB.reg = (OSCCTRL_DPLLCTRLB_REFCLK_XOSC32 |
+                                      OSCCTRL_DPLLCTRLB_WUF |
+                                      OSCCTRL_DPLLCTRLB_LBYPASS);
+    // Enable DPLL1
+    OSCCTRL->Dpll[1].DPLLCTRLA.reg = OSCCTRL_DPLLCTRLA_ENABLE;
+    // Wait for DPLL1 to be ready
+    while (!(OSCCTRL->Dpll[1].DPLLSTATUS.reg & OSCCTRL_DPLLSTATUS_CLKRDY));
+    // Wait an extra 10 ms with TC0 to make sure that DPLL is locked
+    TC0->COUNT16.CTRLA.bit.ENABLE = 1;
+    while (!TC0->COUNT16.INTFLAG.bit.OVF);
+    TC0->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+    TC0->COUNT16.CTRLA.bit.ENABLE = 0;
+    while (TC0->COUNT16.SYNCBUSY.bit.ENABLE);
+    TC0->COUNT16.COUNT.reg = 0;
+    while (TC0->COUNT16.SYNCBUSY.bit.COUNT);
+
+
+    /* Configure Generic Clock Generator 5 with DPLL1 as source */
+    // Do not divide, DPLL1 as source
+    GCLK->GENCTRL[5].reg = (GCLK_GENCTRL_SRC_DPLL1 | GCLK_GENCTRL_GENEN);
+    // Wait for generic clock generator 5 to be ready
+    while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL5);
+
+
+    /* Clock ouput for debugging */
+//    // Configure generic clock generator 1 with clock to be outputed
+//    GCLK->GENCTRL[1].reg = (GCLK_GENCTRL_SRC_DPLL1 | GCLK_GENCTRL_GENEN |
+//                            GCLK_GENCTRL_OE | GCLK_GENCTRL_DIV(4));
+//    // Wait for generic clock generator 1 to be ready
+//    while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL1);
+//    // Setup output pin
+//    PORT->Group[1].PMUX[11].bit.PMUXO = 12;
+//    PORT->Group[1].PINCFG[23].bit.PMUXEN = 1;
+
+
     /* Reset TC0 */
     TC0->COUNT16.CTRLA.bit.SWRST = 1;
     while (TC0->COUNT16.SYNCBUSY.bit.SWRST);

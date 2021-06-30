@@ -192,8 +192,8 @@ void init_board(void)
 #ifndef SPI1_TX_DMA_CHAN
 #define SPI1_TX_DMA_CHAN -1
 #endif
-    init_sercom_spi(&spi1_g, SPI1_SERCOM_INST, 48000000UL, SAME54_CLK_MSK_48MHZ,
-                    SPI1_TX_DMA_CHAN, SPI1_RX_DMA_CHAN);
+    init_sercom_spi(&spi1_g, SPI1_SERCOM_INST, 100000000UL,
+                    SAME54_CLK_MSK_100MHZ, SPI1_TX_DMA_CHAN, SPI1_RX_DMA_CHAN);
 #endif
 
     // Init I2C0
