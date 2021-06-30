@@ -221,7 +221,7 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* ADC enabled if defined */
 #define ENABLE_ADC
 /* Period between ADC sweeps in milliseconds */
-#define ADC_PERIOD 2000
+#define ADC_PERIOD MS_TO_MILLIS(2000)
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
  as -1 */
 #define ADC_DMA_CHAN 11

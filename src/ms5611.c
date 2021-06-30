@@ -14,7 +14,7 @@
 #include <math.h>
 
 
-#define CONV_WAIT_TIME 10
+#define CONV_WAIT_TIME MS_TO_MILLIS(10)
 
 static const uint8_t reset_cmd = MS5611_CMD_RESET;
 static const uint8_t adc_conv_d1_cmd = MS5611_CMD_D1 | MS5611_OSR_4096;

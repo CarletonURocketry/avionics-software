@@ -24,10 +24,10 @@
 #define SDSPI_CMD_READ_LENGTH   8
 #define SDSPI_NUM_INIT_RETRIES  5
 
-#define SDSPI_CMD_TIMEOUT       50
-#define SDSPI_BLK_READ_TIMEOUT  250
-#define SDSPI_WRITE_BUSY_TIMEOUT 250
-#define SDSPI_WRITE_RSP_TIMEOUT 10
+#define SDSPI_CMD_TIMEOUT           MS_TO_MILLIS(50)
+#define SDSPI_BLK_READ_TIMEOUT      MS_TO_MILLIS(250)
+#define SDSPI_WRITE_BUSY_TIMEOUT    MS_TO_MILLIS(250)
+#define SDSPI_WRITE_RSP_TIMEOUT     MS_TO_MILLIS(10)
 
 
 static uint8_t sdspi_crc_7(uint8_t const *msg, size_t length)

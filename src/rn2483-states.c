@@ -50,9 +50,9 @@ enum rn2483_state_result {
 #define RN2483_RX_WINDOW_SIZE   50000
 /** Number of milliseconds to wait for a radio_err after getting ok from
     rxstop */
-#define RN2483_RXSTOP_WAIT_TIME 5
+#define RN2483_RXSTOP_WAIT_TIME MS_TO_MILLIS(5)
 /** Maximum number of times to try and reset radio */
-#define RN2483_MAX_NUM_RESETS   5
+#define RN2483_MAX_NUM_RESETS   MS_TO_MILLIS(5)
 
 /** Duration in milliseconds of break condition send in order to trigger the
     auto-baud detection sequence */

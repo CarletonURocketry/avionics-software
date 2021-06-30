@@ -181,7 +181,7 @@ extern struct radio_instance_desc *const radios_g[];
 /* Altimeter CSB setting */
 #define ALTIMETER_CSB 0
 /* Altimeter sample period in milliseconds */
-#define ALTIMETER_PERIOD 1000
+#define ALTIMETER_PERIOD MS_TO_MILIS(1000)
 extern struct ms5611_desc_t altimeter_g;
 
 //

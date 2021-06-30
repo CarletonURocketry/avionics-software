@@ -18,7 +18,7 @@
 //
 //
 
-#define RADIO_SIG_REPORT_PERIOD 5000
+#define RADIO_SIG_REPORT_PERIOD MS_TO_MILLIS(5000)
 
 //
 //

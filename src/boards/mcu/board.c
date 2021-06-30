@@ -277,7 +277,7 @@ void init_board(void)
 
 
 
-#define STAT_PERIOD 1500
+#define STAT_PERIOD MS_TO_MILLIS(1500)
 
 void board_service(void)
 {
