@@ -494,6 +494,11 @@ static uint16_t parse_value(char *str, char **end, uint8_t *has_decimal)
 void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
 {
     static uint8_t dac_initialized;
+#if defined(SAMD2x)
+    static const uint8_t dac_channel = 0;
+#elif defined(SAMx5x)
+    static const uint8_t dac_channel = DAC_OUT0_CHANNEL;
+#endif
 
     uint8_t has_decimal = 0;
     uint16_t value = 0;
@@ -522,15 +527,19 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
         if (!strncasecmp(argv[1], "init", 4)) {
             if (!strcasecmp(argv[2], "1v")) {
 #if defined(SAMD2x)
-                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_1V, 1, 1, 1);
+                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_1V, (1 << dac_channel), 1,
+                         1);
 #elif defined(SAMx5x)
-                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_1V, 1, 1, 1);
+                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_1V, (1 << dac_channel),
+                         1, 1);
 #endif
             } else if (!strcasecmp(argv[2], "3.3v")) {
 #if defined(SAMD2x)
-                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_AVCC, 1, 1, 1);
+                init_dac(SAMD21_CLK_MSK_8MHZ, DAC_REF_AVCC, (1 << dac_channel),
+                         1, 1);
 #elif defined(SAMx5x)
-                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_AVCC, 1, 1, 1);
+                init_dac(SAME54_CLK_MSK_12MHZ, DAC_REF_AVCC, (1 << dac_channel),
+                         1, 1);
 #endif
             } else {
                 console_send_str(console, "DAC not initialized, run 'dac init "\
@@ -582,9 +591,9 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
             if (!has_decimal) {
                 value *= 1000;
             }
-            dac_set_millivolts(0, value);
+            dac_set_millivolts(dac_channel, value);
         } else if (mode == DEBUG_DAC_MODE_RAW) {
-            dac_set(0, value);
+            dac_set(dac_channel, value);
         }
     }
 
@@ -592,9 +601,9 @@ void debug_dac (uint8_t argc, char **argv, struct console_desc_t *console)
 
     // Print current DAC value
     console_send_str(console, "DAC value: ");
-    utoa(dac_get_value(0), str, 10);
+    utoa(dac_get_value(dac_channel), str, 10);
     console_send_str(console, str);
     console_send_str(console, " (");
-    debug_print_fixed_point(console, dac_get_value_millivolts(0), 3);
+    debug_print_fixed_point(console, dac_get_value_millivolts(dac_channel), 3);
     console_send_str(console, ")\n");
 }

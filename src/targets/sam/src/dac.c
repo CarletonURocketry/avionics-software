@@ -67,16 +67,18 @@ void init_dac (uint32_t clock_mask, enum dac_reference reference,
                       (enable_int_output ? DAC_CTRLB_IOEN : 0) |
                       (enable_ext_output ? DAC_CTRLB_EOEN : 0));
 #elif defined(SAMx5x)
-    DAC->CTRLB.bit.REFSEL = ((reference == DAC_REF_1V) ?
-                             DAC_CTRLB_REFSEL_INTREF :
-                             DAC_CTRLB_REFSEL_VDDANA);
+    DAC->CTRLB.reg = ((reference == DAC_REF_1V) ? DAC_CTRLB_REFSEL_INTREF :
+                                                  DAC_CTRLB_REFSEL_VDDANA);
+    
     for (uint8_t i = 0; i < DAC_CHANNEL_SIZE; i++) {
         if (channel_mask & (1 << i)) {
-            if (channel_mask & (1 << 0)) {
-                DAC->DACCTRL[i].reg = (DAC_DACCTRL_LEFTADJ |
-                                       DAC_DACCTRL_ENABLE |
-                                       DAC_DACCTRL_CCTRL_CC12M);
-            }
+            // Configure DAC with left adjusted output, current control
+            // configured for 12 MHz clock and a refresh every 15 cycles of
+            // the 32.768 KHz oscillator
+            DAC->DACCTRL[i].reg = (DAC_DACCTRL_LEFTADJ |
+                                   DAC_DACCTRL_ENABLE |
+                                   DAC_DACCTRL_CCTRL_CC12M |
+                                   DAC_DACCTRL_REFRESH(15));
         }
     }
 #endif
@@ -88,6 +90,19 @@ void init_dac (uint32_t clock_mask, enum dac_reference reference,
     while (DAC->STATUS.bit.SYNCBUSY);
 #elif defined(SAMx5x)
     while (DAC->SYNCBUSY.bit.ENABLE);
+#endif
+
+#if defined(SAMx5x)
+    for (uint8_t i = 0; i < DAC_CHANNEL_SIZE; i++) {
+        if (channel_mask & (1 << i)) {
+            // Wait for DAC channel to be ready
+            while (!(DAC->STATUS.reg & (1 << i)));
+
+            // Set DAC value to 0, otherwise it will start slowly drifting
+            // upwards.
+            DAC->DATA[i].reg = 0;
+        }
+    }
 #endif
 }
 

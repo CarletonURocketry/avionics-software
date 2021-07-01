@@ -68,7 +68,12 @@
 
 /* Analog */
 #define DAC_OUT0 GPIO_PIN_FOR(PIN_PA05)
+#define DAC_OUT0_CHANNEL    1
+#define DAC_OUT0_CHAN_MASK  (1 << DAC_OUT0_CHANNEL)
+
 #define DAC_OUT1 GPIO_PIN_FOR(PIN_PA02)
+#define DAC_OUT1_CHANNEL    0
+#define DAC_OUT1_CHAN_MASK  (1 << DAC_OUT1_CHANNEL)
 
 // TODO: SAME54 Analog
 #if 0

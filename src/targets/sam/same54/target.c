@@ -174,6 +174,8 @@ static void init_clocks (void)
     /* Configure Generic Clock Generator 4 with XOSC0 as source */
     // Do not divide, XOSC0 as source
     GCLK->GENCTRL[4].reg = (GCLK_GENCTRL_SRC_XOSC0 | GCLK_GENCTRL_GENEN);
+    // Wait for generic clock generator 4 to be ready
+    while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL4);
 #else
     // XOSC0 is not enabled, provide a 12 MHz clock on GCLK_GEN 4 by dividing
     // DFLL48M by 4.
@@ -182,6 +184,8 @@ static void init_clocks (void)
     // Divide by 4, DFLL48M as source
     GCLK->GENCTRL[4].reg = (GCLK_GENCTRL_DIV(4) | GCLK_GENCTRL_SRC_DFLL |
                             GCLK_GENCTRL_GENEN);
+    // Wait for generic clock generator 4 to be ready
+    while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL4);
 #endif
 
 
