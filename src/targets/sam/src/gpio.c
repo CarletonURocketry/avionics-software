@@ -17,21 +17,26 @@
 #define PORT_IOBUS PORT
 #endif
 
+struct gpio_interrupt_t {
+    gpio_interrupt_cb callback;
+    void *context;
+};
 
 /**
  *  SAMD21 external interrupt handlers
  */
-static gpio_interrupt_cb gpio_int_callbacks[EIC_EXTINT_NUM] = {0};
+static struct gpio_interrupt_t gpio_int_callbacks[EIC_EXTINT_NUM] = {0};
 
 struct external_io_int_t {
     gpio_interrupt_cb callback;
+    void *context;
     union gpio_pin_t pin;
 };
 
 /**
  *  External IO interrupt handlers
  */
-struct external_io_int_t gpio_ext_io_ints[GPIO_MAX_EXTERNAL_IO_INTERRUPTS];
+struct external_io_int_t gpio_ext_io_ints[GPIO_MAX_EXTERNAL_IO_INTERRUPTS] = {0};
 
 
 /**
@@ -48,7 +53,8 @@ static struct radio_instance_desc *const *gpio_radios_g;
 /**
  *  Callback function for MCP23S17 interrupt
  */
-static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value);
+static void gpio_mcp23s17_int_cb (void *context, union gpio_pin_t pin,
+                                  uint8_t value);
 
 /**
  *  Function to be called by MCP23S17 driver when an interrupt has occurred
@@ -128,7 +134,8 @@ void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
 
         union gpio_pin_t mcp23s17_gpio = GPIO_PIN_FOR(mcp23s17_int_pin);
 
-        gpio_int_callbacks[gpio_pin_interrupts[mcp23s17_int_pin]] = &gpio_mcp23s17_int_cb;
+        uint8_t const mcp23s17_eic_num = gpio_pin_interrupts[mcp23s17_int_pin];
+        gpio_int_callbacks[mcp23s17_eic_num].callback = &gpio_mcp23s17_int_cb;
 
         // Enable input
         PORT_IOBUS->Group[mcp23s17_gpio.internal.port].PINCFG[
@@ -498,7 +505,8 @@ static uint8_t get_pin_for_interrupt (int8_t interrupt, union gpio_pin_t *pin)
 
 uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
                               enum gpio_interrupt_trigger trigger,
-                              uint8_t filter, gpio_interrupt_cb callback)
+                              uint8_t filter, gpio_interrupt_cb callback,
+                              void *context)
 {
     switch (pin.type) {
         case GPIO_INTERNAL_PIN:
@@ -523,7 +531,8 @@ uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
             }
 
             // Set callback function
-            gpio_int_callbacks[int_num] = callback;
+            gpio_int_callbacks[int_num].callback = callback;
+            gpio_int_callbacks[int_num].context = context;
 
             // Set PMUX to interrupt (function A)
             if (pin.internal.pin & 1) {
@@ -578,6 +587,7 @@ uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
                     continue;
                 } else {
                     gpio_ext_io_ints[i].callback = callback;
+                    gpio_ext_io_ints[i].context = context;
                     gpio_ext_io_ints[i].pin = pin;
 
                     if (trigger == GPIO_INTERRUPT_FALLING_EDGE) {
@@ -639,13 +649,13 @@ uint8_t gpio_disable_interrupt(union gpio_pin_t pin)
 #endif
 
             // Remove handler function
-            gpio_int_callbacks[int_num] = 0;
+            gpio_int_callbacks[int_num].callback = NULL;
 
             return 0;
         case GPIO_MCP23S17_PIN:
             for (uint8_t i = 0; i < GPIO_MAX_EXTERNAL_IO_INTERRUPTS; i++) {
                 if (gpio_ext_io_ints[i].pin.raw == pin.raw) {
-                    gpio_ext_io_ints[i].callback = 0;
+                    gpio_ext_io_ints[i].callback = NULL;
                     mcp23s17_disable_interrupt(gpio_mcp23s17_g, pin.mcp23s17);
                     return 0;
                 }
@@ -665,7 +675,8 @@ uint8_t gpio_disable_interrupt(union gpio_pin_t pin)
 
 
 
-static void gpio_mcp23s17_int_cb (union gpio_pin_t pin, uint8_t value)
+static void gpio_mcp23s17_int_cb (void *context, union gpio_pin_t pin,
+                                  uint8_t value)
 {
     mcp23s17_handle_interrupt(gpio_mcp23s17_g);
 }
@@ -678,7 +689,8 @@ static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
         if ((gpio_ext_io_ints[i].pin.type == GPIO_MCP23S17_PIN) &&
                 (gpio_ext_io_ints[i].pin.mcp23s17.value == pin.value)) {
             if (gpio_ext_io_ints[i].callback != NULL) {
-                gpio_ext_io_ints[i].callback((union gpio_pin_t)
+                gpio_ext_io_ints[i].callback(gpio_ext_io_ints[i].context,
+                                             (union gpio_pin_t)
                                 {.type = GPIO_MCP23S17_PIN, .mcp23s17 = pin},
                                              value);
             }
@@ -703,10 +715,11 @@ void EIC_Handler (void)
     for (uint8_t i = 0; i < EIC_EXTINT_NUM; i++) {
         if (EIC->INTFLAG.reg & (1 << i)) {
             // Interrupt i has occurred
-            if (gpio_int_callbacks[i] != NULL) {
+            if (gpio_int_callbacks[i].callback != NULL) {
                 union gpio_pin_t pin;
                 if (!get_pin_for_interrupt(i, &pin)) {
-                    gpio_int_callbacks[i](pin, gpio_get_input(pin));
+                    gpio_int_callbacks[i].callback(gpio_int_callbacks[i].context,
+                                                   pin, gpio_get_input(pin));
                 }
             }
             // Clear interrupt flag
@@ -716,12 +729,14 @@ void EIC_Handler (void)
 }
 #elif defined(SAMx5x)
 #define EIC_HANDLER(name, num) void name (void) {\
-    if (gpio_int_callbacks[num] != NULL) { \
+    if (gpio_int_callbacks[num].callback != NULL) { \
         union gpio_pin_t pin;\
         if (!get_pin_for_interrupt(num, &pin)) {\
-            gpio_int_callbacks[num](pin, gpio_get_input(pin));\
+            gpio_int_callbacks[num].callback(gpio_int_callbacks[num].context,\
+                                             pin, gpio_get_input(pin));\
         }\
     } \
+    EIC->INTFLAG.reg = (1 << num);\
 }
 
 EIC_HANDLER(EIC_0_Handler, 0)

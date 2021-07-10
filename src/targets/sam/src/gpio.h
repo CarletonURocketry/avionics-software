@@ -102,7 +102,8 @@ enum gpio_interrupt_trigger {
 };
 
 /** Type of function called when an interrupt occurs */
-typedef void (*gpio_interrupt_cb)(union gpio_pin_t pin, uint8_t value);
+typedef void (*gpio_interrupt_cb)(void *context, union gpio_pin_t pin,
+                                  uint8_t value);
 
 #define GPIO_PIN_FOR(x) ((union gpio_pin_t){.type = GPIO_INTERNAL_PIN, .internal.raw = x})
 #define MCP23S17_PIN_FOR(port, pin) ((union gpio_pin_t){.type = GPIO_MCP23S17_PIN, .mcp23s17.value = (pin | (port << 3))})
@@ -206,9 +207,9 @@ extern uint8_t gpio_toggle_output(union gpio_pin_t pin);
  *  @return 0 if interrupt enabled successfully, 1 otherwise
  */
 extern uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
-                                    enum gpio_interrupt_trigger trigger,
-                                    uint8_t filter,
-                                    gpio_interrupt_cb callback);
+                                     enum gpio_interrupt_trigger trigger,
+                                     uint8_t filter, gpio_interrupt_cb callback,
+                                     void *context);
 
 /**
  *  Disable the interrupt for a pin.
