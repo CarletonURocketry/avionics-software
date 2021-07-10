@@ -495,7 +495,7 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->out_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else {
         // We are using interrupt driven transmission and/or this transaction
         // does not have any out stage. Either way, the DRE interrupt will do
@@ -550,7 +550,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_buffer, 1, s->in_length,
                             sercom_get_dma_rx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_RX_PRIORITY);
+                            SERCOM_DMA_RX_PRIORITY, NULL);
     } else {
         // Enable receive complete interrupt
         spi_inst->sercom->SPI.INTENSET.bit.RXC = 0b1;
@@ -565,7 +565,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else if (spi_inst->tx_use_dma) {
         // Start DMA transaction to write non-dummy bytes
         dma_config_transfer(spi_inst->tx_dma_chan, DMA_WIDTH_BYTE,
@@ -573,7 +573,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else {
         s->dummy_bytes_out = 0;
         // Re-enable the data register empty interrupt

@@ -43,7 +43,7 @@ struct sercom_uart_desc_t {
     uint8_t break_duration;
 
     /** DMA channel for data transmission */
-    uint8_t dma_chan:4;
+    uint8_t dma_chan:DMAC_CH_BITS;
     uint8_t use_dma:1;
     
     uint8_t echo:1;

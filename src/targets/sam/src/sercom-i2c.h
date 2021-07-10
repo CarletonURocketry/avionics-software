@@ -152,6 +152,9 @@ struct sercom_i2c_transaction_t {
  *  State for a SERCOM I2C driver instance
  */
 struct sercom_i2c_desc_t {
+    /** DMA descriptor used as second descriptor in DMA transactions. */
+    DmacDescriptor dma_desc __attribute__((aligned(16)));
+    
     /** Registers for the SERCOM hardware of this I2C instance. */
     Sercom *sercom;
     
@@ -162,14 +165,11 @@ struct sercom_i2c_desc_t {
     /** Queue of I2C transactions. */
     struct transaction_queue_t queue;
     
-    /** DMA descriptor used as second descriptor in DMA transactions. */
-    DmacDescriptor dma_desc;
-    
     /** The instance number of the SERCOM hardware of this I2C instance. */
     uint8_t sercom_instnum;
     
     /** Index of the DMA channel used. */
-    uint8_t dma_chan:4;
+    uint8_t dma_chan:DMAC_CH_BITS;
     /** Flag which is set if DMA should be used. */
     uint8_t use_dma:1;
     

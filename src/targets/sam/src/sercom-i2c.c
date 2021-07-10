@@ -366,12 +366,12 @@ static inline void sercom_i2c_begin_generic (
             dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
                                 state->generic.out_buffer, 1,
                                 &i2c_inst->sercom->I2CM.DATA.reg, 0, len,
-                                dma_trig, SERCOM_DMA_TX_PRIORITY);
+                                dma_trig, SERCOM_DMA_TX_PRIORITY, NULL);
         } else {
             dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
                                 &i2c_inst->sercom->I2CM.DATA.reg, 0,
                                 state->generic.in_buffer, 1, len, dma_trig,
-                                SERCOM_DMA_RX_PRIORITY);
+                                SERCOM_DMA_RX_PRIORITY, NULL);
         }
         // Write ADDR to start I2C transaction
         i2c_inst->sercom->I2CM.ADDR.reg = (
@@ -397,13 +397,20 @@ static inline void sercom_i2c_begin_register (
     if ((state->type == I2C_TRANSACTION_REG_WRITE) && state->dma_out) {
         /* Start transaction with DMA */
         uint8_t len = (uint8_t)(state->reg.data_length);
-        
-        dma_config_double_buffer_to_static(i2c_inst->dma_chan,
+
+        // Configure second DMA descriptor for transfer
+        // Second descriptor transfers data being written to register
+        dma_config_desc(&i2c_inst->dma_desc, DMA_WIDTH_BYTE, state->reg.buffer,
+                        1, (volatile uint8_t*)&i2c_inst->sercom->I2CM.DATA.reg,
+                        0, len, NULL);
+        // Configure first DMA descriptor and enable DMA channel
+        // First descriptor transfers register address
+        dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
                             &state->reg.register_address, 1,
-                            state->reg.buffer, len, &i2c_inst->dma_desc,
                             (volatile uint8_t*)&i2c_inst->sercom->I2CM.DATA.reg,
+                            0, 1,
                             sercom_get_dma_tx_trigger(i2c_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, &i2c_inst->dma_desc);
         
         // Write ADDR to start I2C transaction
         i2c_inst->sercom->I2CM.ADDR.reg = (
@@ -450,7 +457,7 @@ static inline void sercom_i2c_begin_in_dma (
                         (r ? state->reg.buffer : state->generic.in_buffer), 1,
                         len,
                         sercom_get_dma_rx_trigger(i2c_inst->sercom_instnum),
-                        SERCOM_DMA_RX_PRIORITY);
+                        SERCOM_DMA_RX_PRIORITY, NULL);
     // Write ADDR to start I2C transaction
     i2c_inst->sercom->I2CM.ADDR.reg = (
                                        SERCOM_I2CM_ADDR_LEN(len) |

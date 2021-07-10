@@ -33,7 +33,7 @@ struct sercom_spi_transaction_t {
     union {
         /** The number of bytes which have been sent. */
         uint16_t bytes_out;
-        /** The number of bytes which have been during RX phase. */
+        /** The number of bytes which have been sent during RX phase. */
         uint16_t dummy_bytes_out;
     };
     /** The number of bytes which have been received. */
@@ -81,18 +81,18 @@ struct sercom_spi_desc_t {
     uint8_t sercom_instnum;
 
     /** Index of the DMA channel used for transmitting. */
-    uint8_t tx_dma_chan:4;
+    uint16_t tx_dma_chan:DMAC_CH_BITS;
     /** Index of the DMA channel used for receiving. */
-    uint8_t rx_dma_chan:4;
+    uint16_t rx_dma_chan:DMAC_CH_BITS;
     /** Flag which is set if DMA should be used for transmitting. */
-    uint8_t tx_use_dma:1;
+    uint16_t tx_use_dma:1;
     /** Flag which is set if DMA should be used for receiving. */
-    uint8_t rx_use_dma:1;
+    uint16_t rx_use_dma:1;
     /** Flag to indicate whether there is currently an active session. */
-    uint8_t in_session:1;
+    uint16_t in_session:1;
     /** Flag used to unsure that the service function is not executed in an
         interrupt while it is already being run in the main thread */
-    uint8_t service_lock:1;
+    uint16_t service_lock:1;
 };
 
 /**
@@ -304,7 +304,7 @@ extern uint8_t sercom_spi_session_active(struct sercom_spi_desc_t *spi_inst,
  *  @note This function will fail if the session being ended has a currently
  *        active transaction.
  *
- *  @param The SPI instance to use.
+ *  @param spi_inst The SPI instance to use.
  *  @param trans_id Transaction ID for the session to be ended.
  *
  *  @return 0 if session ended successfully, a non-zero value otherwise.
