@@ -64,6 +64,11 @@ struct sercom_spi_transaction_t {
  *  State for a SERCOM SPI driver instance
  */
 struct sercom_spi_desc_t {
+    /** DMA descriptor used as second descriptor in TX DMA transactions. */
+    DmacDescriptor tx_dma_desc __attribute__((aligned(16)));
+    /** DMA descriptor used as second descriptor in RX DMA transactions. */
+    DmacDescriptor rx_dma_desc __attribute__((aligned(16)));
+
     /** Registers for the SERCOM hardware of this SPI instance. */
     Sercom *sercom;
 
