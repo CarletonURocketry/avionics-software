@@ -58,4 +58,10 @@ extern void debug_gnss (uint8_t argc, char **argv,
                         struct console_desc_t *console);
 
 
+#define DEBUG_HPSENS_NAME   "hpsens"
+#define DEBUG_HPSENS_HELP   "Print data from Honeywell pressure sensor"
+
+extern void debug_hpsens (uint8_t argc, char **argv,
+                          struct console_desc_t *console);
+
 #endif /* debug_commands_sensors_h */

@@ -18,6 +18,7 @@
 #include "mcp23s17-registers.h"
 #include "gnss-xa1110.h"
 #include "ms5611.h"
+#include "hpsens.h"
 
 // MARK: Altimeter PROM
 
@@ -622,5 +623,37 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
         console_send_str(console, str);
         console_send_str(console, " dB-Hz)\n");
     }
+#endif
+}
+
+
+// MARK: HPSENS
+
+void debug_hpsens (uint8_t argc, char **argv, struct console_desc_t *console)
+{
+#ifdef ENABLE_HPSENS
+    char str[16];
+
+    // Last reading time
+    uint32_t last_reading_time = hpsens_get_last_reading_time(&hpsens_g);
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(millis - last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "  milliseconds ago)\n");
+
+    // Pressure
+    console_send_str(console, "Pressure: ");
+    debug_print_fixed_point(console, hpsens_g.pressurepas, 2);
+
+    // Temperature
+    console_send_str(console, " Pa\nTemperature: ");
+    debug_print_fixed_point(console, hpsens_g.temperature, 2);
+    console_send_str(console, " C\n");
+#else
+    console_send_str(console, "Honeywell pressure sensor driver not enabled."
+                              "\n");
 #endif
 }
