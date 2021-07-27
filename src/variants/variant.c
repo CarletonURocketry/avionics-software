@@ -19,6 +19,7 @@
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 #include "rn2483.h"
+#include "hpsens.h"
 
 #include "radio-transport.h"
 
@@ -196,6 +197,10 @@ struct console_desc_t console_g;
 struct cli_desc_t cli_g;
 #endif
 
+#ifdef ENABLE_HPSENS
+struct hpsens_desc_t hpsens_g;
+#endif
+
 void init_variant(void)
 {
     // Init Altimeter
@@ -207,6 +212,11 @@ void init_variant(void)
 #ifdef ENABLE_GNSS
     init_uart_console(&gnss_console_g, &GNSS_UART, '\0');
     init_gnss_xa1110(&gnss_console_g);
+#endif
+
+    // Init Honeywell pressure sensor
+#ifdef ENABLE_HPSENS
+    init_hpsens(&hpsens_g, &i2c0_g, HPSENS_ADDR_MAIN, HPSENS_PERIOD);
 #endif
 
     // Console
@@ -282,5 +292,9 @@ void variant_service(void)
 
 #ifdef ENABLE_TELEMETRY_SERVICE
     telemetry_service();
+#endif
+
+#ifdef ENABLE_HPSENSE
+    hpsens_service(&hpsens_g);
 #endif
 }

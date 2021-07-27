@@ -211,7 +211,7 @@ extern struct radio_instance_desc *const radios_g[];
 /* Altimeter CSB setting */
 #define ALTIMETER_CSB 0
 /* Altimeter sample period in milliseconds */
-#define ALTIMETER_PERIOD MS_TO_MILLIS(1000)
+#define ALTIMETER_PERIOD MS_TO_MILLIS(100)
 extern struct ms5611_desc_t altimeter_g;
 
 //
@@ -224,5 +224,19 @@ extern struct ms5611_desc_t altimeter_g;
 #define ENABLE_GNSS
 /* UART used to communicate with GNSS */
 #define GNSS_UART uart2_g
+
+//
+//
+//  Honeywell Pressure Sensor
+//
+//
+
+/* Honeywell pressure sensor enabled if defined */
+#define ENABLE_HPSENS
+/* Honeywell pressure sensor sample period */
+#define HPSENS_PERIOD MS_TO_MILLIS(100)
+
+extern struct hpsens_desc_t hpsens_g;
+
 
 #endif /* variant_h */
