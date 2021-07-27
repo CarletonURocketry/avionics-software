@@ -14,7 +14,7 @@
 
 /** Main I2C address for HSCMAND060PA3A3, 
  see nomenclature guide*/
-#define HPSENS_ADDR_MAIN 0b1011000
+#define HPSENS_ADDR_MAIN 0b0111000
 
 /** Standard address for Honeywell devices is 40*/
 #define HPSENS_ADDR_40 0b0101000
@@ -56,7 +56,7 @@ struct hpsens_desc_t {
     /** Other information */
     uint32_t last_reading_time;
     uint32_t period;
-    bool i2c_in_progress = 0;
+    uint8_t i2c_in_progress:1;
 };
 
 extern void init_hpsens (struct hpsens_desc_t *inst, struct sercom_i2c_desc_t *i2c_inst,
