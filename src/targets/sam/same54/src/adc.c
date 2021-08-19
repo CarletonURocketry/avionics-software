@@ -1,5 +1,9 @@
+#include <adc.h>
+
 #include <stdint.h>
 #define CHANNEL_RANGE 16
+
+#define ADC_IRQ_PRIORITY 4
 
 typedef struct pin_t {
 
@@ -60,7 +64,7 @@ static const pin_t adc_pins[2][16] = {
 */
 static const int ADC_Descriptor[] = {
   1,2,3,5
-}
+};
 
 
 static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
@@ -69,14 +73,14 @@ static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
 
   //set the alternative function for the pin (in this case, input for ADC)
   if(pin.num % 2 == 0){
-    PORT->Port.Group[pin.port].PMUX[pin.num / 2].PMUXE = 0x1 ;
+    PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXE = 0x1 ;
     }
   else {
-    PORT->Port.Group[pin.port].PMUX[pin.num / 2].PMUXO = 0x1;
+    PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXO = 0x1;
       }
 
   //enable the alternative function (input for the ADC)
-  PORT->Port.Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0x1;
+  PORT->Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0x1;
 }
 
 
@@ -103,6 +107,7 @@ int adc_init(uint32_t clock_mask, uint32_t clock_freq,
 //----create a pointer to the ADC that we're configuring---//
 Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
+#if 0
 //----setting up the core clock and the bus clock-----//
     //max sampling rate = 1MSPS
     //sampling rate = CLK_ADC/ (N_sampling + offset + N_data)
@@ -154,7 +159,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
     //wait for synchronization
     while(GCLK->SYNCBUSY.bit.GENCTRL & (uint16_t)(1<< (generator_n) + 2));
-
+#endif
 
     //generator side of code ends here /peripheral side of code starts here---//
 
@@ -165,6 +170,24 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
     //enable the connection of that generator to our ADC (enable peripheral ch)
     GCLK->PCHCTRL[40 + adcSel].bit.CHEN = 0x1;
+
+
+    //enable the APB clock
+    if(adcSel == 0){
+        MCLK->APBDMASK.bit.ADC0_= 0x1;}
+    else {
+        MCLK->APBDMASK.bit.ADC1_= 0x1;
+    }
+
+    // Reset ADC
+    ADCx->CTRLA.bit.SWRST = 1;
+    while (ADCx->CTRLA.bit.SWRST || ADCx->SYNCBUSY.bit.SWRST);
+
+
+#if 0
+    // Disabling prescaller selection for now, should be fine as long as we use
+    // a slow enough generic clock
+
 
     //select the prescaler for the ADC clock
     //prescaler should maximize the freq of the ADC core clock without exceeding
@@ -191,13 +214,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
     prescaler &= 0x7;
 
     ADCx->CTRLA.bit.PRESCALER = prescaler;
-
-    //enable the APB clock
-    if(adcSel == 0){
-      MCLK->APBDMASK.bit.ADC0_= 0x1;}
-      else {
-      MCLK->APBDMASK.bit.ADC1_= 0x1;
-      }
+#endif
 
 
 //----setting up the reference value----//
@@ -205,13 +222,13 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
     ADCx->REFCTRL.bit.REFCOMP = 0x1;
 
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.REFCTRL == 0b1);
+    while(ADCx->SYNCBUSY.bit.REFCTRL == 0b1);
 
     //We select the internal bandgap voltage as the reference
-    ADCx->REFCTRL.bit.REFSEL = INTREF;
+    ADCx->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTREF;
 
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.REFCTRL == 0b1);
+    while(ADCx->SYNCBUSY.bit.REFCTRL == 0b1);
 
     //set the internal bandgap voltage to 1v
     SUPC->VREF.bit.SEL &= ~(uint8_t)(0x7);
@@ -224,50 +241,47 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
     //by setting REFCOMP we can only sample for one clock cycle
     ADCx->SAMPCTRL.bit.SAMPLEN = 0x1;
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.SAMPCTRL == 0x1);
+    while(ADCx->SYNCBUSY.bit.SAMPCTRL == 0x1);
 
 //----setting up the ADC Resolution----//
     //hwe want to accumolate 1024 samples, and take the average value.
     ADCx->AVGCTRL.bit.SAMPLENUM = 0xA;
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.AVGCTRL == 0x1);
+    while(ADCx->SYNCBUSY.bit.AVGCTRL == 0x1);
 
     //how many right shifts do we need to make? 4 for >= 16 samples
     ADCx->AVGCTRL.bit.ADJRES = 0x04;
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.AVGCTRL == 0x1);
+    while(ADCx->SYNCBUSY.bit.AVGCTRL == 0x1);
 
     //setting output resolution to 16 bits
     ADCx->CTRLB.bit.RESSEL = 0x1;
     //wait for Synchronization
-    while(ADC->SYNCBUSY.bit.CTRLB == 0x1);
+    while(ADCx->SYNCBUSY.bit.CTRLB == 0x1);
 
   //setting collection to be in single-ended mode//
     ADCx->INPUTCTRL.bit.DIFFMODE = 0x0;
     //wait for synchronization
-    while(ADC->SYNCBUSY.bit.INPUTCTRL == 0x1);
+    while(ADCx->SYNCBUSY.bit.INPUTCTRL == 0x1);
 
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
-  //disable conversions triggered by events
-  ADCx->EVCTRL.STARTEI &= ~(0x1);
-
   //enable conversions triggered by end of sequencing
-  ADCx->DSEQCTRL.AUTOSTART = 0x1;
+  ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;
 
   //indicate which register(s) we want to update
-  ADCx->SEQCTRL &= ~(uint32_t)(0xFFFFFFFF); //clear all
-  ADCx->SEQCTRL.bit.INPUTCTRL |= ADC_DSEQCTRL_INPUTCTRL;
-
+  ADCx->DSEQCTRL.bit.INPUTCTRL = 1;
 
 }else{
   //enable interrupt that tells us when results are ready to be ready
-  ADC->INTENCLR.bit.RESRDY = 1;
+  ADCx->INTENCLR.bit.RESRDY = 1;
 
   //enable interrupt in NVIC
-  NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
-  NVIC_EnableIRQ(ADC_IRQn);
+//  NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
+//  NVIC_EnableIRQ(ADC_IRQn);
 }
+
+    return 0;
 }
 
 //dma_start_buffer_to_static_word
@@ -277,6 +291,7 @@ static inline void adc_start_scan(void){
 
 }
 
+/*
 void adc_service(uint8_t ADC_sel){
 
 	
@@ -293,6 +308,7 @@ void adc_service(uint8_t ADC_sel){
   //start next scan
 
 }
+ */
 
 extern uint16_t adc_get_value (uint8_t channel);
 
@@ -302,40 +318,93 @@ extern uint32_t adc_get_value_nanovolts (uint8_t channel);
 
 extern int16_t adc_get_temp_course (void);
 
+static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel);
+
 static int16_t adc_get_temp (uint8_t fine, uint8_t adcSel){
 
-//----enable the temperature sensors----//
-  //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
-  //temperature sensors at the same time.
-  SUPC->VREF.bit.ONDEMAND = 0x1;
+    //----enable the temperature sensors----//
+    //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
+    //temperature sensors at the same time.
+    SUPC->VREF.bit.ONDEMAND = 0x1;
 
-  //enable the temperature sensors
-  SUPC->VREF.bit.TSEN = 0x1;
+    //enable the temperature sensors
+    SUPC->VREF.bit.TSEN = 0x1;
 
-//----get the value measured by each temperature sensor----//
-  //read TSENSP
-  uint16_t TP_value = adcx_start_single_scan(0x1c, adcSel);
-  //read TSENSC
-  uint16_t TC_value = adcx_start_single_scan(0x1d, adcSel);
+    //----get the value measured by each temperature sensor----//
+    //read TSENSP
+    uint16_t TP = adcx_start_single_scan(0x1c, adcSel);
+    //read TSENSC
+    uint16_t TC = adcx_start_single_scan(0x1d, adcSel);
 
-//----Calculate the temperature----//
-//the formula for calculating the temperature based on the readings of the two
-//temperature sensors can be found on the datasheet,
-//in section 45.6.3.1: Device Temperature Measurement
-uint32_t temp_numerator = (TL * VPH * TC)
-                        -(VLP * TH * TC)
-                        -(TL * VCH * TP)
-                        +(TH * VCL * TP);
+    //----Calculate the temperature----//
+    //the formula for calculating the temperature based on the readings of the two
+    //temperature sensors can be found on the datasheet,
+    //in section 45.6.3.1: Device Temperature Measurement
 
-uint32_t temp_denominator = (VCL * TP)
-                          -(VCH * TP)
-                          -(VLP + VPH)
-                          +(VPH * TC);
+    //base address for NVM calibration values
+    uint8_t* NVM_Calib_address = (uint8_t*) 0x00800100;
 
-uint16_t temperature = (uint16_t)(numerator/denominator);
+    //extracting TL Calibration value
+    int8_t  TL_Calibration_Val_Int_Part = *NVM_Calib_address;
+    uint8_t TL_Calibration_Val_Decimal_Part = *(NVM_Calib_address + 1);
+    TL_Calibration_Val_Decimal_Part &= 0x01;
+    int8_t  TL = TL_Calibration_Val_Int_Part + TL_Calibration_Val_Decimal_Part/10;
 
-return temperature;
-     }
+    //extracting the TH calbiration value
+    int8_t  TH_Calibration_Val_Int_Part_tail = *(NVM_Calib_address +1);
+    TH_Calibration_Val_Int_Part_tail &= 0x10;
+    TH_Calibration_Val_Int_Part_tail = TH_Calibration_Val_Int_Part_tail >>4;
+    int8_t  TH_Calibration_Val_Int_Part_head = *(NVM_Calib_address +2);
+    TH_Calibration_Val_Int_Part_head &= 0x01;
+    TH_Calibration_Val_Int_Part_head = TH_Calibration_Val_Int_Part_head <<4;
+
+    int8_t TH_Calibration_Val_Int_Part = TH_Calibration_Val_Int_Part_tail | TH_Calibration_Val_Int_Part_head;
+
+    uint8_t TH_Calibration_Val_Decimal_Part = *(NVM_Calib_address + 2);
+    TH_Calibration_Val_Decimal_Part &= 0x10;
+    TH_Calibration_Val_Decimal_Part = TH_Calibration_Val_Decimal_Part >> 4;
+    int8_t  TH = TH_Calibration_Val_Int_Part + TH_Calibration_Val_Decimal_Part/10;
+
+    //extracting VPL
+    uint8_t VPL_tail = *(NVM_Calib_address + 5);
+    uint16_t VPL_head = *(NVM_Calib_address + 6);
+    VPL_head &= 0x0001;
+    VPL_head = VPL_head << 8;
+    int16_t VPL = VPL_head | VPL_tail;
+
+    //extracting PVH
+    uint16_t VPH_tail = *(NVM_Calib_address + 6);
+    VPH_tail &= 0x0010;
+    uint8_t  VPH_head = *(NVM_Calib_address + 7);
+    int16_t VPH = VPH_head | VPH_tail;
+
+    //extracting VCL
+    uint8_t  VCL_tail = *(NVM_Calib_address + 8);
+    uint16_t VCL_head = *(NVM_Calib_address + 9);
+    VCL_head &= 0x0001;
+    VCL_head = VCL_head << 8;
+    int16_t VCL = VCL_head | VCL_tail;
+
+    //extracting VCH
+    uint16_t VCH_tail = *(NVM_Calib_address + 9);
+    VCH_tail &= 0x0010;
+    uint8_t  VCH_head = *(NVM_Calib_address + 10);
+    int16_t VCH = VCH_head | VCH_tail;
+
+
+    uint32_t temp_numerator = (TL * VPH * TC)
+    - (VPL * TH * TC)
+    - (TL * VCH * TP)
+    + (TH * VCL * TP);
+
+    uint32_t temp_denominator = (VCL * TP)
+    - (VCH * TP)
+    - (VPL + VPH)
+    + (VPH * TC);
+
+    uint16_t temperature = (uint16_t)(temp_numerator/temp_denominator);
+
+    return temperature;
 }
 
 uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
