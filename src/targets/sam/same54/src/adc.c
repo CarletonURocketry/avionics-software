@@ -165,11 +165,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
 
     // specify the clock generator we want to use for the core clock
-    // (the one we just configured)
-    GCLK->PCHCTRL[40 + adcSel].bit.GEN |= (uint8_t)(generator_n);
-
-    //enable the connection of that generator to our ADC (enable peripheral ch)
-    GCLK->PCHCTRL[40 + adcSel].bit.CHEN = 0x1;
+    GCLK->PCHCTRL[40 + adcSel].reg = GCLK_PCHCTRL_CHEN | clock_mask;
 
 
     //enable the APB clock
