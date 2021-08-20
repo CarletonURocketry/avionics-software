@@ -99,7 +99,7 @@ extern int16_t adc_get_core_vcc (void);
 extern int16_t adc_get_io_vcc (void);
 
 /**
- *  Get the last time at which and ADC sweep was completed.
+ *  Get the last time at which an ADC sweep was completed.
  *
  *  @return The millis value when the last sweep completed
  */
