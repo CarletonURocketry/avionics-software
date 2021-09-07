@@ -290,7 +290,7 @@ static inline void adc_start_scan(void){
 /*
 void adc_service(uint8_t ADC_sel){
 
-	
+
     //enable the ADC//
     ADC->CTRLA.bit.ENABLE = 0b1;
     //wait for synchronization;
