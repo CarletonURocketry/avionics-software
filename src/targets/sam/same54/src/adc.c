@@ -85,7 +85,7 @@ static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
 
 
 
-int adc_init(uint32_t clock_mask, uint32_t clock_freq,
+int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t channel_mask, uint32_t sweep_period,
              uint32_t max_source_impedance, int8_t dma_chan,
              uint8_t adcSel){
@@ -227,7 +227,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
     while(ADCx->SYNCBUSY.bit.REFCTRL == 0b1);
 
     //set the internal bandgap voltage to 1v
-    SUPC->VREF.bit.SEL &= ~(uint8_t)(0x7);
+    SUPC->VREF.bit.SEL &= 0;
 
     //enable the output of the voltage reference from the SUPC
     SUPC->VREF.bit.VREFOE = 0x1;
@@ -306,17 +306,49 @@ void adc_service(uint8_t ADC_sel){
 }
  */
 
-extern uint16_t adc_get_value (uint8_t channel);
 
-extern uint16_t adc_get_value_millivolts (uint8_t channel);
+static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
+    //---confirm that the ADC that we're using has been initialized----//
 
-extern uint32_t adc_get_value_nanovolts (uint8_t channel);
+    //----decide which ADC to use----//
+    Adc* ADCx = (adcSel == 0)? ADC0 : ADC1;
 
-extern int16_t adc_get_temp_course (void);
+    //set the input to the ADC
+    ADCx->INPUTCTRL.bit.MUXPOS = target;
 
-static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel);
+    //read the value output by TSENSP
+    //set ADC to run in single conversion mode
+    ADCx->CTRLB.bit.FREERUN =0x0;
 
-static int16_t adc_get_temp (uint8_t fine, uint8_t adcSel){
+    //wait for synchronization
+    while (ADCx->SYNCBUSY.bit.CTRLB == 0x1);
+
+    //enable the ADC
+    ADCx->CTRLA.bit.ENABLE = 0x1;
+
+    //wait for Synchronization
+    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
+
+    //start the ADC
+    ADCx->SWTRIG.bit.START = 0x1;
+
+    //wait for result
+    while(ADCx->INTFLAG.bit.RESRDY == 0x0);
+
+    //read the result
+    uint16_t result = ADCx->RESULT.reg;
+
+    //disable the ADC
+    ADCx->CTRLA.bit.ENABLE = 0x0;
+
+    //wait for Synchronization
+    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
+
+    return result;
+
+}
+
+int16_t adc_get_temp (uint8_t adcSel){
 
     //----enable the temperature sensors----//
     //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
@@ -385,6 +417,7 @@ static int16_t adc_get_temp (uint8_t fine, uint8_t adcSel){
     uint16_t VCH_tail = *(NVM_Calib_address + 9);
     VCH_tail &= 0x0010;
     uint8_t  VCH_head = *(NVM_Calib_address + 10);
+    VCH_tail = VCH_tail >> 4;
     int16_t VCH = VCH_head | VCH_tail;
 
 
@@ -395,57 +428,13 @@ static int16_t adc_get_temp (uint8_t fine, uint8_t adcSel){
 
     uint32_t temp_denominator = (VCL * TP)
     - (VCH * TP)
-    - (VPL + VPH)
+    - (VPL * TC)
     + (VPH * TC);
 
     uint16_t temperature = (uint16_t)(temp_numerator/temp_denominator);
 
     return temperature;
 }
-
-uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
-//---confrm that the ADC that we're using has been initialized----//
-
-//----decide which ADC to use----//
-  Adc* ADCx = (adcSel == 0)? ADC0 : ADC1;
-
-  //set the input to the ADC
-  ADCx->INPUTCTRL.bit.MUXPOS = target;
-
-  //read the value output by TSENSP
-    //set ADC to run in single conversion mode
-    ADCx->CTRLB.bit.FREERUN =0x0;
-
-    //wait for synchronization
-    while (ADCx->SYNCBUSY.bit.CTRLB == 0x1);
-
-    //enable the ADC
-    ADCx->CTRLA.bit.ENABLE = 0x1;
-
-    //wait for Synchronization
-    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
-
-    //start the ADC
-    ADCx->SWTRIG.bit.START = 0x1;
-
-    //wait for result
-    while(ADCx->INTFLAG.bit.RESRDY == 0x0);
-
-    //read the result
-    uint16_t result = ADCx->RESULT.reg;
-
-    return result;
-
-}
-extern int16_t adc_get_temp_fine (void);
-
-extern int16_t adc_get_core_vcc (void);
-
-extern int16_t adc_get_io_vcc (void);
-
-extern uint32_t adc_get_last_sweep_time (void);
-
-extern uint32_t adc_get_channel_mask (void);
 
 //questions for Sam:
   //the generic clock is asynchronous to the bus clock - it will need to be
