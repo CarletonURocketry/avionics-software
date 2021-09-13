@@ -348,7 +348,20 @@ static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
 
 }
 
-int16_t adc_get_temp (uint8_t adcSel){
+static float convert_to_dec(uint val){
+  //decimal parts of a numbers are given as 4 bit values for SAME54. They
+  //need to be converted to an actual decimal that can be used.
+  //ex. val = 16, output = 0.16
+  //ex  val = 8,  output = 0.8
+  val = float(val);
+  if(val <= 10)
+    return val/10.0;
+  else if (val <= 100)
+    return val/100.0;
+
+}
+
+static int16_t adc_get_temp (uint8_t adcSel){
 
     //----enable the temperature sensors----//
     //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
@@ -369,67 +382,39 @@ int16_t adc_get_temp (uint8_t adcSel){
     //temperature sensors can be found on the datasheet,
     //in section 45.6.3.1: Device Temperature Measurement
 
-    //base address for NVM calibration values
-    uint8_t* NVM_Calib_address = (uint8_t*) 0x00800100;
 
     //extracting TL Calibration value
-    int8_t  TL_Calibration_Val_Int_Part = *NVM_Calib_address;
-    uint8_t TL_Calibration_Val_Decimal_Part = *(NVM_Calib_address + 1);
-    TL_Calibration_Val_Decimal_Part &= 0x01;
-    int8_t  TL = TL_Calibration_Val_Int_Part + TL_Calibration_Val_Decimal_Part/10;
+    uint32_t TL_Calibration_Val_Int_part = ((*(uint32_t *)FUSES_ROOM_TEMP_VAL_INT_ADDR)  & FUSES_ROOM_TEMP_VAL_INT_Msk) >> FUSES_ROOM_TEMP_VAL_INT_Pos;
+    uint32_t TL_Calibration_Val_Dec_part = ((*(uint32_t *)FUSES_ROOM_TEMP_VAL_DEC_ADDR)  & FUSES_ROOM_TEMP_VAL_DEC_Msk) >> FUSES_ROOM_TEMP_VAL_DEC_Pos;
+    float  TL = TL_Calibration_Val_Int_Part + convert_to_dec(TL_Calibration_Val_Dec_Part);
 
     //extracting the TH calbiration value
-    int8_t  TH_Calibration_Val_Int_Part_tail = *(NVM_Calib_address +1);
-    TH_Calibration_Val_Int_Part_tail &= 0x10;
-    TH_Calibration_Val_Int_Part_tail = TH_Calibration_Val_Int_Part_tail >>4;
-    int8_t  TH_Calibration_Val_Int_Part_head = *(NVM_Calib_address +2);
-    TH_Calibration_Val_Int_Part_head &= 0x01;
-    TH_Calibration_Val_Int_Part_head = TH_Calibration_Val_Int_Part_head <<4;
-
-    int8_t TH_Calibration_Val_Int_Part = TH_Calibration_Val_Int_Part_tail | TH_Calibration_Val_Int_Part_head;
-
-    uint8_t TH_Calibration_Val_Decimal_Part = *(NVM_Calib_address + 2);
-    TH_Calibration_Val_Decimal_Part &= 0x10;
-    TH_Calibration_Val_Decimal_Part = TH_Calibration_Val_Decimal_Part >> 4;
-    int8_t  TH = TH_Calibration_Val_Int_Part + TH_Calibration_Val_Decimal_Part/10;
+    uint32_t TH_Calibration_Val_Int_Part = (*(uint32_t *)FUSES_HOT_TEMP_VAL_INT_ADDR & FUSES_HOT_TEMP_VAL_INT_Msk) >> FUSES_HOT_TEMP_VAL_INT_Pos;
+    uint32_t TH_Calibration_Val_Dec_Part = (*(uint32_t *)FUSES_HOT_TEMP_VAL_DEC_ADDR & FUSES_HOT_TEMP_VAL_DEC_Msk) >> FUSES_HOT_TEMP_VAL_DEC_Pos;
+    float TH = TH_Calibration_Val_Int_Part + convert_to_dec(TH_Calibration_Val_Dec_Part);
 
     //extracting VPL
-    uint8_t VPL_tail = *(NVM_Calib_address + 5);
-    uint16_t VPL_head = *(NVM_Calib_address + 6);
-    VPL_head &= 0x0001;
-    VPL_head = VPL_head << 8;
-    int16_t VPL = VPL_head | VPL_tail;
+    uint16_t VPL = (*(uint32_t *)FUSES_ROOM_ADC_VAL_PTAT_ADDR & FUSES_ROOM_ADC_VAL_PTAT_Msk) >> FUSES_ROOM_ADC_VAL_PTAT_Pos;
 
     //extracting PVH
-    uint16_t VPH_tail = *(NVM_Calib_address + 6);
-    VPH_tail &= 0x0010;
-    uint8_t  VPH_head = *(NVM_Calib_address + 7);
-    int16_t VPH = VPH_head | VPH_tail;
+    uint16_t VPH = (*(uint32_t *)FUSES_HOT_ADC_VAL_PTAT_ADDR & FUSES_HOT_ADC_VAL_PTAT_Msk) >> FUSES_HOT_ADC_VAL_PTAT_Pos;
 
     //extracting VCL
-    uint8_t  VCL_tail = *(NVM_Calib_address + 8);
-    uint16_t VCL_head = *(NVM_Calib_address + 9);
-    VCL_head &= 0x0001;
-    VCL_head = VCL_head << 8;
-    int16_t VCL = VCL_head | VCL_tail;
+    uint16_t VCL = (*(uint32_t *)FUSES_ROOM_ADC_VAL_CTAT_ADDR & FUSES_ROOM_ADC_VAL_CTAT_Msk) >> FUSES_ROOM_ADC_VAL_CTAT_Pos;
 
     //extracting VCH
-    uint16_t VCH_tail = *(NVM_Calib_address + 9);
-    VCH_tail &= 0x0010;
-    uint8_t  VCH_head = *(NVM_Calib_address + 10);
-    VCH_tail = VCH_tail >> 4;
-    int16_t VCH = VCH_head | VCH_tail;
+    uint16_t VCH = (*(uint32_t *)FUSES_HOT_ADC_VAL_CTAT_ADDR & FUSES_HOT_ADC_VAL_CTAT_Msk) >> FUSES_HOT_ADC_VAL_CTAT_Pos;
 
 
     uint32_t temp_numerator = (TL * VPH * TC)
-    - (VPL * TH * TC)
-    - (TL * VCH * TP)
-    + (TH * VCL * TP);
+                            - (VPL * TH * TC)
+                            - (TL * VCH * TP)
+                            + (TH * VCL * TP);
 
     uint32_t temp_denominator = (VCL * TP)
-    - (VCH * TP)
-    - (VPL * TC)
-    + (VPH * TC);
+                              - (VCH * TP)
+                              - (VPL * TC)
+                              + (VPH * TC);
 
     uint16_t temperature = (uint16_t)(temp_numerator/temp_denominator);
 
