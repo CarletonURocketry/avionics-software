@@ -270,7 +270,7 @@ if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
 
 }else{
   //enable interrupt that tells us when results are ready to be ready
-  ADCx->INTENCLR.bit.RESRDY = 1;
+  ADCx->ADC_INTENSET.bit.RESRDY = 1;
 
   //enable interrupt in NVIC
 //  NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
@@ -316,7 +316,6 @@ static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
     //set the input to the ADC
     ADCx->INPUTCTRL.bit.MUXPOS = target;
 
-    //read the value output by TSENSP
     //set ADC to run in single conversion mode
     ADCx->CTRLB.bit.FREERUN =0x0;
 
@@ -373,9 +372,9 @@ static int16_t adc_get_temp (uint8_t adcSel){
 
     //----get the value measured by each temperature sensor----//
     //read TSENSP
-    uint16_t TP = adcx_start_single_scan(0x1c, adcSel);
+    uint16_t TP = adcx_start_single_scan(ADC_INPUTCTRL_MUXPOS_PTAT_Val, adcSel);
     //read TSENSC
-    uint16_t TC = adcx_start_single_scan(0x1d, adcSel);
+    uint16_t TC = adcx_start_single_scan(ADC_INPUTCTRL_MUXPOS_CTAT_Val, adcSel);
 
     //----Calculate the temperature----//
     //the formula for calculating the temperature based on the readings of the two
