@@ -1,4 +1,4 @@
-//file name: adc.h
+//file name: adc-same54.h
 //author   : Arsalan Syed
 
 #ifndef adc_same54_h
@@ -29,7 +29,7 @@ extern int init_adc (uint32_t clock_mask, uint32_t clock_freq,
                      uint8_t adcSel);
 
 /**
- * Read internal temperature sensor.
+ * Read internal temperature sensor, return value in degrees celcius.
  *
  * @param adcSel Which ADC should be used to read the temperature (0 or 1)
  *

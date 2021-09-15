@@ -1,9 +1,28 @@
 #include <adc.h>
 
 #include <stdint.h>
-#define CHANNEL_RANGE 16
 
+#define CHANNEL_RANGE 16
 #define ADC_IRQ_PRIORITY 4
+
+
+ struct {
+   //these will hold the latest readings from the input pins (internal and external)
+    uint16_t adc_in_buffer_pins[2][16];
+    uint16_t adc_in_buffer_internal[7];
+
+    union {
+        uint8_t dma_chan;
+        struct {
+            uint8_t chan_num;
+            uint8_t last_chan;
+        };
+    };
+
+    uint8_t use_dma:1;
+} adc_state_g;
+
+
 
 typedef struct pin_t {
 
@@ -14,9 +33,18 @@ typedef struct pin_t {
 
 
 
-
 static const pin_t adc_pins[2][16] = {
-  //this array contains information for each pin that the ADC0 uses as inputs
+
+  /*NOTE: although both ADC0 and ADC1 have inputs with the same names, that
+  * does not mean that they both read from the same pin. Ex. AIN0 for ADC0 is
+  * connected to pin 2(port A ) and AIN0 for ADC1 is connected to pin 8(port B).
+  *
+  * on the other hand, both ADCs are connected to the same internal sources
+  * ex. there's only two internal temprature sensors, and they're both connected
+  * to both ADCs
+  */
+
+  //this array contains information for each pin that the *ADC0* uses as inputs.
   {
   {.port = 0, .num = 2}, // ADC1/AIN[0]
   {.port = 0, .num = 3}, // ADC1/AIN[1]
@@ -36,7 +64,7 @@ static const pin_t adc_pins[2][16] = {
   {.port = 1, .num = 3}, //ADC1/AIN[15]
 },
 
-  //this array contains information for each pin that the ADC1 can use as inputs
+  //this array contains information for each pin that the *ADC1* can use as inputs
   {
   {.port = 1, .num = 8}, // ADC1/AIN[0]
   {.port = 1, .num = 9}, // ADC1/AIN[1]
@@ -65,6 +93,7 @@ static const pin_t adc_pins[2][16] = {
 static const int ADC_Descriptor[] = {
   1,2,3,5
 };
+
 
 
 static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
@@ -361,6 +390,7 @@ static float convert_to_dec(uint val){
 }
 
 static int16_t adc_get_temp (uint8_t adcSel){
+    //NOTE: READ table 54-24 for timing...according to page 1455
 
     //----enable the temperature sensors----//
     //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
@@ -370,7 +400,7 @@ static int16_t adc_get_temp (uint8_t adcSel){
     //enable the temperature sensors
     SUPC->VREF.bit.TSEN = 0x1;
 
-    //----get the value measured by each temperature sensor----//
+    //----get the value measured by each temperature sensor----//.. These should be removed after verifying that the function works
     //read TSENSP
     uint16_t TP = adcx_start_single_scan(ADC_INPUTCTRL_MUXPOS_PTAT_Val, adcSel);
     //read TSENSC
@@ -419,6 +449,72 @@ static int16_t adc_get_temp (uint8_t adcSel){
 
     return temperature;
 }
+
+extern uint16_t adc_get_value (uint8_t adcSel, uint8_t channel){
+  //get the latest value of the selected channels
+
+  //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
+  if(channel < 0 || (adcSel > 1 || adcSel < 0 || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val)
+    return 0;
+
+  //user is attemping to retrieve value from input pins
+  if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15_Val ){
+    return adc_state_g.adc_in_buffer_pins[adcSel][channel];
+  }
+  //user is attemping to retrieve value from internal source
+  else{
+    return adc_state_g.adc_in_buffer_internal[channel];
+  }
+
+}
+
+extern uint16_t adc_get_value_millivolts (uint8_t adcSel, uint8_t channel){
+//get the voltage of the selected channel in millivolts
+  uint16_t temp_val = adc_get_value(adcSel, channel);
+  return (1000 * (uint32_t)temp_val/65535);
+}
+
+extern uint16_t adc_get_value_nanovolts (uint8_t adcSel channel){
+//get the value of the channel in nanovolts
+  uint16_t temp_val = adc_get_value(adcSel, channel);
+  return (1000000000 * (uint64_t)temp_val/65535);
+}
+
+extern int32_t adc_get_core_vcc (void){
+//get the voltage value of the core.
+//this value needs to be multiplied by 4 since the value we get from the adc is
+//scaled by 1/4. The returned value must be stored in a 32 bit word because
+//the value retrieved could be 0xFFFF, which, when multiplied by 4 would overflow
+  return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC));
+}
+
+extern int32_t adc_get_io_vcc (void){
+  //get the voltage value of the input/output.
+  //this value needs to be multiplied by 4 since the value we get from the adc is
+  //scaled by 1/4. The returned value must be stored in a 32 bit word because
+  //the value retrieved could be 0xFFFF, which, when multiplied by 4 would overflow
+  return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC));
+
+}
+
+extern int16_t adc_get_bat_vcc (void){
+  //get the latest voltage value of VBAT
+ return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDVBAT));
+}
+
+
+extern int16_t adc_get_bandgap_vcc (void){
+//get the latest voltage value of the badgap
+  return adc_get_value(0, ADC_INPUTCTRL_MUXPOS_BANDGAP);
+}
+
+extern int16_t adc_get_DAC_val (void){
+//get the latest voltage value of the Digital-to-A
+  return adc_get_value(0, ADC_INPUTCTRL_MUXPOS_DAC);
+}
+
+
+
 
 //questions for Sam:
   //the generic clock is asynchronous to the bus clock - it will need to be
