@@ -90,9 +90,9 @@ static const pin_t adc_pins[2][16] = {
 /*
   specifies which pin the ADC should read, read from left to right
 */
-static const int ADC_Descriptor[] = {
-  1,2,3,5
-};
+//static const int ADC_Descriptor[] = {
+//  1,2,3,5
+//};
 
 
 
@@ -119,7 +119,6 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t max_source_impedance, int8_t dma_chan,
              uint8_t adcSel){
 
-  uint8_t generator_n = 1;
 
   if (!channel_mask){
     //give up if no channels are enabled
@@ -299,12 +298,18 @@ if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
 
 }else{
   //enable interrupt that tells us when results are ready to be ready
-  ADCx->ADC_INTENSET.bit.RESRDY = 1;
+  ADCx->INTENSET.bit.RESRDY = 1;
 
   //enable interrupt in NVIC
 //  NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
 //  NVIC_EnableIRQ(ADC_IRQn);
 }
+
+    //enable the ADC
+    ADCx->CTRLA.bit.ENABLE = 0x1;
+
+    //wait for Synchronization
+    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
 
     return 0;
 }
@@ -351,12 +356,6 @@ static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
     //wait for synchronization
     while (ADCx->SYNCBUSY.bit.CTRLB == 0x1);
 
-    //enable the ADC
-    ADCx->CTRLA.bit.ENABLE = 0x1;
-
-    //wait for Synchronization
-    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
-
     //start the ADC
     ADCx->SWTRIG.bit.START = 0x1;
 
@@ -366,30 +365,23 @@ static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
     //read the result
     uint16_t result = ADCx->RESULT.reg;
 
-    //disable the ADC
-    ADCx->CTRLA.bit.ENABLE = 0x0;
-
-    //wait for Synchronization
-    while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
-
     return result;
 
 }
 
-static float convert_to_dec(uint val){
+static float convert_to_dec(uint8_t val){
   //decimal parts of a numbers are given as 4 bit values for SAME54. They
   //need to be converted to an actual decimal that can be used.
   //ex. val = 16, output = 0.16
   //ex  val = 8,  output = 0.8
-  val = float(val);
+  val = (float)val;
   if(val <= 10)
-    return val/10.0;
-  else if (val <= 100)
-    return val/100.0;
-
+    return val/10.0f;
+  else
+    return val/100.0f;
 }
 
-static int16_t adc_get_temp (uint8_t adcSel){
+int16_t adc_get_temp (uint8_t adcSel){
     //NOTE: READ table 54-24 for timing...according to page 1455
 
     //----enable the temperature sensors----//
@@ -415,7 +407,7 @@ static int16_t adc_get_temp (uint8_t adcSel){
     //extracting TL Calibration value
     uint32_t TL_Calibration_Val_Int_part = ((*(uint32_t *)FUSES_ROOM_TEMP_VAL_INT_ADDR)  & FUSES_ROOM_TEMP_VAL_INT_Msk) >> FUSES_ROOM_TEMP_VAL_INT_Pos;
     uint32_t TL_Calibration_Val_Dec_part = ((*(uint32_t *)FUSES_ROOM_TEMP_VAL_DEC_ADDR)  & FUSES_ROOM_TEMP_VAL_DEC_Msk) >> FUSES_ROOM_TEMP_VAL_DEC_Pos;
-    float  TL = TL_Calibration_Val_Int_Part + convert_to_dec(TL_Calibration_Val_Dec_Part);
+    float  TL = TL_Calibration_Val_Int_part + convert_to_dec(TL_Calibration_Val_Dec_part);
 
     //extracting the TH calbiration value
     uint32_t TH_Calibration_Val_Int_Part = (*(uint32_t *)FUSES_HOT_TEMP_VAL_INT_ADDR & FUSES_HOT_TEMP_VAL_INT_Msk) >> FUSES_HOT_TEMP_VAL_INT_Pos;
@@ -450,12 +442,15 @@ static int16_t adc_get_temp (uint8_t adcSel){
     return temperature;
 }
 
-extern uint16_t adc_get_value (uint8_t adcSel, uint8_t channel){
+uint16_t adc_get_value (uint8_t channel){
   //get the latest value of the selected channels
+  uint8_t  adcSel = !!(channel & (1 << 7));
+    channel &= ~(1 << 7);
 
   //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
-  if(channel < 0 || (adcSel > 1 || adcSel < 0 || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val)
-    return 0;
+    if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val) {
+        return 0;
+    }
 
   //user is attemping to retrieve value from input pins
   if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15_Val ){
@@ -463,54 +458,57 @@ extern uint16_t adc_get_value (uint8_t adcSel, uint8_t channel){
   }
   //user is attemping to retrieve value from internal source
   else{
+      channel -= ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val;
     return adc_state_g.adc_in_buffer_internal[channel];
   }
 
 }
 
-extern uint16_t adc_get_value_millivolts (uint8_t adcSel, uint8_t channel){
+uint16_t adc_get_value_millivolts (uint8_t channel){
 //get the voltage of the selected channel in millivolts
-  uint16_t temp_val = adc_get_value(adcSel, channel);
-  return (1000 * (uint32_t)temp_val/65535);
+  uint16_t temp_val = adc_get_value(channel);
+  return ((1000 * (uint32_t)temp_val) / 65535);
 }
 
-extern uint16_t adc_get_value_nanovolts (uint8_t adcSel channel){
+uint32_t adc_get_value_nanovolts (uint8_t channel){
 //get the value of the channel in nanovolts
-  uint16_t temp_val = adc_get_value(adcSel, channel);
-  return (1000000000 * (uint64_t)temp_val/65535);
+  uint16_t temp_val = adc_get_value(channel);
+  return ((1000000000 * (uint64_t)temp_val) / 65535);
 }
 
-extern int32_t adc_get_core_vcc (void){
+int16_t adc_get_core_vcc (void){
 //get the voltage value of the core.
 //this value needs to be multiplied by 4 since the value we get from the adc is
 //scaled by 1/4. The returned value must be stored in a 32 bit word because
 //the value retrieved could be 0xFFFF, which, when multiplied by 4 would overflow
-  return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC));
+      uint16_t const val = adc_get_value(ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC);
+      return (int16_t)((4000 * (uint32_t)val) / 65535);
 }
 
-extern int32_t adc_get_io_vcc (void){
+int16_t adc_get_io_vcc (void){
   //get the voltage value of the input/output.
   //this value needs to be multiplied by 4 since the value we get from the adc is
   //scaled by 1/4. The returned value must be stored in a 32 bit word because
   //the value retrieved could be 0xFFFF, which, when multiplied by 4 would overflow
-  return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC));
-
+      uint16_t const val = adc_get_value(ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC);
+      return (int16_t)((4000 * (uint32_t)val) / 65535);
 }
 
-extern int16_t adc_get_bat_vcc (void){
+int16_t adc_get_bat_vcc (void){
   //get the latest voltage value of VBAT
- return 4 * (uint32_t)(adc_get_value(0, ADC_INPUTCTRL_MUXPOS_SCALEDVBAT));
+    uint16_t const val = adc_get_value(ADC_INPUTCTRL_MUXPOS_SCALEDVBAT);
+    return (int16_t)((4000 * (uint32_t)val) / 65535);
 }
 
 
-extern int16_t adc_get_bandgap_vcc (void){
+int16_t adc_get_bandgap_vcc (void){
 //get the latest voltage value of the badgap
-  return adc_get_value(0, ADC_INPUTCTRL_MUXPOS_BANDGAP);
+  return adc_get_value_millivolts(ADC_INPUTCTRL_MUXPOS_BANDGAP);
 }
 
-extern int16_t adc_get_DAC_val (void){
+int16_t adc_get_DAC_val (void){
 //get the latest voltage value of the Digital-to-A
-  return adc_get_value(0, ADC_INPUTCTRL_MUXPOS_DAC);
+  return adc_get_value_millivolts(ADC_INPUTCTRL_MUXPOS_DAC);
 }
 
 
