@@ -37,4 +37,11 @@ extern int init_adc (uint32_t clock_mask, uint32_t clock_freq,
  */
 extern int16_t adc_get_temp (uint8_t adcSel);
 
+
+extern int16_t adc_get_bat_vcc (void);
+
+extern int16_t adc_get_bandgap_vcc (void);
+
+extern int16_t adc_get_DAC_val (void);
+
 #endif /* adc_same54_h */
