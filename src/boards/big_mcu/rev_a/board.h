@@ -290,16 +290,26 @@ extern struct sdhc_desc_t sdhc0_g;
 //
 //
 
-//#define ENABLE_KX134_1211
+#define ENABLE_KX134_1211
 
 // Chip select pin
 #define KX134_1211_CS_PIN_GROUP 3
 #define KX134_1211_CS_PIN_MASK  PORT_PD21
 // Interrupt pins
-#define KX134_1211_INT1_PIN PIN_PC19
-#define KX134_1211_INT0_PIN PIN_PC18
+#define KX134_1211_INT1_PIN GPIO_PIN_FOR(PIN_PC19)
+#define KX134_1211_INT2_PIN GPIO_PIN_FOR(PIN_PC18)
 // Trigger pin
-#define KX134_1211_TRIG_PIN PIN_PD20
+#define KX134_1211_TRIG_PIN GPIO_PIN_FOR(PIN_PD20)
+
+// Settings
+#define KX134_1211_RANGE            KX134_1211_RANGE_32G
+#define KX134_1211_LOW_PASS_ROLLOFF KX134_1211_LOW_PASS_ROLLOFF_2
+#define KX134_1211_ODR              KX134_1211_ODR_6400000
+#define KX134_1211_RES              KX134_1211_RES_16_BIT
+
+#ifdef ENABLE_KX134_1211
+extern struct kx134_1211_desc_t kx134_g;
+#endif
 
 
 //

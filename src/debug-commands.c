@@ -97,6 +97,10 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_ALT_TARE_NEXT_HELP},
     {.func = debug_gnss, .name = DEBUG_GNSS_NAME,
         .help_string = DEBUG_GNSS_HELP},
+    {.func = debug_kx134_wai, .name = DEBUG_KX134_WAI_NAME,
+        .help_string = DEBUG_KX134_WAI_HELP},
+    {.func = debug_kx134_test, .name = DEBUG_KX134_TEST_NAME,
+        .help_string = DEBUG_KX134_TEST_HELP},
     // Radio
     {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME,
         .help_string = DEBUG_LORA_VERSION_HELP},

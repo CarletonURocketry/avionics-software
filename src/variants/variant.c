@@ -19,6 +19,7 @@
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 #include "rn2483.h"
+#include "kx134-1211.h"
 
 #include "radio-transport.h"
 #include "logging.h"
@@ -240,6 +241,9 @@ void init_variant(void)
     // Telemetry service
 #ifdef ENABLE_TELEMETRY_SERVICE
     init_telemetry_service(&telemetry_g, telem_logging, telem_radio);
+#ifdef ENABLE_KX134_1211
+    kx134_1211_register_telem(&kx134_g, &telemetry_g);
+#endif
 #endif
 
     // Init Altimeter

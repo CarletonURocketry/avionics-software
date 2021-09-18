@@ -223,7 +223,7 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* Period between ADC sweeps in milliseconds */
 #define ADC_PERIOD MS_TO_MILLIS(2000)
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
- as -1 */
+   as -1 */
 #define ADC_DMA_CHAN 11
 /* Maximum impedance of source in ohms, see figure 37-5 in SAMD21 datasheet */
 #define ADC_SOURCE_IMPEDANCE 100000

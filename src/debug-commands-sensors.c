@@ -18,6 +18,7 @@
 #include "mcp23s17-registers.h"
 #include "gnss-xa1110.h"
 #include "ms5611.h"
+#include "kx134-1211.h"
 
 // MARK: Altimeter PROM
 
@@ -625,5 +626,116 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
         console_send_str(console, str);
         console_send_str(console, " dB-Hz)\n");
     }
+#endif
+}
+
+// MARK: KX134 Who Am I
+
+void debug_kx134_wai (uint8_t argc, char **argv, struct console_desc_t *console)
+{
+#ifdef SPI1_SERCOM_INST
+    uint8_t tid;
+    uint8_t data[6] = { (1 << 7) };
+    char str[9];
+
+    // Who Am I
+    sercom_spi_start(&spi1_g, &tid, 10000000, KX134_1211_CS_PIN_GROUP,
+                     KX134_1211_CS_PIN_MASK, data, 1, data, 6);
+    while (!sercom_spi_transaction_done(&spi1_g, tid)) {
+        wdt_pat();
+    }
+    console_send_str(console, "Manufacturer ID: \"");
+    memcpy(str, data, 4);
+    str[4] = '\0';
+    console_send_str(console, str);
+    console_send_str(console, "\"\nWho Am I: 0x");
+    utoa(data[4], str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\nSilicon ID: 0x");
+    utoa(data[5], str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+    sercom_spi_clear_transaction(&spi1_g, tid);
+#else
+    console_send_str(console, "SPI1 not enabled in board configuration.\n");
+#endif
+}
+
+// MARK: KX134 Test
+
+void debug_kx134_test (uint8_t argc, char **argv,
+                       struct console_desc_t *console)
+{
+#ifdef ENABLE_KX134_1211
+    switch (kx134_g.state) {
+        case KX134_1211_RUNNING:
+            break;
+        case KX134_1211_FAILED:
+            console_send_str(console, "Failed\n");
+            return;
+        case KX134_1211_FAILED_WAI:
+            console_send_str(console, "Failed: WAI invalid\n");
+            return;
+        case KX134_1211_FAILED_COTR:
+            console_send_str(console, "Failed: COTR invalid\n");
+            return;
+        case KX134_1211_FAILED_SELF_TEST:
+            console_send_str(console, "Failed: Self Test Failed\n");
+            return;
+        default:
+            console_send_str(console, "Initializing...\n");
+            return;
+    }
+
+    char str[16];
+
+    // Print time since last reading
+    uint32_t const last_reading_time = kx134_1211_get_last_time(&kx134_g);
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(MILLIS_TO_MS(millis - last_reading_time), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "  milliseconds ago)\n");
+
+    // Print sensitivity
+    uint16_t const sensitivity = kx134_1211_get_sensitivity(&kx134_g);
+    console_send_str(console, "Sensitivity: ");
+    utoa(sensitivity, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " LSB/g\n");
+
+    // X
+    int16_t const x = kx134_1211_get_last_x(&kx134_g);
+    int32_t const x_g = (x * 10000) / sensitivity;
+    console_send_str(console, "X: ");
+    debug_print_fixed_point(console, x_g, 4);
+    console_send_str(console, " g (");
+    utoa(x, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    // Y
+    int16_t const y = kx134_1211_get_last_y(&kx134_g);
+    int32_t const y_g = (y * 10000) / sensitivity;
+    console_send_str(console, "Y: ");
+    debug_print_fixed_point(console, y_g, 4);
+    console_send_str(console, " g (");
+    utoa(y, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    // Z
+    int16_t const z = kx134_1211_get_last_z(&kx134_g);
+    int32_t const z_g = (z * 10000) / sensitivity;
+    console_send_str(console, "Z: ");
+    debug_print_fixed_point(console, z_g, 4);
+    console_send_str(console, " g (");
+    utoa(z, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+#else
+    console_send_str(console, "KX134 not enabled in board configuration.\n");
 #endif
 }
