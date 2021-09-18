@@ -73,9 +73,9 @@ extern struct gnss {
 #endif
     
     // GNSS Fix
-    /** Latitude in 100 micominutes per least significant bit */
+    /** Latitude in 100 microminutes per least significant bit */
     int32_t latitude;
-    /** Longitude in 100 micominutes per least significant bit */
+    /** Longitude in 100 microminutes per least significant bit */
     int32_t longitude;
     
     // GNSS Time
@@ -87,7 +87,7 @@ extern struct gnss {
     int32_t altitude;
     /** Speed over ground in hundredths of a knot */
     int16_t speed;
-    /** Course over ground in hundredths of degree */
+    /** Course over ground in hundredths of a degree */
     int16_t course;
     
     // Metadata

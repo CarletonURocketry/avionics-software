@@ -513,6 +513,7 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
     debug_print_fixed_point(console, gnss_xa1110_descriptor.hdop, 2);
     console_send_str(console, "\n\tVDOP: ");
     debug_print_fixed_point(console, gnss_xa1110_descriptor.vdop, 2);
+    console_send_str(console, "\n\tAntenna: Unknown\n");
     switch (gnss_xa1110_descriptor.antenna) {
         case GNSS_ANTENNA_UNKOWN:
             console_send_str(console, "\n\tAntenna: Unknown\n");
@@ -524,47 +525,49 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
             console_send_str(console, "\n\tAntenna: External\n");
             break;
     }
+    console_send_str(console, "\tFix: ");
     switch (gnss_xa1110_descriptor.fix_type) {
         case GNSS_FIX_UNKOWN:
-            console_send_str(console, "\tFix: Unknown\n");
+            console_send_str(console, "Unknown\n");
             break;
         case GNSS_FIX_NOT_AVAILABLE:
-            console_send_str(console, "\tFix: Not Available\n");
+            console_send_str(console, "Not Available\n");
             break;
         case GNSS_FIX_2D:
-            console_send_str(console, "\tFix: 2D\n");
+            console_send_str(console, "2D\n");
             break;
         case GNSS_FIX_3D:
-            console_send_str(console, "\tFix: 3D\n");
+            console_send_str(console, "3D\n");
             break;
     }
+    console_send_str(console, "\tQuality: ");
     switch (gnss_xa1110_descriptor.fix_quality) {
         case GNSS_QUALITY_INVALID:
-            console_send_str(console, "\tQuality: Invalid\n");
+            console_send_str(console, "Invalid\n");
             break;
         case GNSS_QUALITY_GPS_FIX:
-            console_send_str(console, "\tQuality: GPS Fix\n");
+            console_send_str(console, "GPS Fix\n");
             break;
         case GNSS_QUALITY_DGPS_FIX:
-            console_send_str(console, "\tQuality: Differential GPS Fix\n");
+            console_send_str(console, "Differential GPS Fix\n");
             break;
         case GNSS_QUALITY_PPS_FIX:
-            console_send_str(console, "\tQuality: PPS Fix\n");
+            console_send_str(console, "PPS Fix\n");
             break;
         case GNSS_QUALITY_REAL_TIME_KINEMATIC:
-            console_send_str(console, "\tQuality: Real Time Kinematic\n");
+            console_send_str(console, "Real Time Kinematic\n");
             break;
         case GNSS_QUALITY_FLOAT_RTK:
-            console_send_str(console, "\tQuality: Float RTK\n");
+            console_send_str(console, "Float RTK\n");
             break;
         case GNSS_QUALITY_DEAD_RECKONING:
-            console_send_str(console, "\tQuality: Dead Reckoning\n");
+            console_send_str(console, "Dead Reckoning\n");
             break;
         case GNSS_QUALITY_MANUAL_INPUT:
-            console_send_str(console, "\tQuality: Manual Input\n");
+            console_send_str(console, "Manual Input\n");
             break;
         case GNSS_QUALITY_SIMULATION:
-            console_send_str(console, "\tQuality: Simulation\n");
+            console_send_str(console, "Simulation\n");
             break;
     }
 

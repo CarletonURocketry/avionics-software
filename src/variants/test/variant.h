@@ -211,12 +211,12 @@ extern struct radio_instance_desc *const radios_g[];
 /* Altimeter CSB setting */
 #define ALTIMETER_CSB 0
 /* Altimeter sample period in milliseconds */
-#define ALTIMETER_PERIOD MS_TO_MILLIS(1000)
+#define ALTIMETER_PERIOD MS_TO_MILLIS(100)
 extern struct ms5611_desc_t altimeter_g;
 
 //
 //
-// GNSS
+//  GNSS
 //
 //
 
@@ -236,6 +236,18 @@ extern struct ms5611_desc_t altimeter_g;
 
 #ifdef ENABLE_LOGGING
 extern struct logging_desc_t logging_g;
+#endif
+
+//
+//
+//  Telemetry
+//
+//
+
+#define ENABLE_TELEMETRY_SERVICE
+
+#ifdef ENABLE_TELEMETRY_SERVICE
+extern struct telemetry_service_desc_t telemetry_g;
 #endif
 
 
