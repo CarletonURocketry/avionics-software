@@ -267,6 +267,12 @@ void init_target(void)
                         SUPC_BOD33_ENABLE);
 
 
+    /* Enable Cache */
+    if (!CMCC->SR.bit.CSTS) {
+        CMCC->CTRL.reg = CMCC_CTRL_CEN;
+    }
+
+
     /* Configure RTC to be used as millis  */
     // Ensure that the interface clock for the RTC is enabled
     MCLK->APBAMASK.reg |= MCLK_APBAMASK_RTC;
