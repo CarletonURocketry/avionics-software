@@ -40,7 +40,7 @@ static void init_clocks (void)
     while (!(OSC32KCTRL->STATUS.reg & OSC32KCTRL_STATUS_XOSC32KRDY));
 
 
-    /* Reset Generic Clock Conroller */
+    /* Reset Generic Clock Controller */
     GCLK->CTRLA.reg = GCLK_CTRLA_SWRST;
     // Wait for reset to complete
     while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_SWRST);
@@ -86,7 +86,7 @@ static void init_clocks (void)
     // Fdplln = Fckr * (LDR + 1 + (LDRFRAC/32))
     OSCCTRL->Dpll[0].DPLLRATIO.reg = (OSCCTRL_DPLLRATIO_LDR(3661) |
                                       OSCCTRL_DPLLRATIO_LDRFRAC(3));
-    // Wait for syncronization of ratio register
+    // Wait for synchronization of ratio register
     while (OSCCTRL->Dpll[0].DPLLSYNCBUSY.reg & OSCCTRL_DPLLSYNCBUSY_DPLLRATIO);
     // Reference clock is XOSC32K, enable wake up fast and lock bypass to work
     // around silicon errata.
@@ -132,9 +132,9 @@ static void init_clocks (void)
     OSCCTRL->DFLLMUL.reg = (OSCCTRL_DFLLMUL_CSTEP(16) |
                             OSCCTRL_DFLLMUL_FSTEP(256) |
                             OSCCTRL_DFLLMUL_MUL(48000000 / 32768));
-    // Wait for syncronization of DFLLMUL register
+    // Wait for synchronization of DFLLMUL register
     while (OSCCTRL->DFLLSYNC.reg & OSCCTRL_DFLLSYNC_DFLLMUL);
-    // Enable DFLL48M and clear ondemand bit
+    // Enable DFLL48M and clear on-demand bit
     OSCCTRL->DFLLCTRLA.reg = OSCCTRL_DFLLCTRLA_ENABLE;
     // Wait for locks
     while (!OSCCTRL->STATUS.bit.DFLLLCKC || !OSCCTRL->STATUS.bit.DFLLLCKF);
@@ -155,8 +155,8 @@ static void init_clocks (void)
     /* Enable XOSC0 */
     // Clock failure detector prescaler set to 4, start up time of 244 µs,
     // clock failure detection is enabled, automatic loop control enabled,
-    // current mulitiplier and reference set according to Table 28-7 for a
-    // 12 MHz crystal, on demand enabled, crystal pads connected.
+    // current multiplier and reference set according to Table 28-7 for a 12 MHz
+    // crystal, on demand enabled, crystal pads connected.
     OSCCTRL->XOSCCTRL[0].reg = (OSCCTRL_XOSCCTRL_CFDPRESC(2) |
                                 OSCCTRL_XOSCCTRL_STARTUP(0x3) |
                                 OSCCTRL_XOSCCTRL_CFDEN |
@@ -194,7 +194,7 @@ static void init_clocks (void)
     // Fdplln = Fckr * (LDR + 1 + (LDRFRAC/32))
     OSCCTRL->Dpll[1].DPLLRATIO.reg = (OSCCTRL_DPLLRATIO_LDR(3050) |
                                       OSCCTRL_DPLLRATIO_LDRFRAC(24));
-    // Wait for syncronization of ratio register
+    // Wait for synchronization of ratio register
     while (OSCCTRL->Dpll[1].DPLLSYNCBUSY.reg & OSCCTRL_DPLLSYNCBUSY_DPLLRATIO);
     // Reference clock is XOSC32K, enable wake up fast and lock bypass to work
     // around silicon errata.
@@ -222,8 +222,8 @@ static void init_clocks (void)
     while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_GENCTRL5);
 
 
-    /* Clock ouput for debugging */
-//    // Configure generic clock generator 1 with clock to be outputed
+    /* Clock output for debugging */
+//    // Configure generic clock generator 1 with clock to be outputted
 //    GCLK->GENCTRL[1].reg = (GCLK_GENCTRL_SRC_DPLL1 | GCLK_GENCTRL_GENEN |
 //                            GCLK_GENCTRL_OE | GCLK_GENCTRL_DIV(4));
 //    // Wait for generic clock generator 1 to be ready
@@ -245,7 +245,24 @@ static void init_clocks (void)
 
 void init_target(void)
 {
-    // We start up runming at 48 MHz from DFLL48M in open loop mode
+    /* Wait for voltage to rise to 3.3 volts */
+    // Ensure that the interface clock for the SUPC is enabled
+    MCLK->APBAMASK.reg |= MCLK_APBAMASK_SUPC;
+    // Disable BOD33 to make sure that we don't get anything funny happening
+    // while we configure it
+    SUPC->BOD33.bit.ENABLE = 0;
+    while (!SUPC->STATUS.bit.B33SRDY);
+    // Configure BOD33 to have no action and enable it
+    SUPC->BOD33.reg &= ~SUPC_BOD33_ACTION_Msk;
+    SUPC->BOD33.reg |= (SUPC_BOD33_ACTION_NONE |
+                        SUPC_BOD33_ENABLE);
+    while (!SUPC->STATUS.bit.B33SRDY);
+    // Wait for supply voltage to rise
+    while (SUPC->STATUS.bit.BOD33DET);
+
+
+    /* Configure clocks */
+    // We start up running at 48 MHz from DFLL48M in open loop mode
     init_clocks();
     // Now we should be running at 120 MHz
 
@@ -258,13 +275,16 @@ void init_target(void)
 
 
     /* Configure BOD33 to switch backup domain to backup power */
-    // Ensure that the interface clock for the SUPC is enabled
-    MCLK->APBAMASK.reg |= MCLK_APBAMASK_SUPC;
+    // Disable BOD33 to make sure that we don't get anything funny happening
+    // while we configure it
+    SUPC->BOD33.bit.ENABLE = 0;
+    while (!SUPC->STATUS.bit.B33SRDY);
     // Clear BOD33 action
     SUPC->BOD33.reg &= ~SUPC_BOD33_ACTION_Msk;
-    // Enable BOD33 and configure it to switch backup domain to backup power
+    // Enable BOD33 and configure it to switch backup domain to battery power
     SUPC->BOD33.reg |= (SUPC_BOD33_ACTION_BKUP |
                         SUPC_BOD33_ENABLE);
+    while (!SUPC->STATUS.bit.B33SRDY);
 
 
     /* Enable Cache */
@@ -289,21 +309,21 @@ void init_target(void)
     for (int i = 0; i < 8; i++) {
         RTC->MODE0.BKUP[i].reg = bk_vals[i];
     }
-    // Configure RTC with count register syncronization enabled and a prescaler
+    // Configure RTC with count register synchronization enabled and a prescaler
     // of 32 in 32 bit counter mode.
     RTC->MODE0.CTRLA.reg = (RTC_MODE0_CTRLA_COUNTSYNC |
                             RTC_MODE0_CTRLA_PRESCALER_DIV32 |
                             RTC_MODE0_CTRLA_MODE_COUNT32);
-    // Wait for write syncronization of COUNTSYNC bit
+    // Wait for write synchronization of COUNTSYNC bit
     while (RTC->MODE0.SYNCBUSY.bit.COUNTSYNC);
     // Use compare registers as general purpose registers
     RTC->MODE0.CTRLB.reg = (RTC_MODE0_CTRLB_GP2EN | RTC_MODE0_CTRLB_GP0EN);
     // Enable RTC
     RTC->MODE0.CTRLA.bit.ENABLE = 1;
-    // Wait for write syncronization of ENABLE bit
+    // Wait for write synchronization of ENABLE bit
     while (RTC->MODE0.SYNCBUSY.bit.ENABLE);
-    // Wait for syncronization of the count register to complete and read from
-    // it. The first value synconized to the register will not be valid, so we
+    // Wait for synchronization of the count register to complete and read from
+    // it. The first value synchronized to the register will not be valid, so we
     // need to discard it.
     while (RTC->MODE0.SYNCBUSY.bit.COUNT);
     volatile uint32_t first_count = RTC->MODE0.COUNT.reg;
