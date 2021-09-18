@@ -724,7 +724,7 @@ void debug_logging(uint8_t argc, char **argv, struct console_desc_t *console)
                 console_send_str(console, "failed - no valid MBR\n");
                 return;
             case LOGGING_NO_VALID_PARTITION:
-                console_send_str(console, "failed - too many SD retires\n");
+                console_send_str(console, "failed - no valid partition\n");
                 return;
             case LOGGING_OUT_OF_SPACE:
                 console_send_str(console, "failed - out of space\n");

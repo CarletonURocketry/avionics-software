@@ -244,7 +244,7 @@ static enum sd_status sdspi_get_sd_status(sd_desc_ptr_t inst)
 
 static uint32_t sdspi_get_num_blocks(sd_desc_ptr_t inst)
 {
-    if (sdspi_get_sd_status(inst) == SDSPI_STATUS_READY) {
+    if (sdspi_get_status(inst.sdspi) == SDSPI_STATUS_READY) {
         return inst.sdspi->card_capacity;
     } else {
         return 0;
