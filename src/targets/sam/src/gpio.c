@@ -70,6 +70,7 @@ static void gpio_mcp23s17_interrupt_occurred (struct mcp23s17_desc_t *inst,
 static struct rn2483_desc_t *gpio_get_rn2483_inst (uint8_t radio_num);
 
 
+#if defined(SAMD2x)
 #define NUM_GPIO_PIN_INTERRUPTS  64
 static const int8_t gpio_pin_interrupts[] = {
     //PA0                       PA7
@@ -89,7 +90,44 @@ static const int8_t gpio_pin_interrupts[] = {
     //PB24                      PB31
     -2, -2, -2, -2, -2, -2, 14, 15
 };
+#elif defined(SAMx5x)
+#define NUM_GPIO_PIN_INTERRUPTS  128
+static const int8_t gpio_pin_interrupts[] = {
+    //PA0                       PA7
+    0,  1,  2,  3,  4,  5,  6,  7,
+    //PA8                       PA15
+    -1, 9,  10, 11, 12, 13, 14, 15,
+    //PA16                      PA23
+    0,  1,  2,  3,  4,  5,  6,  7,
+    //PA24                      PA31
+    8,  9,  -2, 11, -2, -2, 14, 15,
+    //PB0                       PB7
+    0,  1,  2,  3,  4,  5,  6,  7,
+    //PB8                       PB15
+    8,  9,  10, 11, 12, 13, 14, 15,
+    //PB16                      PB23
+    0,  1,  2,  3,  4,  5,  6,  7,
+    //PB24                      PB31
+    8,  9,  12, 13, 14, 15, 14, 15,
+    //PC0                       PC7
+    0,  1,  2,  3,  4,  5,  6,  9,
+    //PC8                       PC15
+    -2, -2, 10, 11, 12, 13, 14, 15,
+    //PC16                      PC23
+    0,  1,  2,  3,  4,  5,  6,  7,
+    //PC24                      PC31
+    8,  9,  10, 11, 12, -2, 14, 15,
+    //PD0                       PD7
+    0,  1,  -2, -2, -2, -2, -2, -2,
+    //PD8                       PD15
+    3,  4,  5,  6,  7,  -2, -2, -2,
+    //PD16                      PD23
+    -2, -2, -2, -2, 10, 11, -2, -2,
+    //PD24                      PD31
+    -2, -2, -2, -2, -2, -2, -2, -2
+};
 
+#endif
 
 
 void init_gpio(uint32_t eic_clock_mask, struct mcp23s17_desc_t *mcp23s17,
@@ -543,6 +581,12 @@ uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
             // Enable PMUX
             PORT_IOBUS->Group[pin.internal.port].PINCFG[pin.internal.pin].bit.PMUXEN = 1;
 
+#if defined(SAMx5x)
+            // Disable EIC since CONFIGn registers are enable protected
+            EIC->CTRLA.bit.ENABLE = 0;
+            while(EIC->SYNCBUSY.bit.ENABLE);
+#endif
+
             // Set sense for interrupt
             switch (trigger) {
                 case GPIO_INTERRUPT_RISING_EDGE:
@@ -579,6 +623,11 @@ uint8_t gpio_enable_interrupt(union gpio_pin_t pin,
 #endif
             // Enable interrupt
             EIC->INTENSET.reg = (1 << int_num);
+
+#if defined(SAMx5x)
+            // Re-enable EIC
+            EIC->CTRLA.bit.ENABLE = 1;
+#endif
 
             return 0;
         case GPIO_MCP23S17_PIN:
