@@ -19,7 +19,7 @@ TARGET_SOURCES += $(TARGETSDIR)/$(TARGET)/../cmsis/startup_same54.c
 
 ##### Include Directories #####
 TARGET_INC_DIRS = $(TARGETSDIR)/$(TARGET)/../
-#TARGET_INC_DIRS += $(TARGETSDIR)/$(TARGET)/../src
+TARGET_INC_DIRS += $(TARGETSDIR)/$(TARGET)/../src
 TARGET_INC_DIRS += $(TARGETSDIR)/$(TARGET)/../../src
 TARGET_INC_DIRS += $(TARGETSDIR)/$(TARGET)/../cmsis/include
 TARGET_INC_DIRS += $(TARGETSDIR)/$(TARGET)/../cmsis/source

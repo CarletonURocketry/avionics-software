@@ -106,7 +106,10 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_RADIO_RX_HELP},
     {.func = debug_radio_tx, .name = DEBUG_RADIO_TX_NAME,
         .help_string = DEBUG_RADIO_TX_HELP},
+    // SD Card
     {.func = debug_sdspi, .name = DEBUG_SDSPI_NAME,
         .help_string = DEBUG_SDSPI_HELP},
+    {.func = debug_sdhc, .name = DEBUG_SDHC_NAME,
+        .help_string = DEBUG_SDHC_HELP},
     {.func = NULL, .name = NULL, .help_string = NULL}
 };

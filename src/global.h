@@ -47,7 +47,9 @@ extern volatile uint8_t inhibit_sleep_g;
  */
 static inline void inhibit_sleep (void)
 {
+    __disable_irq();
     inhibit_sleep_g++;
+    __enable_irq();
 }
 
 /**
@@ -55,7 +57,9 @@ static inline void inhibit_sleep (void)
  */
 static inline void allow_sleep (void)
 {
+    __disable_irq();
     inhibit_sleep_g--;
+    __enable_irq();
 }
 
 #endif /* global_h */

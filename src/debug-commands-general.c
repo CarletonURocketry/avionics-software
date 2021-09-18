@@ -389,6 +389,11 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
         pin = STAT_B_LED_PIN;
     }
 #endif
+#ifdef SD_ACTIVE_LED_PIN
+    else if (!strcmp(argv[2], "SD_ACTIVE")) {
+        pin = SD_ACTIVE_LED_PIN;
+    }
+#endif
 
     if (pin.raw == 0xFFFF) {
         // Pin was not valid

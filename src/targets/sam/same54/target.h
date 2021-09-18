@@ -24,7 +24,8 @@
  */
 #define millis (RTC->MODE0.COUNT.reg)
 
-#define MS_TO_MILLIS(x) (((x * 1024) + 500) / 1000)
+#define MS_TO_MILLIS(x) ((((x) * 1024) + 500) / 1000)
+#define MILLIS_TO_MS(x) ((((x) * 1000) + 512) / 1024)
 
 /* Clocks */
 #define ENABLE_XOSC0

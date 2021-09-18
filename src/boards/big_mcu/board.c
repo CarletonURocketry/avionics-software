@@ -21,6 +21,7 @@
 #include "usb.h"
 #include "usb-cdc.h"
 #include "wdt.h"
+#include "sdhc.h"
 
 // MARK: Hardware Resources from Config File
 #ifdef ENABLE_SPI0
@@ -49,6 +50,9 @@ struct sercom_uart_desc_t uart2_g;
 struct sercom_uart_desc_t uart3_g;
 #endif
 
+#ifdef ENABLE_SDHC0
+struct sdhc_desc_t sdhc0_g;
+#endif
 
 // MARK: Functions
 static inline void init_io (void)
@@ -296,6 +300,11 @@ void init_board(void)
 
     gpio_set_pin_mode(SD_ACTIVE_LED_PIN, GPIO_PIN_OUTPUT_STRONG);
 
+    // SDHC
+#ifdef ENABLE_SDHC0
+    init_sdhc(&sdhc0_g, SDHC0, 100000000UL, SAME54_CLK_MSK_100MHZ);
+#endif
+
     // WDT
 #ifdef ENABLE_WATCHDOG
     // 2 seconds, no early warning interrupt
@@ -353,5 +362,9 @@ void board_service(void)
 
 #ifdef ENABLE_ADC
     adc_service();
+#endif
+
+#ifdef ENABLE_SDHC0
+    sdhc_service(&sdhc0_g);
 #endif
 }

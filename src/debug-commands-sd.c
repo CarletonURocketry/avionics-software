@@ -11,13 +11,15 @@
 
 #include "debug-commands.h"
 
+#include "variant.h"
 #include "board.h"
 #include "sd.h"
 #include "sdspi.h"
 #include "wdt.h"
 
 
-#ifdef ENABLE_SDSPI
+
+#if defined(ENABLE_SDSPI) || defined(ENABLE_SDHC0)
 
 struct debug_sd_cb_context {
     uint32_t num_blocks;
@@ -37,7 +39,8 @@ static void debug_sd_cb(void *context, enum sd_op_result result,
 
 static void debug_sd_read(uint8_t argc, char **argv,
                           struct console_desc_t *console,
-                          struct sd_funcs sd_funcs, sd_desc_ptr_t inst)
+                          struct sd_funcs sd_funcs, sd_desc_ptr_t inst,
+                          void (*run_service_func)(void))
 {
     uint32_t addr = 0;
     uint32_t num_blocks = 0;
@@ -83,7 +86,7 @@ static void debug_sd_read(uint8_t argc, char **argv,
     }
 
     while (!context.debug_sdspi_cb_called) {
-        sdspi_service(&sdspi_g);
+        run_service_func();
         wdt_pat();
     }
 
@@ -126,10 +129,12 @@ static void debug_sd_read(uint8_t argc, char **argv,
 
 static void debug_sd_write(uint8_t argc, char **argv,
                            struct console_desc_t *console,
-                           struct sd_funcs sd_funcs, sd_desc_ptr_t inst)
+                           struct sd_funcs sd_funcs, sd_desc_ptr_t inst,
+                           void (*run_service_func)(void))
 {
     uint32_t addr = 0;
     uint32_t num_blocks = 0;
+    uint8_t fancy_pattern = 0;
     uint8_t pattern = 0;
 
     if (argc < 4) {
@@ -144,12 +149,16 @@ static void debug_sd_write(uint8_t argc, char **argv,
 
     // Parse pattern
     char *end;
-    pattern = (uint8_t)strtoul(argv[2], &end, 0);
-    if (*end != '\0') {
-        console_send_str(console, "Invalid pattern\n");
-        return;
+    if (!strcmp(argv[2], "p")) {
+        // Use a fancy pattern
+        fancy_pattern = 1;
+    } else {
+        pattern = (uint8_t)strtoul(argv[2], &end, 0);
+        if (*end != '\0') {
+            console_send_str(console, "Invalid pattern\n");
+            return;
+        }
     }
-
 
     // Parse address
     addr = (uint32_t)strtoul(argv[3], &end, 0);
@@ -171,7 +180,14 @@ static void debug_sd_write(uint8_t argc, char **argv,
 
     struct debug_sd_cb_context context = { 0 };
     uint8_t *buffer = alloca(num_blocks * 512);
-    memset(buffer, pattern, num_blocks * 512);
+    if (!fancy_pattern) {
+        memset(buffer, pattern, num_blocks * 512);
+    } else {
+        pattern = 0;
+        for (int i = 0; i < 512; i++) {
+            buffer[i] = pattern++;
+        }
+    }
 
     int const ret = sd_funcs.write(inst, addr, num_blocks, buffer, debug_sd_cb,
                                    &context);
@@ -182,7 +198,7 @@ static void debug_sd_write(uint8_t argc, char **argv,
     }
 
     while (!context.debug_sdspi_cb_called) {
-        sdspi_service(&sdspi_g);
+        run_service_func();
         wdt_pat();
     }
 
@@ -205,10 +221,17 @@ static void debug_sd_write(uint8_t argc, char **argv,
     console_send_str(console, " blocks written.\n");
 }
 
-#endif // ENABLE_SDSPI
-
 
 // MARK: SDSPI
+
+#endif // ENABLE_SDSPI || ENABLE_SDHC0
+
+#ifdef ENABLE_SDSPI
+static void sdspi_run_service(void)
+{
+    sdspi_service(&sdspi_g);
+}
+#endif
 
 void debug_sdspi (uint8_t argc, char **argv, struct console_desc_t *console)
 {
@@ -269,9 +292,11 @@ void debug_sdspi (uint8_t argc, char **argv, struct console_desc_t *console)
 
     if (!strcmp(argv[1], "read")) {
         // Read from card
-        debug_sd_read(argc, argv, console, sdspi_sd_funcs, &sdspi_g);
+        debug_sd_read(argc, argv, console, sdspi_sd_funcs, &sdspi_g,
+                      sdspi_run_service);
     } else if (!strcmp(argv[1], "write")) {
-        debug_sd_write(argc, argv, console, sdspi_sd_funcs, &sdspi_g);
+        debug_sd_write(argc, argv, console, sdspi_sd_funcs, &sdspi_g,
+                       sdspi_run_service);
     } else {
         console_send_str(console, "Unkown action.\n");
     }
@@ -280,3 +305,88 @@ void debug_sdspi (uint8_t argc, char **argv, struct console_desc_t *console)
     console_send_str(console, "SDSPI is not enabled.\n");
 #endif
 }
+
+
+
+// MARK: SDHC
+
+#ifdef ENABLE_SDHC0
+static void sdhc_run_service(void)
+{
+    sdhc_service(&sdhc0_g);
+}
+#endif
+
+void debug_sdhc (uint8_t argc, char **argv, struct console_desc_t *console)
+{
+#ifdef ENABLE_SDHC0
+    char str[16];
+
+    if (argc == 1) {
+        // Print status info
+        console_send_str(console, "Status: ");
+        enum sdhc_status const status = sdhc_get_status(&sdhc0_g);
+
+        switch (status) {
+            case SDHC_STATUS_NO_CARD:
+                console_send_str(console, "no card\n");
+                break;
+            case SDHC_STATUS_UNUSABLE_CARD:
+                console_send_str(console, "unusable card\n");
+                break;
+            case SDHC_STATUS_TOO_MANY_INIT_RETRIES:
+                console_send_str(console, "too many init retries\n");
+                break;
+            case SDHC_STATUS_INIT_TIMEOUT:
+                console_send_str(console, "init timeout\n");
+                break;
+            case SDHC_STATUS_FAILED:
+                console_send_str(console, "failed\n");
+                break;
+            case SDHC_STATUS_INITIALIZING:
+                console_send_str(console, "initalizing\n");
+                break;
+            case SDHC_STATUS_READY:
+                console_send_str(console, "ready\n");
+                break;
+            default:
+                console_send_str(console, "unknown\n");
+                break;
+        }
+
+        if (status != SDHC_STATUS_READY) {
+            return;
+        }
+
+        console_send_str(console, "Capacity: ");
+        utoa(sdhc0_g.card_capacity, str, 10);
+        console_send_str(console, str);
+        console_send_str(console, " blocks\n");
+
+        console_send_str(console, "V1 card: ");
+        console_send_str(console, sdhc0_g.v1_card ? "yes\n" : "no\n");
+
+        console_send_str(console, "High capacity: ");
+        console_send_str(console, sdhc0_g.block_addressed ? "yes\n" : "no\n");
+
+        return;
+    }
+
+    // We have at least two args. The second should be an action.
+
+    if (!strcmp(argv[1], "read")) {
+        // Read from card
+        debug_sd_read(argc, argv, console, sdhc_sd_funcs, &sdhc0_g,
+                      sdhc_run_service);
+    } else if (!strcmp(argv[1], "write")) {
+        // Write to card
+        debug_sd_write(argc, argv, console, sdhc_sd_funcs, &sdhc0_g,
+                       sdhc_run_service);
+    } else {
+        console_send_str(console, "Unkown action.\n");
+    }
+#else
+    console_send_str(console, "SDHC is not enabled.\n");
+#endif
+}
+

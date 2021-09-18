@@ -165,7 +165,8 @@ static int sdspi_start_op(struct sdspi_desc_t *inst, uint32_t addr,
     }
 
     // Check that address if valid
-    if (addr >= inst->card_capacity) {
+    if (__builtin_add_overflow_p(addr, num_blocks, inst->card_capacity) ||
+        ((addr + num_blocks) > inst->card_capacity)) {
         return 1;
     }
 
@@ -241,12 +242,22 @@ static enum sd_status sdspi_get_sd_status(sd_desc_ptr_t inst)
     }
 }
 
+static uint32_t sdspi_get_num_blocks(sd_desc_ptr_t inst)
+{
+    if (sdspi_get_sd_status(inst) == SDSPI_STATUS_READY) {
+        return inst.sdspi->card_capacity;
+    } else {
+        return 0;
+    }
+}
+
 
 
 struct sd_funcs const sdspi_sd_funcs = {
     .read = &sdspi_read,
     .write = &sdspi_write,
-    .get_status = sdspi_get_sd_status
+    .get_status = sdspi_get_sd_status,
+    .get_num_blocks = sdspi_get_num_blocks
 };
 
 #endif // ENABLE_SDSPI

@@ -255,7 +255,11 @@ extern struct sercom_uart_desc_t uart3_g;
 //
 //
 
-//#define ENABLE_SDHC0
+#define ENABLE_SDHC0
+
+#ifdef ENABLE_SDHC0
+extern struct sdhc_desc_t sdhc0_g;
+#endif
 
 
 //

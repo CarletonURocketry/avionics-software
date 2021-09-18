@@ -14,11 +14,18 @@
 #include "cli.h"
 
 
-#define DEBUG_SDSPI_NAME  "sdspi"
-#define DEBUG_SDSPI_HELP  "Get information about or interact with SD card "\
-                          "connected with SPI."
+#define DEBUG_SDSPI_NAME    "sdspi"
+#define DEBUG_SDSPI_HELP    "Get information about or interact with SD card "\
+                            "connected with SPI."
 
 extern void debug_sdspi (uint8_t argc, char **argv,
                          struct console_desc_t *console);
+
+
+#define DEBUG_SDHC_NAME "sdhc"
+#define DEBUG_SDHC_HELP "Get information about or interact with SD card "\
+                        "connected through the SD Host Controller."
+extern void debug_sdhc (uint8_t argc, char **argv,
+                        struct console_desc_t *console);
 
 #endif /* debug_commands_sd_h */
