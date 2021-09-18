@@ -27,6 +27,9 @@
 #define MS_TO_MILLIS(x) ((((x) * 1024) + 500) / 1000)
 #define MILLIS_TO_MS(x) ((((x) * 1000) + 512) / 1024)
 
+/** Size of logging service buffers */
+#define LOGGING_BUFFER_SIZE 8192
+
 /* Clocks */
 #define ENABLE_XOSC0
 

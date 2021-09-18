@@ -28,4 +28,24 @@ extern void debug_sdspi (uint8_t argc, char **argv,
 extern void debug_sdhc (uint8_t argc, char **argv,
                         struct console_desc_t *console);
 
+
+#define DEBUG_MBR_NAME  "mbr"
+#define DEBUG_MBR_HELP  "Read or create Master Boot Record on SD card."
+extern void debug_mbr (uint8_t argc, char **argv,
+                       struct console_desc_t *console);
+
+
+#define DEBUG_FORMAT_NAME  "format"
+#define DEBUG_FORMAT_HELP  "Format a CU InSpace partition on SD card.\nUsage: "\
+                           "format <partition number>"
+extern void debug_format (uint8_t argc, char **argv,
+                          struct console_desc_t *console);
+
+
+#define DEBUG_LOGGING_NAME  "logging"
+#define DEBUG_LOGGING_HELP  "Control logging service.\nUsage: "\
+                            "logging [info/pause/resume]"
+extern void debug_logging (uint8_t argc, char **argv,
+                           struct console_desc_t *console);
+
 #endif /* debug_commands_sd_h */

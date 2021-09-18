@@ -27,6 +27,9 @@ extern volatile uint32_t millis;
 #define MS_TO_MILLIS(x) (x)
 #define MILLIS_TO_MS(x) (x)
 
+/** Size of logging service buffers */
+#define LOGGING_BUFFER_SIZE 2048
+
 /* Clocks */
 #define SAMD21_CLK_MSK_48MHZ    GCLK_CLKCTRL_GEN_GCLK0  // DFLL48M
 #define SAMD21_CLK_MSK_32KHZ    GCLK_CLKCTRL_GEN_GCLK1  // XOSC32K

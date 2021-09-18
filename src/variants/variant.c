@@ -21,6 +21,7 @@
 #include "rn2483.h"
 
 #include "radio-transport.h"
+#include "logging.h"
 
 #include "ground.h"
 #include "telemetry.h"
@@ -196,8 +197,24 @@ struct console_desc_t console_g;
 struct cli_desc_t cli_g;
 #endif
 
+#ifdef ENABLE_LOGGING
+struct logging_desc_t logging_g;
+#endif
+
 void init_variant(void)
 {
+    // SD card logging service
+#ifdef ENABLE_LOGGING
+#if defined(ENABLE_SDHC0)
+    init_logging(&logging_g, &sdhc0_g, sdhc_sd_funcs, 0);
+#elif defined(ENABLE_SDSPI)
+    init_logging(&logging_g, &sdspi_g, sdspi_sd_funcs, 0);
+#endif
+#ifdef LOGGING_START_PAUSED
+    logging_pause(&logging_g);
+#endif
+#endif
+
     // Init Altimeter
 #ifdef ENABLE_ALTIMETER
     init_ms5611(&altimeter_g, &i2c0_g, ALTIMETER_CSB, ALTIMETER_PERIOD, 1);
@@ -274,6 +291,10 @@ void variant_service(void)
 
 #ifdef ENABLE_LORA
     radio_transport_service(&radio_transport_g);
+#endif
+
+#ifdef ENABLE_LOGGING
+    logging_service(&logging_g);
 #endif
 
 #ifdef ENABLE_GROUND_SERVICE

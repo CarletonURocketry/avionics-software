@@ -111,5 +111,10 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_SDSPI_HELP},
     {.func = debug_sdhc, .name = DEBUG_SDHC_NAME,
         .help_string = DEBUG_SDHC_HELP},
+    {.func = debug_mbr, .name = DEBUG_MBR_NAME, .help_string = DEBUG_MBR_HELP},
+    {.func = debug_format, .name = DEBUG_FORMAT_NAME,
+        .help_string = DEBUG_FORMAT_HELP},
+    {.func = debug_logging, .name = DEBUG_LOGGING_NAME,
+        .help_string = DEBUG_LOGGING_HELP},
     {.func = NULL, .name = NULL, .help_string = NULL}
 };

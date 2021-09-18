@@ -225,4 +225,18 @@ extern struct ms5611_desc_t altimeter_g;
 /* UART used to communicate with GNSS */
 #define GNSS_UART uart2_g
 
+//
+//
+//  Logging
+//
+//
+
+#define ENABLE_LOGGING
+#define LOGGING_START_PAUSED
+
+#ifdef ENABLE_LOGGING
+extern struct logging_desc_t logging_g;
+#endif
+
+
 #endif /* variant_h */
