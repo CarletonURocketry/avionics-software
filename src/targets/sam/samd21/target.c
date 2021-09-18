@@ -268,3 +268,54 @@ void HardFault_Handler(void)
         }
     }
 }
+
+/* Atomic functions for thumbv6  */
+bool __atomic_compare_exchange_4(volatile void *mem, void *expected,
+                                 unsigned int desired, bool unknown,
+                                 int success, int failure)
+{
+    bool result;
+    __disable_irq();
+    if (*((volatile unsigned int*)mem) == *((unsigned int*)expected)) {
+        *((volatile unsigned int*)mem) = desired;
+        result = true;
+    } else {
+        *((uint32_t*)expected) = *((volatile unsigned int*)mem);
+        result = false;
+    }
+    __enable_irq();
+    return result;
+}
+
+unsigned char __atomic_fetch_add_1(volatile void *mem, unsigned char val,
+                                   int model)
+{
+    unsigned char result;
+    __disable_irq();
+    result = *((volatile unsigned char*)mem);
+    *((volatile unsigned char*)mem) += val;
+    __enable_irq();
+    return result;
+}
+
+unsigned short __atomic_fetch_add_2(volatile void *mem, unsigned short val,
+                                    int model)
+{
+    unsigned short result;
+    __disable_irq();
+    result = *((volatile unsigned short*)mem);
+    *((volatile unsigned short*)mem) += val;
+    __enable_irq();
+    return result;
+}
+
+unsigned char __atomic_fetch_sub_1(volatile void *mem, unsigned char val,
+                                   int model)
+{
+    unsigned char result;
+    __disable_irq();
+    result = *((volatile unsigned char*)mem);
+    *((volatile unsigned char*)mem) -= val;
+    __enable_irq();
+    return result;
+}
