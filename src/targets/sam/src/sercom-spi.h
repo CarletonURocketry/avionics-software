@@ -16,11 +16,17 @@
 
 #define SERCOM_SPI_TRANSACTION_QUEUE_LENGTH 16
 
+typedef void (*sercom_spi_transaction_cb_t)(void*);
+
 
 /**
  *  State for an SPI transaction.
  */
 struct sercom_spi_transaction_t {
+    /** Callback function for when transaction is complete */
+    sercom_spi_transaction_cb_t callback;
+    /** Context pointer for callback function */
+    void *context;
     /** The buffer from which data is sent. */
     uint8_t const *out_buffer;
     /** The buffer into which received data is placed. */
@@ -159,6 +165,42 @@ extern uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
                                 uint8_t cs_pin_group, uint32_t cs_pin_mask,
                                 uint8_t *out_buffer, uint16_t out_length,
                                 uint8_t * in_buffer, uint16_t in_length);
+
+/**
+ *  Send and receive data on the SPI bus. After the transaction is complete a
+ *  callback function will be called.
+ *
+ *  @note As long as the callback is not NULL, sercom_spi_clear_transaction()
+ *        must not be called for transactions started with this function. The
+ *        transaction will be automatically cleared before the callback function
+ *        is called.
+ *
+ *  @param spi_inst The SPI instance to use.
+ *  @param trans_id The identifier for the created transaction will be
+ *                  placed here.
+ *  @param baudrate The baudrate to be used for the transaction.
+ *  @param cs_pin_group The group index of the chip select pin of the
+ *                      peripheral.
+ *  @param cs_pin_mask The mask for the chip select pin of the peripheral.
+ *  @param out_buffer The buffer from which data should be sent.
+ *  @param out_length The number of bytes to be sent.
+ *  @param in_buffer The buffer where received data will be placed.
+ *  @param in_length The number of bytes to be received.
+ *  @param callback Callback function to be called when transaction is complete
+ *  @param context Context pointer for callback function
+ *
+ *  @return 0 if transaction is successfully queued.
+ */
+extern uint8_t sercom_spi_start_with_cb(struct sercom_spi_desc_t *spi_inst,
+                                        uint8_t *trans_id, uint32_t baudrate,
+                                        uint8_t cs_pin_group,
+                                        uint32_t cs_pin_mask,
+                                        uint8_t *out_buffer,
+                                        uint16_t out_length,
+                                        uint8_t * in_buffer,
+                                        uint16_t in_length,
+                                        sercom_spi_transaction_cb_t callback,
+                                        void *context);
 
 /**
  *  Queue an SPI transaction that requires multiple parts without raising the

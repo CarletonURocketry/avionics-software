@@ -116,11 +116,15 @@ static inline void init_transaction(struct transaction_t *t, uint32_t baudrate,
                                     uint8_t cs_pin_group, uint32_t cs_pin_mask,
                                     uint8_t const *out_buffer,
                                     uint16_t out_length, uint8_t * in_buffer,
-                                    uint16_t in_length, uint8_t multi_part)
+                                    uint16_t in_length, uint8_t multi_part,
+                                    sercom_spi_transaction_cb_t callback,
+                                    void *context)
 {
     struct sercom_spi_transaction_t *state =
                                     (struct sercom_spi_transaction_t*)t->state;
 
+    state->callback = callback;
+    state->context = context;
     state->out_buffer = out_buffer;
     state->in_buffer = in_buffer;
     state->out_length = out_length;
@@ -143,7 +147,20 @@ uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
                          uint8_t *trans_id, uint32_t baudrate,
                          uint8_t cs_pin_group, uint32_t cs_pin_mask,
                          uint8_t *out_buffer, uint16_t out_length,
-                         uint8_t * in_buffer, uint16_t in_length)
+                         uint8_t *in_buffer, uint16_t in_length)
+{
+    return sercom_spi_start_with_cb(spi_inst, trans_id, baudrate, cs_pin_group,
+                                    cs_pin_mask, out_buffer, out_length,
+                                    in_buffer, in_length, NULL, NULL);
+}
+
+uint8_t sercom_spi_start_with_cb(struct sercom_spi_desc_t *spi_inst,
+                                 uint8_t *trans_id, uint32_t baudrate,
+                                 uint8_t cs_pin_group, uint32_t cs_pin_mask,
+                                 uint8_t *out_buffer, uint16_t out_length,
+                                 uint8_t * in_buffer, uint16_t in_length,
+                                 sercom_spi_transaction_cb_t callback,
+                                 void *context)
 {
     // Try to get a transaction queue entry
     struct transaction_t *t = transaction_queue_add(&spi_inst->queue);
@@ -153,7 +170,7 @@ uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
 
     // Initialize the transaction state
     init_transaction(t, baudrate, cs_pin_group, cs_pin_mask, out_buffer,
-                     out_length, in_buffer, in_length, 0);
+                     out_length, in_buffer, in_length, 0, callback, context);
     *trans_id = t->transaction_id;
 
     // Run the service to start a transaction if possible
@@ -180,7 +197,7 @@ uint8_t sercom_spi_start_multi_part(struct sercom_spi_desc_t *spi_inst,
         init_transaction(transactions[i], parts[i].baudrate, cs_pin_group,
                          cs_pin_mask, parts[i].out_buffer, parts[i].out_length,
                          parts[i].in_buffer, parts[i].in_length,
-                         i != (num_parts - 1));
+                         i != (num_parts - 1), NULL, NULL);
         parts[i].transaction_id = transactions[i]->transaction_id;
     }
 
@@ -233,6 +250,8 @@ uint8_t sercom_spi_start_session(struct sercom_spi_desc_t *spi_inst,
                                     (struct sercom_spi_transaction_t*)t->state;
 
     // Zero out all of the elements that are specific to individual transactions
+    state->callback = NULL;
+    state->context = NULL;
     state->out_buffer = NULL;
     state->in_buffer = NULL;
     state->out_length = 0;
@@ -295,6 +314,8 @@ uint8_t sercom_spi_start_session_transaction(struct sercom_spi_desc_t *spi_inst,
     }
 
     // Configure the state for this transaction
+    s->callback = NULL;
+    s->context = NULL;
     s->out_buffer = out_buffer;
     s->in_buffer = in_buffer;
     s->out_length = out_length;
@@ -343,6 +364,8 @@ uint8_t sercom_spi_start_simultaneous_session_transaction(
     }
 
     // Configure the state for this transaction
+    s->callback = NULL;
+    s->context = NULL;
     s->out_buffer = out_buffer;
     s->in_buffer = in_buffer;
     s->out_length = 0;
@@ -572,6 +595,14 @@ static inline void sercom_spi_end_transaction (
     // Disable Receiver and SERCOM
     spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b0;
     spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b0;
+
+    // Check if there is a callback for this transaction
+    if (s->callback) {
+        // Automatically clear transction
+        transaction_queue_invalidate(t);
+        // Call callback
+        s->callback(s->context);
+    }
 
     // Run the SPI service to start the next transaction if there is one
     sercom_spi_service(spi_inst);
