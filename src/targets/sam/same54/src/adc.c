@@ -292,6 +292,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
+  
   //create a two dimensional array of descriptiors (one for each channel)
   DmacDescriptor ADC_DMA_Desc[2][16];
 
@@ -302,25 +303,43 @@ if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
   * [adc0][channel15] -> [adc1][channel0] -> .... [adc0][channel0]
   **/
 
+
   for(uint8_t adc_module = 0; adc_module <=1; adc_module++){
     Adc* ADCx = (adc_module == 0)? ADC0 : ADC1;
-    for(uint8_t adc_channel_sel= 0; adc_channel_sel <= 15, adc_channel_sel ++){
-      dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel], dma_width[DMA_WIDTH_HALF_WORD],
-                            ADCX->ADCx->RESULT.reg, increment_destination,
-                            volatile void *destination,
-                            int increment_destination, uint16_t length,
-                            DmacDescriptor *next);
 
-                            ADC_DMA_Desc[adc_module][adc_channel_sel]
+    for(uint8_t adc_channel_sel= 0; adc_channel_sel <= 15, adc_channel_sel ++){
+
+      uint16_t* destination = &adc_state_g[adc_module][adc_channel_sel];
+
+      //this dma descriptor needs to point to the other ADC module's channel 0's descriptor
+      if(adc_channel_sel == 15){
+        dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel], //descriptor to be configured
+                        dma_width[DMA_WIDTH_HALF_WORD],            //width of dma transcation (16 bits)
+                        ADCX->ADCx->RESULT.reg,                    //source to read from
+                        0,                                         //should the source be incremented? 0 = No
+                        destination,                               //destination to write data
+                        0,                                         //should the destination be incremented? 0 = No
+                        1,                                         //number of beats to send per transaction
+                        ADC_DMA_Desc[(adc_module^=1)][0]);         //the next descriptor
+
+      } else {
+
+        dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel],    //descriptor to be configured
+                        dma_width[DMA_WIDTH_HALF_WORD],               //width of dma transcation (16 bits)
+                        ADCX->ADCx->RESULT.reg,                       //source to read from
+                        0,                                            //should the source be incremented? 0 = No
+                        destination,                                  //destination to write data
+                        0,                                            //should the destination be incremented? 0 = No
+                        1,                                            //number of beats to send per transaction
+                        ADC_DMA_Desc[(adc_module)][adc_channel_sel]); //the next descriptor
+      }
     }
   }
+  /*
+  *configure and initiate the first transfer, which will
+  **/
 
 
-  //enable conversions triggered by end of sequencing
-  //ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;
-
-  //indicate which register(s) we want to update
-  //ADCx->DSEQCTRL.bit.INPUTCTRL = 1;
 
 }else{
   //enable interrupt that tells us when results are ready to be ready
