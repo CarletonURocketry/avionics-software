@@ -1,3 +1,5 @@
+//TODO: update document so that tab = 4 spaces (as per CUINSPACE coding guidelines)
+
 #include <adc.h>
 
 #include <stdint.h>
@@ -290,11 +292,35 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
+  //create a two dimensional array of descriptiors (one for each channel)
+  DmacDescriptor ADC_DMA_Desc[2][16];
+
+  /*
+  *initiate and configure each descriptor such that each descriptor points to
+  * the next one after it. Ex. descriptor[adc0][channel0] points to [adc0][channel1]
+  * the descriptors will loop around, as shown below:
+  * [adc0][channel15] -> [adc1][channel0] -> .... [adc0][channel0]
+  **/
+
+  for(uint8_t adc_module = 0; adc_module <=1; adc_module++){
+    Adc* ADCx = (adc_module == 0)? ADC0 : ADC1;
+    for(uint8_t adc_channel_sel= 0; adc_channel_sel <= 15, adc_channel_sel ++){
+      dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel], dma_width[DMA_WIDTH_HALF_WORD],
+                            ADCX->ADCx->RESULT.reg, increment_destination,
+                            volatile void *destination,
+                            int increment_destination, uint16_t length,
+                            DmacDescriptor *next);
+
+                            ADC_DMA_Desc[adc_module][adc_channel_sel]
+    }
+  }
+
+
   //enable conversions triggered by end of sequencing
-  ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;
+  //ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;
 
   //indicate which register(s) we want to update
-  ADCx->DSEQCTRL.bit.INPUTCTRL = 1;
+  //ADCx->DSEQCTRL.bit.INPUTCTRL = 1;
 
 }else{
   //enable interrupt that tells us when results are ready to be ready
@@ -374,6 +400,9 @@ static float convert_to_dec(uint8_t val){
   //need to be converted to an actual decimal that can be used.
   //ex. val = 16, output = 0.16
   //ex  val = 8,  output = 0.8
+  //note: this function is used for the decimal part of the NVM Calibration
+  //values for the temperature sensors. These decimal parts are all 4 bits
+  //long, and so, there is no way that 'val' could be more than 15.
   val = (float)val;
   if(val <= 10)
     return val/10.0f;
@@ -382,7 +411,10 @@ static float convert_to_dec(uint8_t val){
 }
 
 int16_t adc_get_temp (uint8_t adcSel){
-    //NOTE: READ table 54-24 for timing...according to page 1455
+    /*NOTE: according to the errata, section 2.23.1:
+    * 'Both internal temperature sensors, TSENSP and TSENSC, are not supported and should not be used.'
+    * therefore, this reading will either be inaccurate/wildly incorrect.
+    */
 
     //----enable the temperature sensors----//
     //If ONDEMAND == 0 then you cannot enable the bandgap reference and the
@@ -432,12 +464,12 @@ int16_t adc_get_temp (uint8_t adcSel){
                             - (TL * VCH * TP)
                             + (TH * VCL * TP);
 
-    uint32_t temp_denominator = (VCL * TP)
+    uint16_t temp_denominator = (VCL * TP)
                               - (VCH * TP)
                               - (VPL * TC)
                               + (VPH * TC);
 
-    uint16_t temperature = (uint16_t)(temp_numerator/temp_denominator);
+    uint16_t temperature = temp_numerator/temp_denominator;
 
     return temperature;
 }
