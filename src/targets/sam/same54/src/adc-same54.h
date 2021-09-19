@@ -37,6 +37,24 @@ extern int init_adc (uint32_t clock_mask, uint32_t clock_freq,
  */
 extern int16_t adc_get_temp (uint8_t adcSel);
 
+/**
+* return the latest reading from a select ADC channel. (the ADC continually
+* cycles through its channels, reading values, and updating the internal
+* buffer that the values are stored in as it moves along)
+*
+* @param channel a 8 bit value that represents the channel that should be read.
+*                The notation is slightly unconventional because the 7th bit
+                 defines which ADC to read from. For example:
+                 if channel = 0b1000 0010
+                 that means, read from ADC 1, channel 2
+                 if channel = 0b1000 0100
+                 that means read from ADC 1, channel 4
+                 if channel = 0b0000 1000
+                 that means read from ADC 0, channel 8
+
+*/
+extern uint16_t adc_get_value (uint8_t channel);
+
 
 extern int16_t adc_get_bat_vcc (void);
 
