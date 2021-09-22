@@ -10,8 +10,7 @@
 
  struct {
    //these will hold the latest readings from the input pins (internal and external)
-    uint16_t adc_in_buffer_pins[2][16];
-    uint16_t adc_in_buffer_internal[7];
+    uint16_t adc_input_buffer[2][16 + 7]; //16 external pins, 7 internal measurement sources
 
     union {
         uint8_t dma_chan;
@@ -26,12 +25,46 @@
 
 
 
-typedef struct pin_t {
+typedef struct{
 
   uint8_t num:5;
   uint8_t port:2;
 
 } pin_t;
+
+uint32_t ADC_measurement_sources[16 + 7] = { //16 input pins, 7 internal measurement sources
+  //external sources
+  ADC_INPUTCTRL_MUXPOS_AIN0,
+  ADC_INPUTCTRL_MUXPOS_AIN1,
+  ADC_INPUTCTRL_MUXPOS_AIN3,
+  ADC_INPUTCTRL_MUXPOS_AIN4,
+  ADC_INPUTCTRL_MUXPOS_AIN5,
+  ADC_INPUTCTRL_MUXPOS_AIN6,
+  ADC_INPUTCTRL_MUXPOS_AIN7,
+  ADC_INPUTCTRL_MUXPOS_AIN8,
+  ADC_INPUTCTRL_MUXPOS_AIN9,
+  ADC_INPUTCTRL_MUXPOS_AIN10,
+  ADC_INPUTCTRL_MUXPOS_AIN11,
+  ADC_INPUTCTRL_MUXPOS_AIN12,
+  ADC_INPUTCTRL_MUXPOS_AIN13,
+  ADC_INPUTCTRL_MUXPOS_AIN14,
+  ADC_INPUTCTRL_MUXPOS_AIN15,
+
+  //internal sources
+  ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC,
+  ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
+  ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
+  ADC_INPUTCTRL_MUXPOS_BANDGAP,
+  ADC_INPUTCTRL_MUXPOS_PTAT,  //temperature sensor (not reliable)
+  ADC_INPUTCTRL_MUXPOS_CTAT,  //another temperature sensor (not reliable)
+
+  //final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using the
+  //DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from
+  ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos)
+
+ };
+
+
 
 
 
@@ -118,7 +151,7 @@ static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
 
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t channel_mask, uint32_t sweep_period,
-             uint32_t max_source_impedance, int8_t dma_chan,
+             uint32_t max_source_impedance, int8_t* dma_chans,
              uint8_t adcSel){
 
 
@@ -292,53 +325,81 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
-  
-  //create a two dimensional array of descriptiors (one for each channel)
-  DmacDescriptor ADC_DMA_Desc[2][16];
 
-  /*
-  *initiate and configure each descriptor such that each descriptor points to
-  * the next one after it. Ex. descriptor[adc0][channel0] points to [adc0][channel1]
-  * the descriptors will loop around, as shown below:
-  * [adc0][channel15] -> [adc1][channel0] -> .... [adc0][channel0]
-  **/
-
-
-  for(uint8_t adc_module = 0; adc_module <=1; adc_module++){
-    Adc* ADCx = (adc_module == 0)? ADC0 : ADC1;
-
-    for(uint8_t adc_channel_sel= 0; adc_channel_sel <= 15, adc_channel_sel ++){
-
-      uint16_t* destination = &adc_state_g[adc_module][adc_channel_sel];
-
-      //this dma descriptor needs to point to the other ADC module's channel 0's descriptor
-      if(adc_channel_sel == 15){
-        dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel], //descriptor to be configured
-                        dma_width[DMA_WIDTH_HALF_WORD],            //width of dma transcation (16 bits)
-                        ADCX->ADCx->RESULT.reg,                    //source to read from
-                        0,                                         //should the source be incremented? 0 = No
-                        destination,                               //destination to write data
-                        0,                                         //should the destination be incremented? 0 = No
-                        1,                                         //number of beats to send per transaction
-                        ADC_DMA_Desc[(adc_module^=1)][0]);         //the next descriptor
-
-      } else {
-
-        dma_config_desc(ADC_DMA_Desc[adc_module][adc_channel_sel],    //descriptor to be configured
-                        dma_width[DMA_WIDTH_HALF_WORD],               //width of dma transcation (16 bits)
-                        ADCX->ADCx->RESULT.reg,                       //source to read from
-                        0,                                            //should the source be incremented? 0 = No
-                        destination,                                  //destination to write data
-                        0,                                            //should the destination be incremented? 0 = No
-                        1,                                            //number of beats to send per transaction
-                        ADC_DMA_Desc[(adc_module)][adc_channel_sel]); //the next descriptor
-      }
-    }
+  enum ADC_DMA_descriptor_names{
+    ADC0_DMA_results_to_buffer_desc,
+    ADC1_DMA_results_to_buffer_desc,
+    ADC0_DMA_buffer_to_DSEQ_DATA_desc,
+    ADC1_DMA_buffer_to_DSEQ_DATA_desc
   }
-  /*
-  *configure and initiate the first transfer, which will
-  **/
 
+  //DMA descriptors that describe how the DMA should move information from the
+  //results register of the ADC into their respective locations in main memory
+  DmacDescriptor ADC0_DMA_results_to_buffer_desc;
+  DmacDescriptor ADC1_DMA_results_to_buffer_desc;
+
+  //DMA descriptors that will describe how the DMA should move information from
+  //the main memory into the DSEQ_DATA register associated with the ADC. everytime
+  //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
+  //configuration registers, which give the ADC a new target to get a Measurement
+  //from.
+  DmacDescriptor ADC0_DMA_buffer_to_DSEQ_DATA_desc;
+  DmacDescriptor ADC1_DMA_buffer_to_DSEQ_DATA_desc;
+
+  //the aformentioned DMAcDescriptors need to be configured
+
+  dma_config_desc(ADC_DMA_descriptor_names[ADC0_DMA_results_to_buffer_desc],           //descriptor to be configured
+                  dma_width[DMA_WIDTH_HALF_WORD],                                 //width of dma transcation (16 bits)
+                  ADC0->RESULT.reg,                          //source to read from
+                  0,                                         //should the source be incremented? 0 = No
+                  adc_state_g.adc_input_buffer[0],           //destination to write data
+                  1,                                         //should the destination be incremented? 1 = yes
+                  1,                                         //number of beats to send per transaction
+                  NULL;                                      //the next descriptor (used for burst and block transfers)
+
+
+ dma_config_desc(ADC_DMA_descriptor_names[ADC1_DMA_results_to_buffer_desc],             //descriptor to be configured
+                 dma_width[DMA_WIDTH_HALF_WORD],              //width of dma transcation (16 bits)
+                 ADC1>RESULT.reg,                             //source to read from
+                 0,                                           //should the source be incremented? 0 = No
+                 adc_state_g.adc_input_buffer[1],             //destination to write data
+                 1,                                           //should the destination be incremented? 0 = No
+                 1,                                           //number of beats to send per transaction
+                 NULL;                                        //the next descriptor (used for burst and block transfers)
+
+
+dma_config_desc(ADC_DMA_descriptor_names[ADC0_DMA_buffer_to_DSEQ_DATA_desc],            //descriptor to be configured
+                dma_width[DMA_WIDTH_WORD],                    //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                &ADC_measurement_sources,                     //source to read from
+                0,                                            //should the source be incremented? 1 = yes
+                ADC0->DSEQDATA.reg,                           //destination to write data
+                0,                                            //should the destination be incremented? 0 = No
+                1,                                            //number of beats to send per transaction
+                NULL;                                         //the next descriptor (used for burst and block transfers)
+
+
+dma_config_desc(ADC_DMA_descriptor_names[ADC1_DMA_results_to_buffer_desc],              //descriptor to be configured
+                dma_width[DMA_WIDTH_WORD],                    //width of dma transcation (16 bits)
+                &ADC_measurement_sources,                     //source to read from
+                0,                                            //should the source be incremented? 0 = No
+                ADC1->DSEQDATA.reg,                           //destination to write data
+                0,                                            //should the destination be incremented? 0 = No
+                1,                                            //number of beats to send per transaction
+                NULL;                                         //the next descriptor (used for burst and block transfers)
+
+
+
+/*configure and enable the DMA channels that will be using the descriptors configured above*/
+
+  for(int i; i < 4, i++){
+
+      dma_config_transfer(dma_chans[i],                                   //channel that is to be used
+                          ADC_DMA_descriptors[i]->BTCRL.bit.BEATSIZE,     //beatsize
+                          ADC_DMA_Descriptors[i]->BTCTRL.bit.,                    //source (where will data be read from)
+                          int increment_source,        //should the source be incremented everytime?
+                          volatile void *destintaion,  //destination (where to send data)
+                          int increment_destination,   //should the destination be incremented?
+                        );
 
 
 }else{
@@ -499,20 +560,16 @@ uint16_t adc_get_value (uint8_t channel){
     channel &= ~(1 << 7);
 
   //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
-    if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val) {
+  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val || channel < 0)
         return 0;
-    }
 
-  //user is attemping to retrieve value from input pins
-  if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15_Val ){
-    return adc_state_g.adc_in_buffer_pins[adcSel][channel];
-  }
-  //user is attemping to retrieve value from internal source
-  else{
-      channel -= ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val;
-    return adc_state_g.adc_in_buffer_internal[channel];
-  }
+  //user is attempting to access value from input pins
+  if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15)
+    return adc_state_g.adc_input_buffer[adcSel][channel];
 
+  //user is attemping to access value from internal measurement sources
+  else if(channel > ADC_INPUTCTRL_MUXPOS_AIN15)
+    return adc_state_g.adc_input_buffer[adcSel][channel - 8];
 }
 
 uint16_t adc_get_value_millivolts (uint8_t channel){
