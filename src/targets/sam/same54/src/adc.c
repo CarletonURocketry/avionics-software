@@ -326,25 +326,24 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
 
+  DmacDescriptor ADC_DMA_Descriptors[4];
+
   enum ADC_DMA_descriptor_names{
+    //DMA descriptors that describe how the DMA should move information from the
+    //results register of the ADC into their respective locations in main memory
     ADC0_DMA_results_to_buffer_desc,
     ADC1_DMA_results_to_buffer_desc,
+
+    //DMA descriptors that will describe how the DMA should move information from
+    //the main memory into the DSEQ_DATA register associated with the ADC. everytime
+    //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
+    //configuration registers, which give the ADC a new target to get a Measurement
+    //from.
     ADC0_DMA_buffer_to_DSEQ_DATA_desc,
     ADC1_DMA_buffer_to_DSEQ_DATA_desc
-  }
+  };
 
-  //DMA descriptors that describe how the DMA should move information from the
-  //results register of the ADC into their respective locations in main memory
-  DmacDescriptor ADC0_DMA_results_to_buffer_desc;
-  DmacDescriptor ADC1_DMA_results_to_buffer_desc;
 
-  //DMA descriptors that will describe how the DMA should move information from
-  //the main memory into the DSEQ_DATA register associated with the ADC. everytime
-  //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
-  //configuration registers, which give the ADC a new target to get a Measurement
-  //from.
-  DmacDescriptor ADC0_DMA_buffer_to_DSEQ_DATA_desc;
-  DmacDescriptor ADC1_DMA_buffer_to_DSEQ_DATA_desc;
 
   //the aformentioned DMAcDescriptors need to be configured
 
@@ -395,10 +394,10 @@ dma_config_desc(ADC_DMA_descriptor_names[ADC1_DMA_results_to_buffer_desc],      
 
       dma_config_transfer(dma_chans[i],                                   //channel that is to be used
                           ADC_DMA_descriptors[i]->BTCRL.bit.BEATSIZE,     //beatsize
-                          ADC_DMA_Descriptors[i]->BTCTRL.bit.,                    //source (where will data be read from)
-                          int increment_source,        //should the source be incremented everytime?
-                          volatile void *destintaion,  //destination (where to send data)
-                          int increment_destination,   //should the destination be incremented?
+                          ADC_DMA_Descriptors[i]->SRCADDR.reg.,           //source (where will data be read from)
+                          ADC_DMA_Descriptors[i]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
+                          ADC_DMA_Descriptors[i]->DSTADDR.reg,            //destination (where to send data)
+                          ADC_DMA_Descriptors[i]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
                         );
 
 
