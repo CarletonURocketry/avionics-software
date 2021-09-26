@@ -3,6 +3,8 @@ obj/
 v6-m/
 .DS_Store
 *.swp
+openocd.cfg
+.vscode
 
 # Unit tests
 *.gcno
