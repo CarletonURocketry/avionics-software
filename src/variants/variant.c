@@ -214,6 +214,7 @@ void init_variant(void)
 #endif
 
     // SD card logging service
+#if defined(ENABLE_SDHC0) || defined(ENABLE_SDSPI)
 #ifdef ENABLE_LOGGING
 #if defined(ENABLE_SDHC0)
     init_logging(&logging_g, &sdhc0_g, sdhc_sd_funcs, 0);
@@ -226,6 +227,9 @@ void init_variant(void)
 #ifdef LOGGING_START_PAUSED
     logging_pause(&logging_g);
 #endif
+#endif
+#else
+#undef ENABLE_LOGGING
 #endif
 
     // LoRa Radios

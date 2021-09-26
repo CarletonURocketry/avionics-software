@@ -82,6 +82,12 @@ parser.add_argument('--reset', nargs='?', default=None, const="run",
                     help='Reset target.')
 parser.add_argument('--no-debug', default=False, action="store_true",
                     help='Do not launch interactive GDB.')
+parser.add_argument('--make-openocd-config', default=None,
+                    help='Create OpenOCD configuration file at specified ' +
+                    'path and exit.')
+parser.add_argument('--wsl', default=False, action="store_true",
+                    help='Places OpenOCD configuration in current working ' +
+                    'directory and uses relative path.')
 parser.add_argument('--verbose', default=False, action="store_true",
                     help='Print debugging output.')
 
@@ -95,7 +101,8 @@ if args.gdb_file is not None and (args.upload or args.reset):
 # Check if binary exists if it is required
 if args.binary is not None and not os.path.isfile(args.binary):
     sys.exit("Binary \"{0}\" does not exist.".format(args.binary))
-elif args.binary is None and (not args.no_debug or args.upload):
+elif args.binary is None and (not args.no_debug or args.upload) and \
+        (not args.make_openocd_config):
     sys.exit("No binary specifed.")
 
 # Check if gdb-file exists if it was specified
@@ -105,7 +112,7 @@ if args.gdb_file is not None and not os.path.exists(args.gdb_file):
 # Find OpenOCD if GDB server is not already accessable
 openocd_path = None
 
-if args.gdb_file is None and not send_tcp_command(args.host, args.gdb_port):
+if args.gdb_file is None and args.make_openocd_config is None and not send_tcp_command(args.host, args.gdb_port):
     # Need to launch our own GDB server
     openocd_path = args.openocd if args.openocd is not None else shutil.which("openocd")
     if openocd_path is None:
@@ -115,7 +122,7 @@ if args.gdb_file is None and not send_tcp_command(args.host, args.gdb_port):
     elif not os.access(openocd_path, os.X_OK):
         sys.exit("OpenOCD at \"{0}\" is not executable.".format(openocd_path))
 
-debug_print("OpenOCD at: {0}".format(openocd_path), args.verbose)
+    debug_print("OpenOCD at: {0}".format(openocd_path), args.verbose)
 
 # Find GDB
 gdb_path = args.gdb
@@ -129,20 +136,29 @@ if gdb_path is None:
 if gdb_path is None:
     gdb_path = shutil.which("gdb")
     gdb_arch_cmd = "set architecture armv6-m"
-if gdb_path is None:
+if gdb_path is None and (not args.no_debug) and \
+        (args.make_openocd_config is None):
     sys.exit("Could not find GDB.")
 
-if not os.path.isfile(gdb_path):
+if (not args.no_debug) and (args.make_openocd_config is None) and \
+        not os.path.isfile(gdb_path):
     sys.exit("GDB at \"{0}\" does not exist.".format(gdb_path))
-elif not os.access(gdb_path, os.X_OK):
+elif (not args.no_debug) and (args.make_openocd_config is None) and \
+        not os.access(gdb_path, os.X_OK):
     sys.exit("GDB at \"{0}\" is not executable.".format(gdb_path))
 
-debug_print("GDB at: {0}".format(gdb_path), args.verbose)
+if (not args.no_debug) and (args.make_openocd_config is None):
+    debug_print("GDB at: {0}".format(gdb_path), args.verbose)
 
 # Generate OpenOCD configuration file
 openocd_cfg = None
-if openocd_path is not None:
-    openocd_cfg = tempfile.NamedTemporaryFile()
+if openocd_path is not None or args.make_openocd_config is not None:
+    if args.make_openocd_config is not None:
+        openocd_cfg = open(args.make_openocd_config, "wb")
+    elif args.wsl:
+        openocd_cfg = tempfile.NamedTemporaryFile(dir='./')
+    else:
+        openocd_cfg = tempfile.NamedTemporaryFile()
 
     speed = 4000
     if (args.interface.casefold() == "cmsis" or
@@ -150,7 +166,7 @@ if openocd_path is not None:
         openocd_cfg.write(b"# CMSIS-DAP Debugger\nadapter driver cmsis-dap\n")
         speed = 2000
     else:
-        openocd_cfg.write(f"adapter driver {args.interface.casefold()}".encode("utf-8"))
+        openocd_cfg.write(f"adapter driver {args.interface.casefold()}\n".encode("utf-8"))
     openocd_cfg.write(b"transport select swd\n\n")
     openocd_cfg.write(f"# Adapter settings\nadapter speed {speed}\n\n".encode("utf-8"))
     openocd_cfg.write(f"# Chip info\nset CHIPNAME {args.chip_name}\n".encode("utf-8"))
@@ -159,14 +175,18 @@ if openocd_path is not None:
     openocd_cfg.write(b"# GDB Server Configuration\ngdb_port 2331\n")
     openocd_cfg.flush()
 
-    print(openocd_cfg.name)
+    openocd_cfg_path = os.path.relpath(openocd_cfg.name) if args.wsl else openocd_cfg.name
+
+    if args.make_openocd_config is not None:
+        openocd_cfg.close()
+        exit(0)
 
 # Launch OpenOCD
 openocd_proc = None
 
 if openocd_path is not None:
     debug_print("Starting OpenOCD", args.verbose)
-    openocd_proc = subprocess.Popen([openocd_path, "-f", openocd_cfg.name, "-l",
+    openocd_proc = subprocess.Popen([openocd_path, "-f", openocd_cfg_path, "-l",
                                      "/dev/null"], preexec_fn = os.setsid,
                                      stderr = subprocess.DEVNULL)
     # TODO: Find a way to detect when OpenOCD is ready to accept connections
@@ -210,7 +230,8 @@ if args.no_debug:
     # Kill OpenOCD if we launched it
     if openocd_proc is not None:
         openocd_proc.kill()
-    openocd_cfg.close()
+    if openocd_cfg is not None:
+        openocd_cfg.close()
     sys.exit(0)
    
 # Marshal GDB arguments
