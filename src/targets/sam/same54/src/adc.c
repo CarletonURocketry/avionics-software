@@ -390,15 +390,66 @@ dma_config_desc(ADC_DMA_descriptor_names[ADC1_DMA_results_to_buffer_desc],      
 
 /*configure and enable the DMA channels that will be using the descriptors configured above*/
 
-  for(int i; i < 4, i++){
+  enum trigger_source{
+    ADC0_RESRDY = 0x44,
+    ADC0_DSEQ,
+    ADC1_RESRDY,
+    ADC1_DSEQ
+  };
 
-      dma_config_transfer(dma_chans[i],                                   //channel that is to be used
-                          ADC_DMA_descriptors[i]->BTCRL.bit.BEATSIZE,     //beatsize
-                          ADC_DMA_Descriptors[i]->SRCADDR.reg.,           //source (where will data be read from)
-                          ADC_DMA_Descriptors[i]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
-                          ADC_DMA_Descriptors[i]->DSTADDR.reg,            //destination (where to send data)
-                          ADC_DMA_Descriptors[i]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
-                        );
+
+ /*note the priorities! The same task on different ADCs should have the same priority
+   so that preemption doesn't occur! */
+  dma_config_transfer(dma_chans[0],                                                                 //channel that is to be used
+                      ADC_DMA_descriptors[ADC0_DMA_results_to_buffer_desc]->BTCRL.bit.BEATSIZE,     //beatsize
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->SRCADDR.reg.,           //source (where will data be read from)
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->DSTADDR.reg,            //destination (where to send data)
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
+                      ADC0_RESRDY                                                                   // trigger source: what starts the DMA seq?
+                      0,                                                                            // priority
+                      NULL);                                                                        // next descriptor
+
+
+  dma_config_transfer(dma_chans[1],                                                                 //channel that is to be used
+                      ADC_DMA_descriptors[ADC1_DMA_results_to_buffer_desc]->BTCRL.bit.BEATSIZE,     //beatsize
+                      ADC_DMA_Descriptors[ADC1_DMA_results_to_buffer_desc]->SRCADDR.reg.,           //source (where will data be read from)
+                      ADC_DMA_Descriptors[ADC1_DMA_results_to_buffer_desc]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
+                      ADC_DMA_Descriptors[ADC1_DMA_results_to_buffer_desc]->DSTADDR.reg,            //destination (where to send data)
+                      ADC_DMA_Descriptors[ADC1_DMA_results_to_buffer_desc]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
+                      ADC1_RESRDY,                                                                  // trigger source: what starts the DMA seq?
+                      0,                                                                            // priority
+                      NULL);                                                                        // next descriptor
+
+
+  dma_config_transfer(dma_chans[2],                                                                 //channel that is to be used
+                      ADC_DMA_descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCRL.bit.BEATSIZE,   //beatsize
+                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->SRCADDR.reg.,         //source (where will data be read from)
+                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCTRL.bit.SRCINC,    //should the source be incremented everytime?
+                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->DSTADDR.reg,          //destination (where to send data)
+                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCTRL.bit.DSTINC,    //should the destination be incremented?
+                      ADC0_DSEQ,                                                                    // trigger source: what starts the DMA seq?
+                      1,                                                                            // priority
+                      NULL);                                                                        // next descriptor
+
+
+  dma_config_transfer(dma_chans[3],                                                                 //channel that is to be used
+                      ADC_DMA_descriptors[ADC0_DMA_results_to_buffer_desc]->BTCRL.bit.BEATSIZE,     //beatsize
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->SRCADDR.reg.,           //source (where will data be read from)
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->DSTADDR.reg,            //destination (where to send data)
+                      ADC_DMA_Descriptors[ADC0_DMA_results_to_buffer_desc]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
+                      ADC1_DSEQ,                                                                    // trigger source: what starts the DMA seq?
+                      0,                                                                            // priority
+                      NULL);                                                                        // next descriptor
+
+
+    ADC0->DSEQCTRL.bit.INPUTCTRL = 0x1;      //DMA sequencing should only update the 'input control' registers. This also enables DMASequencing
+    ADC1->DSEQCTRL.bit.INPUTCTRL = 0x1;
+
+
+    ADC0->DSEQCTRL.bit.AUTOSTART = 0x1;  //enable auto_start on the ADC (so that it starts scanning right after it gets new tasks from the DMA)
+    ADC1->DSEQCTRL.bit.AUTOSTART = 0x1;
 
 
 }else{
