@@ -23,7 +23,20 @@
     uint8_t use_dma:1;
 } adc_state_g;
 
+DmacDescriptor ADC_DMA_Descriptors[4];
 
+enum ADC_DMA_descriptor_names{
+    //DMA descriptor that describes how the DMA should move information from the
+    //results register of the ADC into their respective locations in main memory
+    ADCx_DMA_results_to_buffer_desc,
+
+    //DMA descriptor that will describe how the DMA should move information from
+    //the main memory into the DSEQ_DATA register associated with the ADC. everytime
+    //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
+    //configuration registers, which give the ADC a new target to get a Measurement
+    //from.
+    ADCx_DMA_buffer_to_DSEQ_DATA_desc,
+    };
 
 typedef struct{
 
@@ -148,6 +161,33 @@ static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
 }
 
 
+void adcx_service(void){
+  //check to see if if the ADCs are done scanning through all their channels,
+  //and if so, then reset the configuration so that they scan through the
+  //channels again.
+
+  //check both ADCs
+  for(int adcSel = 0; adcSel <= 1; adcSel++){
+    Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
+
+    //DMA is still sequencing, therefore, the configuration doesn't need to be reset
+    if(ADCx->INPUTCTRL.bit.DSEQSTOP == 0)
+        return;
+    else{ //DMA sequencing has halted, therefore, need to reset configuration
+
+        //set the destination address to be the start of the adc_input_buffer array
+        ADC_DMA_Descriptors[adcSel*2 + ADCx_DMA_results_to_buffer_desc]->DSTADDR.reg = adc_state_g.adc_input_buffer[adcSel];
+
+        //set the source address to point to the start of the list of measurement sources again
+        ADC_DMA_Descriptors[adcSel*2 + ADCx_DMA_buffer_to_DSEQ_DATA_desc]->SRCADDR.reg = &ADC_measurement_sources;
+
+        //stop the stop on DMA sequencing...meaning, start DMA sequencing!
+        ADCx->INPUTCTRL.bit.DSEQSTOP = 0;
+
+    }
+  }
+
+}
 
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t channel_mask, uint32_t sweep_period,
@@ -326,24 +366,7 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 //----Setting up DMA or interrupt----//
 if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
 
-  DmacDescriptor ADC_DMA_Descriptors[4];
-
-  enum ADC_DMA_descriptor_names{
-    //DMA descriptor that describes how the DMA should move information from the
-    //results register of the ADC into their respective locations in main memory
-    ADCx_DMA_results_to_buffer_desc,
-
-    //DMA descriptor that will describe how the DMA should move information from
-    //the main memory into the DSEQ_DATA register associated with the ADC. everytime
-    //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
-    //configuration registers, which give the ADC a new target to get a Measurement
-    //from.
-    ADCx_DMA_buffer_to_DSEQ_DATA_desc,
-  };
-
-
-
-  //the aformentioned DMAcDescriptors need to be configured
+  //the DMAcDescriptors need to be configured
 
   dma_config_desc(ADC_DMA_descriptor_names[ADCx_DMA_results_to_buffer_desc],      //descriptor to be configured
                   dma_width[DMA_WIDTH_HALF_WORD],                                 //width of dma transcation (16 bits)
@@ -377,7 +400,7 @@ dma_config_desc(ADC_DMA_descriptor_names[ADC0_DMA_buffer_to_DSEQ_DATA_desc],    
    so that preemption doesn't occur! */
   dma_config_transfer(dma_chans[0],                                                                 //channel that is to be used
                       ADC_DMA_descriptors[ADCx_DMA_results_to_buffer_desc]->BTCRL.bit.BEATSIZE,     //beatsize
-                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->SRCADDR.reg.,           //source (where will data be read from)
+                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->SRCADDR.reg,            //source (where will data be read from)
                       ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
                       ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->DSTADDR.reg,            //destination (where to send data)
                       ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
@@ -431,24 +454,7 @@ static inline void adc_start_scan(void){
 
 }
 
-/*
-void adc_service(uint8_t ADC_sel){
 
-
-    //enable the ADC//
-    ADC->CTRLA.bit.ENABLE = 0b1;
-    //wait for synchronization;
-    while(ADC->SYNCBUSY.bit.ENABLE == 1);
-
-
-  //enable the ADC
-
-  //wait for synchronization
-
-  //start next scan
-
-}
- */
 
 
 static uint16_t adcx_start_single_scan(uint8_t target, uint8_t adcSel){
