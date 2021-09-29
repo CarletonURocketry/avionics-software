@@ -293,7 +293,8 @@ void DMAC_4_Handler (void)
         }
 
         if (DMAC->CHINTFLAG.bit.TCMPL) {
-            if (dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid) {
+            if ((dmaCircBufferTransfers[DMAC->CHID.bit.ID] != NULL) &&
+                    dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid) {
                 // A circular buffer DMA transfer has finished
                 // The head of the buffer must be moved
                 circular_buffer_move_head(
@@ -329,7 +330,8 @@ void DMAC_4_Handler (void)
         }
 
         if (DMAC->Channel[chan].CHINTFLAG.bit.TCMPL) {
-            if (dmaCircBufferTransfers[chan]->valid) {
+            if ((dmaCircBufferTransfers[chan] != NULL) &&
+                    dmaCircBufferTransfers[chan]->valid) {
                 // A circular buffer DMA transfer has finished
                 // The head of the buffer must be moved
                 circular_buffer_move_head(dmaCircBufferTransfers[chan]->buffer,

@@ -157,7 +157,7 @@ extern struct sercom_spi_desc_t spi1_g;
 /* SERCOM instance to be used for I2C0, I2C0 is disabled if not defined */
 #define I2C0_SERCOM_INST SERCOM7
 /* DMA Channel used for I2C0, DMA not used if not defined or defined as -1 */
-//#define I2C0_DMA_CHAN 12
+#define I2C0_DMA_CHAN 12
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c0_g;
 
@@ -170,7 +170,7 @@ extern struct sercom_i2c_desc_t i2c0_g;
 /* SERCOM instance to be used for I2C1, I2C1 is disabled if not defined */
 #define I2C1_SERCOM_INST SERCOM2
 /* DMA Channel used for I2C1, DMA not used if not defined or defined as -1 */
-//#define I2C1_DMA_CHAN 13
+#define I2C1_DMA_CHAN 13
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c1_g;
 

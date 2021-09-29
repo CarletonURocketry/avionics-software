@@ -75,9 +75,9 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
         .state = (void*)descriptor
     };
     
-    sercom_enable_interupts(instance_num, (SERCOM_SPI_INTFLAG_DRE |
-                                           SERCOM_SPI_INTFLAG_TXC |
-                                           SERCOM_SPI_INTFLAG_RXC));
+    sercom_enable_interrupts(instance_num, (SERCOM_SPI_INTFLAG_DRE |
+                                            SERCOM_SPI_INTFLAG_TXC |
+                                            SERCOM_SPI_INTFLAG_RXC));
 
     /* Setup Descriptor */
     descriptor->sercom = sercom;
