@@ -25,7 +25,7 @@ uint8_t ADCx_DMA_Desc_Results_to_buffer[2];
 //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
 //configuration registers, which give the ADC a new target to get a Measurement
 //from.
-uint8_t ADCx_DMA_Desc_buffer_to_DSEQ_DATA_desc[2];
+uint8_t ADCx_DMA_Desc_buffer_to_DSEQ_DATA[2];
 
 //these are all the descriptors that describe how the DMA channels will behave
 //descriptor 1 is associated with channel 1, desc2 -> ch2 etc.
@@ -192,10 +192,10 @@ void adcx_service(void){
     else{ //DMA sequencing has halted, therefore, need to reset configuration
 
         //set the destination address to be the start of the adc_input_buffer array
-        ADC_DMA_Descriptors[adcSel*2 + ADCx_DMA_results_to_buffer_desc]->DSTADDR.reg = adc_state_g.adc_input_buffer[adcSel];
+        dmacDescriptors_g[ADCx_DMA_Desc_Results_to_buffer[adcSel]]->DSTADDR.reg = adc_state_g.adc_input_buffer[adcSel];
 
         //set the source address to point to the start of the list of measurement sources again
-        ADC_DMA_Descriptors[adcSel*2 + ADCx_DMA_buffer_to_DSEQ_DATA_desc]->SRCADDR.reg = &ADC_measurement_sources;
+        dmacDescriptors_g[ADCx_DMA_Desc_buffer_to_DSEQ_DATA[adcSel]]->SRCADDR.reg = &ADC_measurement_sources;
 
         //stop the stop on DMA sequencing...meaning, start DMA sequencing!
         ADCx->INPUTCTRL.bit.DSEQSTOP = 0;
