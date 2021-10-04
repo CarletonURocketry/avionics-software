@@ -1,12 +1,44 @@
 //TODO: update document so that tab = 4 spaces (as per CUINSPACE coding guidelines)
 
 #include <adc.h>
-
 #include <stdint.h>
 
-#define CHANNEL_RANGE 16
-#define ADC_IRQ_PRIORITY 4
+#define CHANNEL_RANGE                       16
+#define ADC_IRQ_PRIORITY                     4
+#define ADC0_DMA_RES_TO_BUFFER_PRIORITY      1
+#define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 2
+#define ADC0_DMA_RES_TO_BUFFER_PRIORITY      3
+#define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 4
 
+//global variables to keep track of which DMA_Descriptors we're using.
+//ex. ADCx_DMA_Desc_Results_to_buffer[0] == 10
+//This means we're using the 10th descriptor, and the 10th channel to move
+//results from the res register to the internal memory buffer
+//
+//
+//DMA descriptor that describes how the DMA should move information from the
+//results register of the ADC into their respective locations in main memory
+uint8_t ADCx_DMA_Desc_Results_to_buffer[2];
+//
+//DMA descriptor that will describe how the DMA should move information from
+//the main memory into the DSEQ_DATA register associated with the ADC. everytime
+//the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
+//configuration registers, which give the ADC a new target to get a Measurement
+//from.
+uint8_t ADCx_DMA_Desc_buffer_to_DSEQ_DATA_desc[2];
+
+//these are all the descriptors that describe how the DMA channels will behave
+//descriptor 1 is associated with channel 1, desc2 -> ch2 etc.
+extern uint8_t DMAC_CH_NUM;
+extern DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
+
+//trigger sources: these start the DMA channels
+enum trigger_source{
+  DMA_trig_src_ADC0_RESRDY = 0x44,
+  DMA_trig_src_ADC0_DSEQ,
+  DMA_trig_src_ADC1_RESRDY,
+  DMA_trig_src_ADC1_DSEQ,
+};
 
  struct {
    //these will hold the latest readings from the input pins (internal and external)
@@ -23,20 +55,6 @@
     uint8_t use_dma:1;
 } adc_state_g;
 
-DmacDescriptor ADC_DMA_Descriptors[4];
-
-enum ADC_DMA_descriptor_names{
-    //DMA descriptor that describes how the DMA should move information from the
-    //results register of the ADC into their respective locations in main memory
-    ADCx_DMA_results_to_buffer_desc,
-
-    //DMA descriptor that will describe how the DMA should move information from
-    //the main memory into the DSEQ_DATA register associated with the ADC. everytime
-    //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
-    //configuration registers, which give the ADC a new target to get a Measurement
-    //from.
-    ADCx_DMA_buffer_to_DSEQ_DATA_desc,
-    };
 
 typedef struct{
 
@@ -76,8 +94,6 @@ uint32_t ADC_measurement_sources[16 + 7] = { //16 input pins, 7 internal measure
   ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos)
 
  };
-
-
 
 
 
@@ -191,8 +207,8 @@ void adcx_service(void){
 
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t channel_mask, uint32_t sweep_period,
-             uint32_t max_source_impedance, int8_t* dma_chans,
-             uint8_t adcSel){
+             uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+             int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel){
 
 
   if (!channel_mask){
@@ -364,66 +380,51 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
     while(ADCx->SYNCBUSY.bit.INPUTCTRL == 0x1);
 
 //----Setting up DMA or interrupt----//
-if((dma_chan >=0) && (dma_chan < DMAC_CH_NUM)){
-
-  //the DMAcDescriptors need to be configured
-
-  dma_config_desc(ADC_DMA_descriptor_names[ADCx_DMA_results_to_buffer_desc],      //descriptor to be configured
-                  dma_width[DMA_WIDTH_HALF_WORD],                                 //width of dma transcation (16 bits)
-                  ADC0->RESULT.reg,                                               //source to read from
-                  0,                                                              //should the source be incremented? 0 = No
-                  adc_state_g.adc_input_buffer[adcSel],                           //destination to write data
-                  1,                                                              //should the destination be incremented? 1 = yes
-                  1,                                                              //number of beats to send per transaction
-                  NULL);                                                          //the next descriptor (used for burst and block transfers)
+if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
+    &&(DMA_buff_to_DMASEQ_chan >=0) && (DMA_buff_to_DMASEQ_chan < DMAC_CH_NUM)){
 
 
-dma_config_desc(ADC_DMA_descriptor_names[ADC0_DMA_buffer_to_DSEQ_DATA_desc],      //descriptor to be configured
-                 dma_width[DMA_WIDTH_WORD],                                       //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
-                 &ADC_measurement_sources,                                        //source to read from
-                 0,                                                               //should the source be incremented? 1 = yes
-                 ADCx->DSEQDATA.reg,                                              //destination to write data
-                 0,                                                               //should the destination be incremented? 0 = No
-                 1,                                                               //number of beats to send per transaction
-                 NULL);                                                           //the next descriptor (used for burst and block transfers)
+    //configuring DMA transfers
+    //this will control movement  from results reg -> internal buffer
+    ADCx_DMA_Desc_Results_to_buffer[adcSel] = DMA_res_to_buff_chan;
+
+    uint8_t results_to_buffer_priority = (adcSel)? ADC1_DMA_RES_TO_BUFFER_PRIORITY : ADC0_DMA_RES_TO_BUFFER_PRIORITY;
+    uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_RESRDY] : trigger_source[DMA_trig_src_ADC0_RESRDY];
 
 
-/*configure and enable the DMA channels that will be using the descriptors configured above*/
-
-  enum trigger_source{
-    ADCx_RESRDY = (0x44 + adcSel*2),
-    ADCx_DSEQ
-  };
-
-
- /*note the priorities! The same task on different ADCs should have the same priority
-   so that preemption doesn't occur! */
-  dma_config_transfer(dma_chans[0],                                                                 //channel that is to be used
-                      ADC_DMA_descriptors[ADCx_DMA_results_to_buffer_desc]->BTCRL.bit.BEATSIZE,     //beatsize
-                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->SRCADDR.reg,            //source (where will data be read from)
-                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->BTCTRL.bit.SRCINC,      //should the source be incremented everytime?
-                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->DSTADDR.reg,            //destination (where to send data)
-                      ADC_DMA_Descriptors[ADCx_DMA_results_to_buffer_desc]->BTCTRL.bit.DSTINC,      //should the destination be incremented?
-                      ADCx_RESRDY                                                                   // trigger source: what starts the DMA seq?
-                      0,                                                                            // priority
-                      NULL);                                                                        // next descriptor
+    dma_config_transfer(DMA_res_to_buff_chan,                                     //descriptor to be configured
+                        dma_width[DMA_WIDTH_HALF_WORD],                           //width of dma transcation (16 bits
+                        ADCx->RESULT.reg,                                         //source to read from
+                        0,                                                        //should the source be incremented? 0 = No
+                        adc_state_g.adc_input_buffer[adcSel],                     //destination to write data
+                        1,                                                        //should the destination be incremented? 1 = yes
+                        1,                                                        //number of beats to send per transaction
+                        DMA_trig_src_ADC1_RESRDY,                                 //trigger_source
+                        results_to_buffer_priority,                               //priority
+                        NULL);                                                    //the next descriptor (used for burst and block transfers)
 
 
-  dma_config_transfer(dma_chans[2],                                                                 //channel that is to be used
-                      ADC_DMA_descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCRL.bit.BEATSIZE,   //beatsize
-                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->SRCADDR.reg.,         //source (where will data be read from)
-                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCTRL.bit.SRCINC,    //should the source be incremented everytime?
-                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->DSTADDR.reg,          //destination (where to send data)
-                      ADC_DMA_Descriptors[ADC0_DMA_buffer_to_DSEQ_DATA_desc]->BTCTRL.bit.DSTINC,    //should the destination be incremented?
-                      ADCx_DSEQ,                                                                    // trigger source: what starts the DMA seq?
-                      1,                                                                            // priority
-                      NULL);                                                                        // next descriptor
+    //this will control movement  from internal buffer -> ADCx->DSEQDATA register
+    ADCx_DMA_Desc_buffer_to_DSEQ_DATA_desc[adcSel] =DMA_buff_to_DMASEQ_chan;
+
+    uint8_t priority = (adcSel)? ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY : ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
+    uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_DSEQ] :trigger_source[DMA_trig_src_ADC1_DSEQ];
+
+    dma_config_desc(dmacDescriptors_g[DMA_buff_to_DMASEQ_chan],                   //descriptor to be configured
+                    dma_width[DMA_WIDTH_WORD],                                       //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                    &ADC_measurement_sources,                                        //source to read from
+                    0,                                                               //should the source be incremented? 1 = yes
+                    ADCx->DSEQDATA.reg,                                              //destination to write data
+                    0,                                                               //should the destination be incremented? 0 = No
+                    1,                                                               //number of beats to send per transaction
+                    trigger_source,                                                  //trigger source
+                    priority,                                                        //priority
+                    NULL);                                                           //the next descriptor (used for burst and block transfers)
 
 
 
 
     ADCx->DSEQCTRL.bit.INPUTCTRL = 0x1;      //DMA sequencing should only update the 'input control' registers. This also enables DMASequencing
-
 
     ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;  //enable auto_start on the ADC (so that it starts scanning right after it gets new tasks from the DMA)
 
