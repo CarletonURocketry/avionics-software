@@ -6,6 +6,15 @@
 
 #include "global.h"
 
+
+/**
+* Checks enabled ADCs to see if they are done scanning through all the channels
+* that they have been assigned. If they are, then set the ADCs so that they
+* start scanning those channels again.
+*/
+extern void adc_service(void);
+
+
 /**
  *  Initilize and start automatic ADC sampling at a fixed period.
  *
@@ -55,11 +64,19 @@ extern int16_t adc_get_temp (uint8_t adcSel);
 */
 extern uint16_t adc_get_value (uint8_t channel);
 
-
+/**
+* get the most recent ADC reading of the battery's voltage.
+*/
 extern int16_t adc_get_bat_vcc (void);
 
+/**
+*get the most recent ADC reading of the internal bandgap filter's voltage
+*/
 extern int16_t adc_get_bandgap_vcc (void);
 
+/**
+* get the most recent ADC reading of the Digital to analog converter
+*/
 extern int16_t adc_get_DAC_val (void);
 
 #endif /* adc_same54_h */
