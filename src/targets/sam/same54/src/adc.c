@@ -430,8 +430,8 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
 
 
     //matching DMA channel with its priority
-    uint8_t priority = (adcSel)? ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY :
-                                 ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
+    uint8_t priority = (adcSel== 1)? ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY :
+                                     ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
 
     //matching DMA channel with its trigger source
     uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_DSEQ] :
