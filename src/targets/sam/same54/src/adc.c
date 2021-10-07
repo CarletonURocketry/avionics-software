@@ -1,14 +1,17 @@
 //TODO: update document so that tab = 4 spaces (as per CUINSPACE coding guidelines)
 //TODO: update driver so that it doesn't need to scan through all channels (only the ones we're interested in!)
 
-#include <adc.h>
+#include "adc.h"
+
+#include "dma.h"
+
 #include <stdint.h>
 
 #define CHANNEL_RANGE                       16
 #define ADC_IRQ_PRIORITY                     4
 #define ADC0_DMA_RES_TO_BUFFER_PRIORITY      1
 #define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 2
-#define ADC0_DMA_RES_TO_BUFFER_PRIORITY      3
+#define ADC1_DMA_RES_TO_BUFFER_PRIORITY      3
 #define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 4
 
 //global variables to keep track of which DMA_Descriptors we're using.
@@ -30,7 +33,6 @@ uint8_t ADCx_DMA_desc_buffer_to_DSEQ_DATA[2] = {-1, -1};
 
 //these are all the descriptors that describe how the DMA channels will behave
 //descriptor 1 is associated with channel 1, desc2 -> ch2 etc.
-extern uint8_t DMAC_CH_NUM;
 extern DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
 
 //trigger sources: these start the DMA channels
@@ -41,7 +43,7 @@ enum trigger_source{
   DMA_trig_src_ADC1_DSEQ,
 };
 
- struct {
+struct {
    //these will hold the latest readings from the input pins (internal and external)
     uint16_t adc_input_buffer[2][16 + 7]; //16 external pins, 7 internal measurement sources
 
@@ -57,12 +59,12 @@ enum trigger_source{
 } adc_state_g;
 
 
-typedef struct{
+struct pin_t {
 
   uint8_t num:5;
   uint8_t port:2;
 
-} pin_t;
+};
 
 uint32_t ADC_measurement_sources[16 + 7] = { //16 input pins, 7 internal measurement sources
   //external sources
@@ -98,7 +100,7 @@ uint32_t ADC_measurement_sources[16 + 7] = { //16 input pins, 7 internal measure
 
 
 
-static const pin_t adc_pins[2][16] = {
+static const struct pin_t adc_pins[2][16] = {
 
   /*NOTE: although both ADC0 and ADC1 have inputs with the same names, that
   * does not mean that they both read from the same pin. Ex. AIN0 for ADC0 is
@@ -198,16 +200,49 @@ void adc_service(void){
         continue;
 
     }else{ //DMA sequencing has halted, therefore, need to reset configuration
+        //matching DMA channel with it's predetermined priority
+        uint8_t results_to_buffer_priority = (adcSel == 1)? ADC1_DMA_RES_TO_BUFFER_PRIORITY :
+                                                            ADC0_DMA_RES_TO_BUFFER_PRIORITY;
 
-        //set the destination address to be the start of the adc_input_buffer array
-        dmacDescriptors_g[ADCx_DMA_desc_results_to_buffer[adcSel]]->DSTADDR.reg = adc_state_g.adc_input_buffer[adcSel];
+        //matching DMA transfer descriptor with trigger source
+        enum trigger_source trigger_source = (adcSel == 1) ? DMA_trig_src_ADC1_RESRDY :
+                                                             DMA_trig_src_ADC0_RESRDY;
 
-        //set the source address to point to the start of the list of measurement sources again
-        dmacDescriptors_g[ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel]]->SRCADDR.reg = &ADC_measurement_sources;
+
+        dma_config_transfer(ADCx_DMA_desc_results_to_buffer[adcSel],                                     //channel to be configured
+                            DMA_WIDTH_HALF_WORD,                           //width of dma transcation (16 bits)
+                            &(ADCx->RESULT.reg),                                      //source to read from
+                            0,                                                        //should the source be incremented? 0 = No
+                            &(adc_state_g.adc_input_buffer[adcSel]),                  //destination to write data
+                            1,                                                        //should the destination be incremented? 1 = yes
+                            1,                                                        //number of beats to send per transaction
+                            DMA_trig_src_ADC1_RESRDY,                                 //trigger_source
+                            results_to_buffer_priority,                               //priority
+                            NULL);                                                    //the next descriptor (used for burst and block transfers)
+
+
+
+        //matching DMA channel with its priority
+        uint8_t priority = (adcSel== 1)?    ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY :
+                                            ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
+
+        //matching DMA channel with its trigger source
+        trigger_source = (adcSel) ? DMA_trig_src_ADC0_DSEQ :
+                                    DMA_trig_src_ADC1_DSEQ;
+
+        dma_config_transfer(ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel],                                  //channel to be configured
+                            DMA_WIDTH_WORD,                                //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                            &(ADC_measurement_sources),                               //source to read from
+                            0,                                                        //should the source be incremented? 1 = yes
+                            &(ADCx->DSEQDATA.reg),                                    //destination to write data
+                            0,                                                        //should the destination be incremented? 0 = No
+                            1,                                                        //number of beats to send per transaction
+                            trigger_source,                                           //trigger source
+                            priority,                                                 //priority
+                            NULL);                                                    //the next descriptor (used for burst and block transfers)
 
         //stop the stop on DMA sequencing...meaning, start DMA sequencing!
         ADCx->INPUTCTRL.bit.DSEQSTOP = 0;
-
     }
   }
 
@@ -405,19 +440,19 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
     * for transferring DMASEQ data into the DMASEQ register. We need this
     * channel number for adc_service().
     */
-    ADCx_DMA_desc_buffer_to_DSEQ_DATA_desc[adcSel] = DMA_buff_to_DMASEQ_chan;
+    ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel] = DMA_buff_to_DMASEQ_chan;
 
     //matching DMA channel with it's predetermined priority
     uint8_t results_to_buffer_priority = (adcSel == 1)? ADC1_DMA_RES_TO_BUFFER_PRIORITY :
                                                         ADC0_DMA_RES_TO_BUFFER_PRIORITY;
 
     //matching DMA transfer descriptor with trigger source
-    uint8_t trigger_source = (adcSel == 1)? trigger_source[DMA_trig_src_ADC1_RESRDY] :
-                                            trigger_source[DMA_trig_src_ADC0_RESRDY];
+    enum trigger_source trigger_source = (adcSel == 1)? DMA_trig_src_ADC1_RESRDY :
+                                                        DMA_trig_src_ADC0_RESRDY;
 
 
     dma_config_transfer(DMA_res_to_buff_chan,                                     //channel to be configured
-                        dma_width[DMA_WIDTH_HALF_WORD],                           //width of dma transcation (16 bits)
+                        DMA_WIDTH_HALF_WORD,                           //width of dma transcation (16 bits)
                         &(ADCx->RESULT.reg),                                      //source to read from
                         0,                                                        //should the source be incremented? 0 = No
                         &(adc_state_g.adc_input_buffer[adcSel]),                  //destination to write data
@@ -434,11 +469,11 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                                      ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
 
     //matching DMA channel with its trigger source
-    uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_DSEQ] :
-                                       trigger_source[DMA_trig_src_ADC1_DSEQ];
+    trigger_source = (adcSel)? DMA_trig_src_ADC0_DSEQ :
+                               DMA_trig_src_ADC1_DSEQ;
 
     dma_config_transfer(DMA_buff_to_DMASEQ_chan,                                  //channel to be configured
-                        dma_width[DMA_WIDTH_WORD],                                //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                        DMA_WIDTH_WORD,                                //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
                         &(ADC_measurement_sources),                               //source to read from
                         0,                                                        //should the source be incremented? 1 = yes
                         &(ADCx->DSEQDATA.reg),                                    //destination to write data
@@ -602,7 +637,7 @@ uint16_t adc_get_value (uint8_t channel){
     channel &= ~(1 << 7);
 
   //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
-  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val || channel < 0)
+  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val)
         return 0;
 
   //user is attempting to access value from input pins
@@ -612,6 +647,8 @@ uint16_t adc_get_value (uint8_t channel){
   //user is attemping to access value from internal measurement sources
   else if(channel > ADC_INPUTCTRL_MUXPOS_AIN15)
     return adc_state_g.adc_input_buffer[adcSel][channel - 8];
+
+    return 0;
 }
 
 uint16_t adc_get_value_millivolts (uint8_t channel){

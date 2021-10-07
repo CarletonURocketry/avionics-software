@@ -32,10 +32,10 @@ extern void adc_service(void);
  *
  *  @return 0 if ADC initilized successfully
  */
- int init_adc(uint32_t clock_mask, uint32_t clock_freq,
-              uint32_t channel_mask, uint32_t sweep_period,
-              uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-              int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel)
+ extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
+                     uint32_t channel_mask, uint32_t sweep_period,
+                     uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+                     int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel);
 
 /**
  * Read internal temperature sensor, return value in degrees celcius.
