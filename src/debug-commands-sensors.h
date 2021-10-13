@@ -58,4 +58,17 @@ extern void debug_gnss (uint8_t argc, char **argv,
                         struct console_desc_t *console);
 
 
+#define DEBUG_KX134_WAI_NAME    "kx134-wai"
+#define DEBUG_KX134_WAI_HELP    "Read KX134 Accelerometer Who Am I register."
+
+extern void debug_kx134_wai (uint8_t argc, char **argv,
+                            struct console_desc_t *console);
+
+
+#define DEBUG_KX134_TEST_NAME   "kx134-test"
+#define DEBUG_KX134_TEST_HELP   "Print information from KX124-1211 driver."
+
+extern void debug_kx134_test (uint8_t argc, char **argv,
+                              struct console_desc_t *console);
+
 #endif /* debug_commands_sensors_h */

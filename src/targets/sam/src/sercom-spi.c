@@ -17,12 +17,15 @@
 
 
 static const uint8_t spi_dummy_byte = 0xFF;
+// Address where uneeded input data can be dumped
+static uint8_t spi_sink;
 
 
 static void sercom_spi_isr_dre (Sercom *sercom, uint8_t inst_num, void *state);
 static void sercom_spi_isr_txc (Sercom *sercom, uint8_t inst_num, void *state);
 static void sercom_spi_isr_rxc (Sercom *sercom, uint8_t inst_num, void *state);
-static void sercom_spi_dma_callback (uint8_t chan, void *state);
+static void sercom_spi_tx_dma_callback (uint8_t chan, void *state);
+static void sercom_spi_rx_dma_callback (uint8_t chan, void *state);
 
 
 /**
@@ -72,9 +75,9 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
         .state = (void*)descriptor
     };
     
-    sercom_enable_interupts(instance_num, (SERCOM_SPI_INTFLAG_DRE |
-                                           SERCOM_SPI_INTFLAG_TXC |
-                                           SERCOM_SPI_INTFLAG_RXC));
+    sercom_enable_interrupts(instance_num, (SERCOM_SPI_INTFLAG_DRE |
+                                            SERCOM_SPI_INTFLAG_TXC |
+                                            SERCOM_SPI_INTFLAG_RXC));
 
     /* Setup Descriptor */
     descriptor->sercom = sercom;
@@ -94,7 +97,7 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
         descriptor->tx_use_dma = 0b1;
 
         dma_callbacks[tx_dma_channel] = (struct dma_callback_t) {
-            .callback = sercom_spi_dma_callback,
+            .callback = sercom_spi_tx_dma_callback,
             .state = (void*)descriptor
         };
     }
@@ -103,7 +106,7 @@ void init_sercom_spi(struct sercom_spi_desc_t *descriptor,
         descriptor->rx_use_dma = 0b1;
 
         dma_callbacks[rx_dma_channel] = (struct dma_callback_t) {
-            .callback = sercom_spi_dma_callback,
+            .callback = sercom_spi_rx_dma_callback,
             .state = (void*)descriptor
         };
     }
@@ -113,11 +116,15 @@ static inline void init_transaction(struct transaction_t *t, uint32_t baudrate,
                                     uint8_t cs_pin_group, uint32_t cs_pin_mask,
                                     uint8_t const *out_buffer,
                                     uint16_t out_length, uint8_t * in_buffer,
-                                    uint16_t in_length, uint8_t multi_part)
+                                    uint16_t in_length, uint8_t multi_part,
+                                    sercom_spi_transaction_cb_t callback,
+                                    void *context)
 {
     struct sercom_spi_transaction_t *state =
                                     (struct sercom_spi_transaction_t*)t->state;
 
+    state->callback = callback;
+    state->context = context;
     state->out_buffer = out_buffer;
     state->in_buffer = in_buffer;
     state->out_length = out_length;
@@ -140,7 +147,20 @@ uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
                          uint8_t *trans_id, uint32_t baudrate,
                          uint8_t cs_pin_group, uint32_t cs_pin_mask,
                          uint8_t *out_buffer, uint16_t out_length,
-                         uint8_t * in_buffer, uint16_t in_length)
+                         uint8_t *in_buffer, uint16_t in_length)
+{
+    return sercom_spi_start_with_cb(spi_inst, trans_id, baudrate, cs_pin_group,
+                                    cs_pin_mask, out_buffer, out_length,
+                                    in_buffer, in_length, NULL, NULL);
+}
+
+uint8_t sercom_spi_start_with_cb(struct sercom_spi_desc_t *spi_inst,
+                                 uint8_t *trans_id, uint32_t baudrate,
+                                 uint8_t cs_pin_group, uint32_t cs_pin_mask,
+                                 uint8_t *out_buffer, uint16_t out_length,
+                                 uint8_t * in_buffer, uint16_t in_length,
+                                 sercom_spi_transaction_cb_t callback,
+                                 void *context)
 {
     // Try to get a transaction queue entry
     struct transaction_t *t = transaction_queue_add(&spi_inst->queue);
@@ -150,7 +170,7 @@ uint8_t sercom_spi_start(struct sercom_spi_desc_t *spi_inst,
 
     // Initialize the transaction state
     init_transaction(t, baudrate, cs_pin_group, cs_pin_mask, out_buffer,
-                     out_length, in_buffer, in_length, 0);
+                     out_length, in_buffer, in_length, 0, callback, context);
     *trans_id = t->transaction_id;
 
     // Run the service to start a transaction if possible
@@ -177,7 +197,7 @@ uint8_t sercom_spi_start_multi_part(struct sercom_spi_desc_t *spi_inst,
         init_transaction(transactions[i], parts[i].baudrate, cs_pin_group,
                          cs_pin_mask, parts[i].out_buffer, parts[i].out_length,
                          parts[i].in_buffer, parts[i].in_length,
-                         i != (num_parts - 1));
+                         i != (num_parts - 1), NULL, NULL);
         parts[i].transaction_id = transactions[i]->transaction_id;
     }
 
@@ -230,6 +250,8 @@ uint8_t sercom_spi_start_session(struct sercom_spi_desc_t *spi_inst,
                                     (struct sercom_spi_transaction_t*)t->state;
 
     // Zero out all of the elements that are specific to individual transactions
+    state->callback = NULL;
+    state->context = NULL;
     state->out_buffer = NULL;
     state->in_buffer = NULL;
     state->out_length = 0;
@@ -292,6 +314,8 @@ uint8_t sercom_spi_start_session_transaction(struct sercom_spi_desc_t *spi_inst,
     }
 
     // Configure the state for this transaction
+    s->callback = NULL;
+    s->context = NULL;
     s->out_buffer = out_buffer;
     s->in_buffer = in_buffer;
     s->out_length = out_length;
@@ -340,6 +364,8 @@ uint8_t sercom_spi_start_simultaneous_session_transaction(
     }
 
     // Configure the state for this transaction
+    s->callback = NULL;
+    s->context = NULL;
     s->out_buffer = out_buffer;
     s->in_buffer = in_buffer;
     s->out_length = 0;
@@ -488,14 +514,54 @@ static void sercom_spi_service (struct sercom_spi_desc_t *spi_inst)
     PORT->Group[s->cs_pin_group].OUTCLR.reg = s->cs_pin_mask;
 
     // Begin transmission
-    if (spi_inst->tx_use_dma && (s->out_length != 0)) {
+    int const dma_tx = spi_inst->tx_use_dma && (s->out_length != 0);
+    int const dma_rx = spi_inst->rx_use_dma && (s->in_length != 0);
+
+    if (dma_tx && dma_rx) {
+        // Use DMA for entire transaction with input and output stages
+
+        // Enable reception
+        spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b1;
+        s->rx_started = 1;
+
+        /* RX */
+        // Configure second descriptor of RX DMA transfer. The second part
+        // copies data to the receive buffer during the in stage of the
+        // transaction.
+        dma_config_desc(&spi_inst->rx_dma_desc, DMA_WIDTH_BYTE,
+                        (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
+                        s->in_buffer, 1, s->in_length, NULL);
+        // Configure first descriptor of RX DMA transfer and enable DMA channel.
+        // The first part receives invalid bytes during the out stage of the
+        // transaction.
+        dma_config_transfer(spi_inst->rx_dma_chan, DMA_WIDTH_BYTE,
+                            (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
+                            &spi_sink, 0, s->out_length,
+                            sercom_get_dma_rx_trigger(spi_inst->sercom_instnum),
+                            SERCOM_DMA_RX_PRIORITY, &spi_inst->rx_dma_desc);
+
+        /* TX */
+        // Configure second descriptor of TX DMA transfer. The second part sends
+        // dummy bytes during the in stage of the transaction.
+        dma_config_desc(&spi_inst->tx_dma_desc, DMA_WIDTH_BYTE, &spi_dummy_byte,
+                        0, (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
+                        s->in_length, NULL);
+        // Configure first descriptor of TX DMA transfer and enable DMA channel.
+        // The first part sends the out stage of the transaction.
+        dma_config_transfer(spi_inst->tx_dma_chan, DMA_WIDTH_BYTE,
+                            s->out_buffer, 1,
+                            (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
+                            s->out_length,
+                            sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
+                            SERCOM_DMA_TX_PRIORITY, &spi_inst->tx_dma_desc);
+    } else if (dma_tx) {
         // Use DMA to transmit out buffer
         dma_config_transfer(spi_inst->tx_dma_chan, DMA_WIDTH_BYTE,
                             s->out_buffer, 1,
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->out_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else {
         // We are using interrupt driven transmission and/or this transaction
         // does not have any out stage. Either way, the DRE interrupt will do
@@ -530,6 +596,14 @@ static inline void sercom_spi_end_transaction (
     spi_inst->sercom->SPI.CTRLB.bit.RXEN = 0b0;
     spi_inst->sercom->SPI.CTRLA.bit.ENABLE = 0b0;
 
+    // Check if there is a callback for this transaction
+    if (s->callback) {
+        // Automatically clear transction
+        transaction_queue_invalidate(t);
+        // Call callback
+        s->callback(s->context);
+    }
+
     // Run the SPI service to start the next transaction if there is one
     sercom_spi_service(spi_inst);
 }
@@ -550,7 +624,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_buffer, 1, s->in_length,
                             sercom_get_dma_rx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_RX_PRIORITY);
+                            SERCOM_DMA_RX_PRIORITY, NULL);
     } else {
         // Enable receive complete interrupt
         spi_inst->sercom->SPI.INTENSET.bit.RXC = 0b1;
@@ -565,7 +639,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else if (spi_inst->tx_use_dma) {
         // Start DMA transaction to write non-dummy bytes
         dma_config_transfer(spi_inst->tx_dma_chan, DMA_WIDTH_BYTE,
@@ -573,7 +647,7 @@ static inline void sercom_spi_start_reception (
                             (volatile uint8_t*)&spi_inst->sercom->SPI.DATA, 0,
                             s->in_length,
                             sercom_get_dma_tx_trigger(spi_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
+                            SERCOM_DMA_TX_PRIORITY, NULL);
     } else {
         s->dummy_bytes_out = 0;
         // Re-enable the data register empty interrupt
@@ -642,6 +716,9 @@ static void sercom_spi_isr_dre (Sercom *sercom, uint8_t inst_num, void *state)
     }
 }
 
+
+
+
 static void sercom_spi_isr_txc (Sercom *sercom, uint8_t inst_num, void *state)
 {
     struct sercom_spi_desc_t *spi_inst = (struct sercom_spi_desc_t*)state;
@@ -690,7 +767,7 @@ static void sercom_spi_isr_rxc (Sercom *sercom, uint8_t inst_num, void *state)
     }
 }
 
-static void sercom_spi_dma_callback (uint8_t chan, void *state)
+static void sercom_spi_tx_dma_callback (uint8_t chan, void *state)
 {
     struct sercom_spi_desc_t *spi_inst = (struct sercom_spi_desc_t*)state;
     struct transaction_t *t = transaction_queue_get_active(&spi_inst->queue);
@@ -704,11 +781,18 @@ static void sercom_spi_dma_callback (uint8_t chan, void *state)
     struct sercom_spi_transaction_t *s =
                                     (struct sercom_spi_transaction_t*)t->state;
 
-    if (spi_inst->tx_use_dma && (chan == spi_inst->tx_dma_chan) &&
-                                !s->rx_started) {
+    if (spi_inst->tx_use_dma && !s->rx_started) {
         // TX stage is complete
         spi_inst->sercom->SPI.INTENSET.bit.TXC = 0b1;
-    } else if (spi_inst->rx_use_dma && (chan == spi_inst->rx_dma_chan)) {
+    }
+}
+
+static void sercom_spi_rx_dma_callback (uint8_t chan, void *state)
+{
+    struct sercom_spi_desc_t *spi_inst = (struct sercom_spi_desc_t*)state;
+    struct transaction_t *t = transaction_queue_get_active(&spi_inst->queue);
+
+    if (spi_inst->rx_use_dma) {
         // Transaction is complete
         sercom_spi_end_transaction(spi_inst, t);
     }

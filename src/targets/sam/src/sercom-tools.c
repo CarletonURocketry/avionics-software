@@ -64,7 +64,7 @@ int8_t sercom_get_inst_num (Sercom *const inst)
     return -1;
 }
 
-void sercom_enable_interupts(uint8_t inst_num, uint8_t interrupt_mask)
+void sercom_enable_interrupts(uint8_t inst_num, uint8_t interrupt_mask)
 {
 #if defined(SAMD2x)
     static uint8_t const sercom_irqs[SERCOM_INST_NUM] = {

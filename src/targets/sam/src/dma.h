@@ -48,6 +48,29 @@ enum dma_width {
 };
 
 /**
+ *  Configure a DMA descriptor. Can be used to build a transfer with multiple
+ *  descriptors.
+ *
+ *  @note The source and destination addresses must be aligned to the beat size.
+ *
+ *  @param desc The DMA descriptor to be configured
+ *  @param beatsize The number of bytes to transfer in each beat of this
+ *                  transfer
+ *  @param source The address from which data should be copied
+ *  @param increment_source Whether the source address should be incremented
+ *  @param destination The address to which data should be copied
+ *  @param increment_destination Whether the destination address should be
+ *                               incremented
+ *  @param length The number of beats which should be transferred
+ *  @param next DmacDescriptor to chain onto end of transaction
+ */
+extern void dma_config_desc(DmacDescriptor *desc, enum dma_width beatsize,
+                            const volatile void *source, int increment_source,
+                            volatile void *destination,
+                            int increment_destination, uint16_t length,
+                            DmacDescriptor *next);
+
+/**
  *  Configure a DMA transfer and enable the channel.
  *
  *  @note The source and destination addresses must be aligned to the beat size.
@@ -57,20 +80,21 @@ enum dma_width {
  *                  transfer
  *  @param source The address from which data should be copied
  *  @param increment_source Whether the source address should be incremented
- *  @param destintaion The address to which data should be copied
+ *  @param destination The address to which data should be copied
  *  @param increment_destination Whether the destination address should be
  *                               incremented
  *  @param length The number of beats which should be transferred
  *  @param trigger The trigger which should be used to control the transfer
  *  @param priority The priority level of the transfer
+ *  @param next DmacDescriptor to chain onto end of transfer
  */
 extern void dma_config_transfer(uint8_t chan, enum dma_width beatsize,
                                 const volatile void *source,
                                 int increment_source,
-                                volatile void *destintaion,
-                                int increment_destination,
-                                uint16_t length, uint8_t trigger,
-                                uint8_t priority);
+                                volatile void *destination,
+                                int increment_destination, uint16_t length,
+                                uint8_t trigger, uint8_t priority,
+                                DmacDescriptor *next);
 
 /**
  *  Transfer all of the data in a circular buffer to a static address. Uses a
@@ -92,30 +116,6 @@ extern int8_t dma_config_circular_buffer_to_static(
                                             struct circular_buffer_t *buffer,
                                             volatile uint8_t *dest,
                                             uint8_t trigger, uint8_t priority);
-
-/**
- *  Transfer two buffers of data to a static address (peripheral). Uses a one
- *  byte block size.
- *
- *  @param chan The DMA channel to be used.
- *  @param buffer1 The data to be transferred.
- *  @param length1 The number of bytes which should be transferred.
- *  @param buffer2 The data to be transferred.
- *  @param length2 The number of bytes which should be transferred.
- *  @param descriptor Memory to be used for second DMA descriptor.
- *  @param dest The address of the destination register.
- *  @param trigger The trigger which should be used to control the transfer.
- *  @param priority The priority level of the transfer.
- */
-extern void dma_config_double_buffer_to_static(uint8_t chan,
-                                               const uint8_t *buffer1,
-                                               uint16_t length1,
-                                               const uint8_t *buffer2,
-                                               uint16_t length2,
-                                               DmacDescriptor *descriptor,
-                                               volatile uint8_t *dest,
-                                               uint8_t trigger,
-                                               uint8_t priority);
 
 /**
  *  Cancel an ongoing DMA transaction.

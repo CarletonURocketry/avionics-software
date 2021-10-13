@@ -140,7 +140,7 @@ extern struct sercom_spi_desc_t spi0_g;
 /* SERCOM instance to be used for I2C, I2C is disabled if not defined */
 #define I2C0_SERCOM_INST SERCOM5
 /* DMA Channel used for I2C, DMA not used if not defined or defined as -1 */
-//#define I2C0_DMA_CHAN 6
+#define I2C0_DMA_CHAN 6
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c0_g;
 
@@ -223,7 +223,7 @@ extern struct mcp23s17_desc_t io_expander_g;
 /* Period between ADC sweeps in milliseconds */
 #define ADC_PERIOD MS_TO_MILLIS(2000)
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
- as -1 */
+   as -1 */
 #define ADC_DMA_CHAN 11
 /* Maximum impedance of source in ohms, see figure 37-5 in SAMD21 datasheet */
 #define ADC_SOURCE_IMPEDANCE 100000

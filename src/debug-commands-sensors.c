@@ -18,6 +18,7 @@
 #include "mcp23s17-registers.h"
 #include "gnss-xa1110.h"
 #include "ms5611.h"
+#include "kx134-1211.h"
 
 // MARK: Altimeter PROM
 
@@ -513,6 +514,7 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
     debug_print_fixed_point(console, gnss_xa1110_descriptor.hdop, 2);
     console_send_str(console, "\n\tVDOP: ");
     debug_print_fixed_point(console, gnss_xa1110_descriptor.vdop, 2);
+    console_send_str(console, "\n\tAntenna: Unknown\n");
     switch (gnss_xa1110_descriptor.antenna) {
         case GNSS_ANTENNA_UNKOWN:
             console_send_str(console, "\n\tAntenna: Unknown\n");
@@ -524,47 +526,49 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
             console_send_str(console, "\n\tAntenna: External\n");
             break;
     }
+    console_send_str(console, "\tFix: ");
     switch (gnss_xa1110_descriptor.fix_type) {
         case GNSS_FIX_UNKOWN:
-            console_send_str(console, "\tFix: Unknown\n");
+            console_send_str(console, "Unknown\n");
             break;
         case GNSS_FIX_NOT_AVAILABLE:
-            console_send_str(console, "\tFix: Not Available\n");
+            console_send_str(console, "Not Available\n");
             break;
         case GNSS_FIX_2D:
-            console_send_str(console, "\tFix: 2D\n");
+            console_send_str(console, "2D\n");
             break;
         case GNSS_FIX_3D:
-            console_send_str(console, "\tFix: 3D\n");
+            console_send_str(console, "3D\n");
             break;
     }
+    console_send_str(console, "\tQuality: ");
     switch (gnss_xa1110_descriptor.fix_quality) {
         case GNSS_QUALITY_INVALID:
-            console_send_str(console, "\tQuality: Invalid\n");
+            console_send_str(console, "Invalid\n");
             break;
         case GNSS_QUALITY_GPS_FIX:
-            console_send_str(console, "\tQuality: GPS Fix\n");
+            console_send_str(console, "GPS Fix\n");
             break;
         case GNSS_QUALITY_DGPS_FIX:
-            console_send_str(console, "\tQuality: Differential GPS Fix\n");
+            console_send_str(console, "Differential GPS Fix\n");
             break;
         case GNSS_QUALITY_PPS_FIX:
-            console_send_str(console, "\tQuality: PPS Fix\n");
+            console_send_str(console, "PPS Fix\n");
             break;
         case GNSS_QUALITY_REAL_TIME_KINEMATIC:
-            console_send_str(console, "\tQuality: Real Time Kinematic\n");
+            console_send_str(console, "Real Time Kinematic\n");
             break;
         case GNSS_QUALITY_FLOAT_RTK:
-            console_send_str(console, "\tQuality: Float RTK\n");
+            console_send_str(console, "Float RTK\n");
             break;
         case GNSS_QUALITY_DEAD_RECKONING:
-            console_send_str(console, "\tQuality: Dead Reckoning\n");
+            console_send_str(console, "Dead Reckoning\n");
             break;
         case GNSS_QUALITY_MANUAL_INPUT:
-            console_send_str(console, "\tQuality: Manual Input\n");
+            console_send_str(console, "Manual Input\n");
             break;
         case GNSS_QUALITY_SIMULATION:
-            console_send_str(console, "\tQuality: Simulation\n");
+            console_send_str(console, "Simulation\n");
             break;
     }
 
@@ -622,5 +626,116 @@ void debug_gnss (uint8_t argc, char **argv, struct console_desc_t *console)
         console_send_str(console, str);
         console_send_str(console, " dB-Hz)\n");
     }
+#endif
+}
+
+// MARK: KX134 Who Am I
+
+void debug_kx134_wai (uint8_t argc, char **argv, struct console_desc_t *console)
+{
+#ifdef SPI1_SERCOM_INST
+    uint8_t tid;
+    uint8_t data[6] = { (1 << 7) };
+    char str[9];
+
+    // Who Am I
+    sercom_spi_start(&spi1_g, &tid, 10000000, KX134_1211_CS_PIN_GROUP,
+                     KX134_1211_CS_PIN_MASK, data, 1, data, 6);
+    while (!sercom_spi_transaction_done(&spi1_g, tid)) {
+        wdt_pat();
+    }
+    console_send_str(console, "Manufacturer ID: \"");
+    memcpy(str, data, 4);
+    str[4] = '\0';
+    console_send_str(console, str);
+    console_send_str(console, "\"\nWho Am I: 0x");
+    utoa(data[4], str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\nSilicon ID: 0x");
+    utoa(data[5], str, 16);
+    console_send_str(console, str);
+    console_send_str(console, "\n");
+    sercom_spi_clear_transaction(&spi1_g, tid);
+#else
+    console_send_str(console, "SPI1 not enabled in board configuration.\n");
+#endif
+}
+
+// MARK: KX134 Test
+
+void debug_kx134_test (uint8_t argc, char **argv,
+                       struct console_desc_t *console)
+{
+#ifdef ENABLE_KX134_1211
+    switch (kx134_g.state) {
+        case KX134_1211_RUNNING:
+            break;
+        case KX134_1211_FAILED:
+            console_send_str(console, "Failed\n");
+            return;
+        case KX134_1211_FAILED_WAI:
+            console_send_str(console, "Failed: WAI invalid\n");
+            return;
+        case KX134_1211_FAILED_COTR:
+            console_send_str(console, "Failed: COTR invalid\n");
+            return;
+        case KX134_1211_FAILED_SELF_TEST:
+            console_send_str(console, "Failed: Self Test Failed\n");
+            return;
+        default:
+            console_send_str(console, "Initializing...\n");
+            return;
+    }
+
+    char str[16];
+
+    // Print time since last reading
+    uint32_t const last_reading_time = kx134_1211_get_last_time(&kx134_g);
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(MILLIS_TO_MS(millis - last_reading_time), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "  milliseconds ago)\n");
+
+    // Print sensitivity
+    uint16_t const sensitivity = kx134_1211_get_sensitivity(&kx134_g);
+    console_send_str(console, "Sensitivity: ");
+    utoa(sensitivity, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " LSB/g\n");
+
+    // X
+    int16_t const x = kx134_1211_get_last_x(&kx134_g);
+    int32_t const x_g = (x * 10000) / sensitivity;
+    console_send_str(console, "X: ");
+    debug_print_fixed_point(console, x_g, 4);
+    console_send_str(console, " g (");
+    utoa(x, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    // Y
+    int16_t const y = kx134_1211_get_last_y(&kx134_g);
+    int32_t const y_g = (y * 10000) / sensitivity;
+    console_send_str(console, "Y: ");
+    debug_print_fixed_point(console, y_g, 4);
+    console_send_str(console, " g (");
+    utoa(y, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    // Z
+    int16_t const z = kx134_1211_get_last_z(&kx134_g);
+    int32_t const z_g = (z * 10000) / sensitivity;
+    console_send_str(console, "Z: ");
+    debug_print_fixed_point(console, z_g, 4);
+    console_send_str(console, " g (");
+    utoa(z, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+#else
+    console_send_str(console, "KX134 not enabled in board configuration.\n");
 #endif
 }

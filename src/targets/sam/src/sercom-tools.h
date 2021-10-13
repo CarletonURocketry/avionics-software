@@ -132,7 +132,7 @@ extern int8_t sercom_get_inst_num (Sercom *const inst) __attribute__((const));
  *  @param interrupt_mask Mask of which interrupt vectors need to be enabled,
  *                        matches layout of INTFLAG register
  */
-extern void sercom_enable_interupts(uint8_t inst_num, uint8_t interrupt_mask);
+extern void sercom_enable_interrupts(uint8_t inst_num, uint8_t interrupt_mask);
 
 /**
  *  Determine the generic clock id for a given SERCOM instance number.

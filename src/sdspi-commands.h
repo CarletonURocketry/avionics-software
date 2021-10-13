@@ -432,6 +432,7 @@ static inline union sdspi_response_r2 sdspi_swap_r2(uint8_t const *rsp)
  *  See SD Physical Layer Simplified Specification v3.01 - Section 7.3.2.4
  */
 union sdspi_response_r3 {
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpacked"
 #pragma GCC diagnostic ignored "-Wattributes"
     struct {
@@ -456,6 +457,7 @@ static inline union sdspi_response_r3 sdspi_swap_r3(uint8_t const *rsp)
  *  See SD Physical Layer Simplified Specification v3.01 - Section 7.3.2.6
  */
 union sdspi_response_r7 {
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
     struct {
         uint32_t check_pattern:8;

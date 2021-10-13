@@ -10,6 +10,8 @@
 #ifndef sd_h
 #define sd_h
 
+#include "global.h"
+
 #define SD_BLOCK_LENGTH 512
 
 /**
@@ -26,9 +28,12 @@ typedef void (*sd_op_cb_t)(void *context, enum sd_op_result result,
 
 
 
-// The sdspi.h and sdmmc.h need to be included here because the above type are
+// The sdspi.h and sdhc.h need to be included here because the above type are
 // required by those headers and those headers are required for the below types.
 #include "sdspi.h"
+#if defined(SAMx5x)
+#include "sdhc.h"
+#endif
 
 /**
  *  Transparent union to allow SD card functions to accept either an sdspi
@@ -36,7 +41,9 @@ typedef void (*sd_op_cb_t)(void *context, enum sd_op_result result,
  */
 typedef union __attribute__ ((__transparent_union__)) {
     struct sdspi_desc_t *sdspi;
-    // TODO: Add descriptor for SDMMC driver instance
+#if defined(SAMx5x)
+    struct sdhc_desc_t *sdhc;
+#endif
 } sd_desc_ptr_t;
 
 /**
@@ -54,7 +61,10 @@ enum sd_status {
  */
 struct sd_funcs {
     /**
-     *  Function to read from SD card
+     *  Function to read from SD card.
+     *
+     *  @note   It is important to be aware that the callback function may be
+     *          called from an interrupt context.
      *
      *  @param inst The pointer to driver instance for type of SD card driver
      *              to which this function belongs
@@ -74,7 +84,10 @@ struct sd_funcs {
     int (*read)(sd_desc_ptr_t inst, uint32_t addr, uint32_t num_blocks,
                 uint8_t *buffer, sd_op_cb_t cb, void *context);
     /**
-     *  Function to write to SD card
+     *  Function to write to SD card.
+     *
+     *  @note   It is important to be aware that the callback function may be
+     *          called from an interrupt context.
      *
      *  @param inst The pointer to driver instance for type of SD card driver
      *              to which this function belongs
@@ -94,7 +107,7 @@ struct sd_funcs {
     int (*write)(sd_desc_ptr_t inst, uint32_t addr, uint32_t num_blocks,
                  uint8_t const *data, sd_op_cb_t cb, void *context);
     /**
-     *  Function to get SD card driver state
+     *  Function to get SD card driver state.
      *
      *  @param inst The pointer to driver instance for type of SD card driver
      *              to which this function belongs
@@ -102,6 +115,16 @@ struct sd_funcs {
      *  @return The current state of the SD driver
      */
     enum sd_status (*get_status)(sd_desc_ptr_t inst);
+    /**
+     *  Function to get the number of blocks that the SD card has.
+     *
+     *  @param inst The pointer to driver instance for type of SD card driver
+     *              to which this function belongs
+     *
+     *  @return The number of blcoks that the SD card has or 0 if the SD card is
+     *          not initialized
+     */
+    uint32_t (*get_num_blocks)(sd_desc_ptr_t inst);
 };
 
 

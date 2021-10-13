@@ -1,14 +1,21 @@
 //TODO: update document so that tab = 4 spaces (as per CUINSPACE coding guidelines)
+//TODO: update driver so that it doesn't need to scan through all channels (only the ones we're interested in!)
 
-#include <adc.h>
+
 #include <stdint.h>
+#include "adc.h"
+#include "dma.h"
 
-#define CHANNEL_RANGE                       16
+#define NUMBER_OF_ADC_PIN_SOURCES            16
+#define NUMBER_OF_ADC_INTERNAL_SOURCES       7  
+
 #define ADC_IRQ_PRIORITY                     4
 #define ADC0_DMA_RES_TO_BUFFER_PRIORITY      1
 #define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 2
-#define ADC0_DMA_RES_TO_BUFFER_PRIORITY      3
+#define ADC1_DMA_RES_TO_BUFFER_PRIORITY      3
 #define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 4
+
+#define ADC_SWEEP_PERIOD                     500 // milliseconds
 
 //global variables to keep track of which DMA_Descriptors we're using.
 //ex. ADCx_DMA_Desc_Results_to_buffer[0] == 10
@@ -18,192 +25,251 @@
 //
 //DMA descriptor that describes how the DMA should move information from the
 //results register of the ADC into their respective locations in main memory
-uint8_t ADCx_DMA_Desc_Results_to_buffer[2];
+uint8_t ADCx_DMA_desc_results_to_buffer[2] = {-1, -1};
 //
 //DMA descriptor that will describe how the DMA should move information from
 //the main memory into the DSEQ_DATA register associated with the ADC. everytime
 //the ADC is done making a measurement the DSEQ_DATA is moved into the ADC's
 //configuration registers, which give the ADC a new target to get a Measurement
 //from.
-uint8_t ADCx_DMA_Desc_buffer_to_DSEQ_DATA[2];
+uint8_t ADCx_DMA_desc_buffer_to_DSEQ_DATA[2] = {-1, -1};
 
 //these are all the descriptors that describe how the DMA channels will behave
 //descriptor 1 is associated with channel 1, desc2 -> ch2 etc.
-extern uint8_t DMAC_CH_NUM;
 extern DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
 
 //trigger sources: these start the DMA channels
 enum trigger_source{
-  DMA_trig_src_ADC0_RESRDY = 0x44,
-  DMA_trig_src_ADC0_DSEQ,
-  DMA_trig_src_ADC1_RESRDY,
-  DMA_trig_src_ADC1_DSEQ,
+    DMA_trig_src_ADC0_RESRDY = 0x44,
+    DMA_trig_src_ADC0_DSEQ,
+    DMA_trig_src_ADC1_RESRDY,
+    DMA_trig_src_ADC1_DSEQ,
 };
 
- struct {
-   //these will hold the latest readings from the input pins (internal and external)
+struct {
+    //these will hold the latest readings from the input pins (internal and external)
     uint16_t adc_input_buffer[2][16 + 7]; //16 external pins, 7 internal measurement sources
+    uint32_t  sweep_period;                //how long between sweeps
+    uint32_t  last_sweep_time;             
 
-    union {
-        uint8_t dma_chan;
-        struct {
-            uint8_t chan_num;
-            uint8_t last_chan;
-        };
-    };
-
-    uint8_t use_dma:1;
 } adc_state_g;
 
 
-typedef struct{
+struct pin_t {
+    uint8_t num:5;
+    uint8_t port:2;
 
-  uint8_t num:5;
-  uint8_t port:2;
+};
 
-} pin_t;
+uint32_t ADC_measurement_sources[NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES]=
+ {
+   //external sources
+    ADC_INPUTCTRL_MUXPOS_AIN0,
+    ADC_INPUTCTRL_MUXPOS_AIN1,
+    ADC_INPUTCTRL_MUXPOS_AIN3,
+    ADC_INPUTCTRL_MUXPOS_AIN4,
+    ADC_INPUTCTRL_MUXPOS_AIN5,
+    ADC_INPUTCTRL_MUXPOS_AIN6,
+    ADC_INPUTCTRL_MUXPOS_AIN7,
+    ADC_INPUTCTRL_MUXPOS_AIN8,
+    ADC_INPUTCTRL_MUXPOS_AIN9,
+    ADC_INPUTCTRL_MUXPOS_AIN10,
+    ADC_INPUTCTRL_MUXPOS_AIN11,
+    ADC_INPUTCTRL_MUXPOS_AIN12,
+    ADC_INPUTCTRL_MUXPOS_AIN13,
+    ADC_INPUTCTRL_MUXPOS_AIN14,
+    ADC_INPUTCTRL_MUXPOS_AIN15,
 
-uint32_t ADC_measurement_sources[16 + 7] = { //16 input pins, 7 internal measurement sources
-  //external sources
-  ADC_INPUTCTRL_MUXPOS_AIN0,
-  ADC_INPUTCTRL_MUXPOS_AIN1,
-  ADC_INPUTCTRL_MUXPOS_AIN3,
-  ADC_INPUTCTRL_MUXPOS_AIN4,
-  ADC_INPUTCTRL_MUXPOS_AIN5,
-  ADC_INPUTCTRL_MUXPOS_AIN6,
-  ADC_INPUTCTRL_MUXPOS_AIN7,
-  ADC_INPUTCTRL_MUXPOS_AIN8,
-  ADC_INPUTCTRL_MUXPOS_AIN9,
-  ADC_INPUTCTRL_MUXPOS_AIN10,
-  ADC_INPUTCTRL_MUXPOS_AIN11,
-  ADC_INPUTCTRL_MUXPOS_AIN12,
-  ADC_INPUTCTRL_MUXPOS_AIN13,
-  ADC_INPUTCTRL_MUXPOS_AIN14,
-  ADC_INPUTCTRL_MUXPOS_AIN15,
+    //internal sources
+    ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC,
+    ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
+    ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
+    ADC_INPUTCTRL_MUXPOS_BANDGAP,
+    ADC_INPUTCTRL_MUXPOS_PTAT,  //temperature sensor (not reliable)
+    ADC_INPUTCTRL_MUXPOS_CTAT,  //another temperature sensor (not reliable)
 
-  //internal sources
-  ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC,
-  ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
-  ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
-  ADC_INPUTCTRL_MUXPOS_BANDGAP,
-  ADC_INPUTCTRL_MUXPOS_PTAT,  //temperature sensor (not reliable)
-  ADC_INPUTCTRL_MUXPOS_CTAT,  //another temperature sensor (not reliable)
-
-  //final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using the
-  //DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from
-  ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos)
+    //final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using the
+    //DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from
+    ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos)
 
  };
 
 
 
-static const pin_t adc_pins[2][16] = {
+static const struct pin_t adc_pins[2][16] = {
 
-  /*NOTE: although both ADC0 and ADC1 have inputs with the same names, that
-  * does not mean that they both read from the same pin. Ex. AIN0 for ADC0 is
-  * connected to pin 2(port A ) and AIN0 for ADC1 is connected to pin 8(port B).
-  *
-  * on the other hand, both ADCs are connected to the same internal sources
-  * ex. there's only two internal temprature sensors, and they're both connected
-  * to both ADCs
-  */
+    /*NOTE: although both ADC0 and ADC1 have inputs with the same names, that
+    * does not mean that they both read from the same pin. Ex. AIN0 for ADC0 is
+    * connected to pin 2(port A ) and AIN0 for ADC1 is connected to pin 8(port B).
+    *
+    * on the other hand, both ADCs are connected to the same internal sources
+    * ex. there's only two internal temprature sensors, and they're both connected
+    * to both ADCs
+    */
 
-  //this array contains information for each pin that the *ADC0* uses as inputs.
-  {
-  {.port = 0, .num = 2}, // ADC1/AIN[0]
-  {.port = 0, .num = 3}, // ADC1/AIN[1]
-  {.port = 1, .num = 8}, // ADC1/AIN[2]
-  {.port = 1, .num = 9}, // ADC1/AIN[3]
-  {.port = 0, .num = 4}, // ADC1/AIN[4]
-  {.port = 0, .num = 5}, // ADC1/AIN[5]
-  {.port = 0, .num = 6}, // ADC1/AIN[6]
-  {.port = 0, .num = 7}, // ADC1/AIN[7]
-  {.port = 0, .num = 8}, // ADC1/AIN[8]
-  {.port = 0, .num = 9}, // ADC1/AIN[9]
-  {.port = 0, .num = 10},//ADC1/AIN[10]
-  {.port = 0, .num = 11},//ADC1/AIN[11]
-  {.port = 1, .num = 0}, //ADC1/AIN[12]
-  {.port = 1, .num = 1}, //ADC1/AIN[13]
-  {.port = 1, .num = 2}, //ADC1/AIN[14]
-  {.port = 1, .num = 3}, //ADC1/AIN[15]
-},
+    //this array contains information for each pin that the *ADC0* uses as inputs.
+    {
+        {.port = 0, .num = 2}, // ADC1/AIN[0]
+        {.port = 0, .num = 3}, // ADC1/AIN[1]
+        {.port = 1, .num = 8}, // ADC1/AIN[2]
+        {.port = 1, .num = 9}, // ADC1/AIN[3]
+        {.port = 0, .num = 4}, // ADC1/AIN[4]
+        {.port = 0, .num = 5}, // ADC1/AIN[5]
+        {.port = 0, .num = 6}, // ADC1/AIN[6]
+        {.port = 0, .num = 7}, // ADC1/AIN[7]
+        {.port = 0, .num = 8}, // ADC1/AIN[8]
+        {.port = 0, .num = 9}, // ADC1/AIN[9]
+        {.port = 0, .num = 10},//ADC1/AIN[10]
+        {.port = 0, .num = 11},//ADC1/AIN[11]
+        {.port = 1, .num = 0}, //ADC1/AIN[12]
+        {.port = 1, .num = 1}, //ADC1/AIN[13]
+        {.port = 1, .num = 2}, //ADC1/AIN[14]
+        {.port = 1, .num = 3}, //ADC1/AIN[15]
+    },
 
   //this array contains information for each pin that the *ADC1* can use as inputs
-  {
-  {.port = 1, .num = 8}, // ADC1/AIN[0]
-  {.port = 1, .num = 9}, // ADC1/AIN[1]
-  {.port = 0, .num = 8}, // ADC1/AIN[2]
-  {.port = 0, .num = 9}, // ADC1/AIN[3]
-  {.port = 2, .num = 2}, // ADC1/AIN[4]
-  {.port = 2, .num = 3}, // ADC1/AIN[5]
-  {.port = 1, .num = 4}, // ADC1/AIN[6]
-  {.port = 1, .num = 5}, // ADC1/AIN[7]
-  {.port = 1, .num = 6}, // ADC1/AIN[8]
-  {.port = 1, .num = 7}, // ADC1/AIN[9]
-  {.port = 2, .num = 0}, //ADC1/AIN[10]
-  {.port = 2, .num = 1}, //ADC1/AIN[11]
-  {.port = 2, .num = 30},//ADC1/AIN[12]
-  {.port = 2, .num = 31},//ADC1/AIN[13]
-  {.port = 3, .num = 0}, //ADC1/AIN[14]
-  {.port = 3, .num = 1}, //ADC1/AIN[15]
-}
+    {
+       {.port = 1, .num = 8}, // ADC1/AIN[0
+       {.port = 1, .num = 9}, // ADC1/AIN[1]
+       {.port = 0, .num = 8}, // ADC1/AIN[2]
+       {.port = 0, .num = 9}, // ADC1/AIN[3]
+       {.port = 2, .num = 2}, // ADC1/AIN[4]
+       {.port = 2, .num = 3}, // ADC1/AIN[5]
+       {.port = 1, .num = 4}, // ADC1/AIN[6]
+       {.port = 1, .num = 5}, // ADC1/AIN[7]
+       {.port = 1, .num = 6}, // ADC1/AIN[8]
+       {.port = 1, .num = 7}, // ADC1/AIN[9]
+       {.port = 2, .num = 0}, //ADC1/AIN[10]
+       {.port = 2, .num = 1}, //ADC1/AIN[11]
+       {.port = 2, .num = 30},//ADC1/AIN[12]
+       {.port = 2, .num = 31},//ADC1/AIN[13]
+       {.port = 3, .num = 0}, //ADC1/AIN[14]
+       {.port = 3, .num = 1}, //ADC1/AIN[15]
+    }
 
 
 };
 
-/*
-  specifies which pin the ADC should read, read from left to right
-*/
-//static const int ADC_Descriptor[] = {
-//  1,2,3,5
-//};
-
 
 
 static void adcx_set_pmux(uint8_t channel, uint8_t adc_sel){
-  //select the pin from the pin_t struct defined above
-  struct pin_t pin = adc_pins[adc_sel][ channel];
+    //select the pin from the pin_t struct defined above
+    struct pin_t pin = adc_pins[adc_sel][ channel];
 
-  //set the alternative function for the pin (in this case, input for ADC)
-  if(pin.num % 2 == 0){
-    PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXE = 0x1 ;
-    }
-  else {
-    PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXO = 0x1;
+    //set the alternative function for the pin (in this case, input for ADC)
+    if(pin.num % 2 == 0){
+        PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXE = 0x1 ;
+      }
+    else {
+        PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXO = 0x1;
+        }
+
+    //enable the alternative function (input for the ADC)
+    PORT->Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0x1;
+  }
+
+
+void adc_service(void){
+    //check to see if if the ADCs are done scanning through all their channels,
+    //and if so, then reset the configuration so that they scan through the
+    //channels again.
+ 
+    //check to see if it is time to read the ADC value. If not, then return.
+    if(millis() <  (adc_state_g.last_sweep_time + adc_state_g.sweep_period){
+        return;
       }
 
-  //enable the alternative function (input for the ADC)
-  PORT->Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0x1;
-}
+    //check both ADCs
+    for(int adcSel = 0; adcSel <= 1; adcSel++){
+        Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
+    
 
-
-void adcx_service(void){
-  //check to see if if the ADCs are done scanning through all their channels,
-  //and if so, then reset the configuration so that they scan through the
-  //channels again.
-
-  //check both ADCs
-  for(int adcSel = 0; adcSel <= 1; adcSel++){
-    Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
+    //if the ADC hasn't been enabled, then don't service it
+    if(ADCx->CTRLA.bit.ENABLE == 0x0){
+        continue;
+    }
 
     //DMA is still sequencing, therefore, the configuration doesn't need to be reset
-    if(ADCx->INPUTCTRL.bit.DSEQSTOP == 0)
-        return;
-    else{ //DMA sequencing has halted, therefore, need to reset configuration
+    if(ADCx->INPUTCTRL.bit.DSEQSTOP == 0){
+        continue;
 
-        //set the destination address to be the start of the adc_input_buffer array
-        dmacDescriptors_g[ADCx_DMA_Desc_Results_to_buffer[adcSel]]->DSTADDR.reg = adc_state_g.adc_input_buffer[adcSel];
+    }else{ 
+        //DMA sequencing has halted, therefore, need to reset configuration
+        //matching DMA channel with it's predetermined priority
+        uint8_t results_to_buffer_priority = (adcSel == 1)? ADC1_DMA_RES_TO_BUFFER_PRIORITY:
+                                                            ADC0_DMA_RES_TO_BUFFER_PRIORITY;
 
-        //set the source address to point to the start of the list of measurement sources again
-        dmacDescriptors_g[ADCx_DMA_Desc_buffer_to_DSEQ_DATA[adcSel]]->SRCADDR.reg = &ADC_measurement_sources;
+        //matching DMA transfer descriptor with trigger source
+        enum trigger_source = (adcSel == 1) ? DMA_trig_src_ADC1_RESRDY:
+                                              DMA_trig_src_ADC0_RESRDY;
+sdfaf
+
+
+
+        dma_config_transfer(ADCx_DMA_desc_results_to_buffer[adcSel],
+                            //channel to be configured                                  
+                            DMA_WIDTH_HALF_WORD,
+                            //width of dma transcation (16 bits)
+                            &(ADCx->RESULT.reg),
+                            //source to read from
+                            0, 
+                            //should the source be incremented? 0 = No
+                            &(adc_state_g.adc_input_buffer[adcSel]), 
+                            //destination to write data
+                            1,
+                            //should the destination be incremented? 1 = yes
+                            NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,
+                            //number of beats to send
+                            DMA_trig_src_ADC1_RESRDY, 
+                            //trigger_source
+                            results_to_buffer_priority, 
+                            //priority
+                            NULL); 
+                            //the next descriptor (used for burst and block transfers)
+
+
+
+        //matching DMA channel with its priority
+        uint8_t priority = (adcSel== 1)?    ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY :
+                                            ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
+
+        //matching DMA channel with its trigger source
+        trigger_source = (adcSel) ? DMA_trig_src_ADC0_DSEQ :
+                                    DMA_trig_src_ADC1_DSEQ;
+
+        dma_config_transfer(ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel],
+                            //channel to be configured
+                            DMA_WIDTH_WORD,                                
+                            //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                            &(ADC_measurement_sources),                               
+                            //source to read from
+                            0,                                                        
+                            //should the source be incremented? 1 = yes
+                            &(ADCx->DSEQDATA.reg),                                    
+                            //destination to write data
+                            0,                                                        
+                            //should the destination be incremented? 0 = No
+                            NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
+                            //number of beats to send per transaction
+                            trigger_source,                                           
+                            //trigger source
+                            priority,                                                 
+                            //priority
+                            NULL);                                                    
+                            //the next descriptor (used for burst and block transfers)
+
+
+        //set the new time at which the sweep began.
+        adc_state_g.last_sweep_time = millis();
 
         //stop the stop on DMA sequencing...meaning, start DMA sequencing!
         ADCx->INPUTCTRL.bit.DSEQSTOP = 0;
-
     }
   }
 
 }
+
+
 
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t channel_mask, uint32_t sweep_period,
@@ -381,62 +447,109 @@ Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
 
 //----Setting up DMA or interrupt----//
 if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
-    &&(DMA_buff_to_DMASEQ_chan >=0) && (DMA_buff_to_DMASEQ_chan < DMAC_CH_NUM)){
+   &&(DMA_buff_to_DMASEQ_chan >=0) && (DMA_buff_to_DMASEQ_chan < DMAC_CH_NUM)){
 
 
-    //configuring DMA transfers
-    //this will control movement  from results reg -> internal buffer
-    ADCx_DMA_Desc_Results_to_buffer[adcSel] = DMA_res_to_buff_chan;
-
-    uint8_t results_to_buffer_priority = (adcSel)? ADC1_DMA_RES_TO_BUFFER_PRIORITY : ADC0_DMA_RES_TO_BUFFER_PRIORITY;
-    uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_RESRDY] : trigger_source[DMA_trig_src_ADC0_RESRDY];
+    //configuring DMA channels
 
 
-    dma_config_transfer(DMA_res_to_buff_chan,                                     //descriptor to be configured
-                        dma_width[DMA_WIDTH_HALF_WORD],                           //width of dma transcation (16 bits
-                        ADCx->RESULT.reg,                                         //source to read from
-                        0,                                                        //should the source be incremented? 0 = No
-                        adc_state_g.adc_input_buffer[adcSel],                     //destination to write data
-                        1,                                                        //should the destination be incremented? 1 = yes
-                        1,                                                        //number of beats to send per transaction
-                        DMA_trig_src_ADC1_RESRDY,                                 //trigger_source
-                        results_to_buffer_priority,                               //priority
-                        NULL);                                                    //the next descriptor (used for burst and block transfers)
+    /*capturing the identifying number of the channel that the DMA will use
+    * for transferring results of ADC scans into the buffer. We need this
+    * channel number for adc_service().
+    */
+    ADCx_DMA_desc_results_to_buffer[adcSel] = DMA_res_to_buff_chan;
+
+    /*capturing the identifying number of the channel that the DMA will use
+    * for transferring DMASEQ data into the DMASEQ register. We need this
+    * channel number for adc_service().
+    */
+    ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel] = DMA_buff_to_DMASEQ_chan;
+
+    //matching DMA channel with it's predetermined priority
+    uint8_t results_to_buffer_priority = (adcSel == 1)? ADC1_DMA_RES_TO_BUFFER_PRIORITY :
+                                                        ADC0_DMA_RES_TO_BUFFER_PRIORITY;
+
+    //matching DMA transfer descriptor with trigger source
+    enum trigger_source trigger_source = (adcSel == 1)? DMA_trig_src_ADC1_RESRDY :
+                                                        DMA_trig_src_ADC0_RESRDY;
 
 
-    //this will control movement  from internal buffer -> ADCx->DSEQDATA register
-    ADCx_DMA_Desc_buffer_to_DSEQ_DATA_desc[adcSel] =DMA_buff_to_DMASEQ_chan;
-
-    uint8_t priority = (adcSel)? ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY : ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
-    uint8_t trigger_source = (adcSel)? trigger_source[DMA_trig_src_ADC0_DSEQ] :trigger_source[DMA_trig_src_ADC1_DSEQ];
-
-    dma_config_desc(dmacDescriptors_g[DMA_buff_to_DMASEQ_chan],                   //descriptor to be configured
-                    dma_width[DMA_WIDTH_WORD],                                       //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
-                    &ADC_measurement_sources,                                        //source to read from
-                    0,                                                               //should the source be incremented? 1 = yes
-                    ADCx->DSEQDATA.reg,                                              //destination to write data
-                    0,                                                               //should the destination be incremented? 0 = No
-                    1,                                                               //number of beats to send per transaction
-                    trigger_source,                                                  //trigger source
-                    priority,                                                        //priority
-                    NULL);                                                           //the next descriptor (used for burst and block transfers)
-
-
-
-
-    ADCx->DSEQCTRL.bit.INPUTCTRL = 0x1;      //DMA sequencing should only update the 'input control' registers. This also enables DMASequencing
-
-    ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;  //enable auto_start on the ADC (so that it starts scanning right after it gets new tasks from the DMA)
+    dma_config_transfer(DMA_res_to_buff_chan,                                     
+                        //channel to be configured
+                        DMA_WIDTH_HALF_WORD,                           
+                        //width of dma transcation (16 bits)
+                        &(ADCx->RESULT.reg),                                      
+                        //source to read from
+                        0,                                                        
+                        //should the source be incremented? 0 = No
+                        &(adc_state_g.adc_input_buffer[adcSel]),                  
+                        //destination to write data
+                        1,                                                        
+                        //should the destination be incremented? 1 = yes
+                        NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
+                        //number of beats to send per transaction
+                        DMA_trig_src_ADC1_RESRDY,                                 
+                        //trigger_source
+                        results_to_buffer_priority,                               
+                        //priority
+                        NULL);                                                   
+                        //the next descriptor (used for burst and block transfers)
 
 
+
+    //matching DMA channel with its priority
+    uint8_t priority = (adcSel== 1)? ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY :
+                                     ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
+
+    //matching DMA channel with its trigger source
+    trigger_source = (adcSel)? DMA_trig_src_ADC0_DSEQ :
+                               DMA_trig_src_ADC1_DSEQ;
+
+    dma_config_transfer(DMA_buff_to_DMASEQ_chan,                                  
+                        //channel to be configured
+                        DMA_WIDTH_WORD,                                
+                        //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
+                        &(ADC_measurement_sources),                               
+                        //source to read from
+                        0,                                                        
+                        //should the source be incremented? 1 = yes
+                        &(ADCx->DSEQDATA.reg),                                    
+                        //destination to write data
+                        0,                                                        
+                        //should the destination be incremented? 0 = No
+                        NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
+                        //number of beats to send per transaction
+                        trigger_source,                                           
+                        //trigger source
+                        priority,                                                 
+                        //priority
+                        NULL);                                                    
+                        //the next descriptor (used for burst and block transfers)
+
+
+
+    /*enable auto_start on the ADC so that it starts a new scan right after
+      the DMA has moved the results out of the results register and into
+      the internal buffer*/
+    ADCx->DSEQCTRL.bit.AUTOSTART = 0x1;
+
+    /*DMA sequencing should only update the 'input control' registers.
+    This also enables DMASequencing!*/
+    ADCx->DSEQCTRL.bit.INPUTCTRL = 0x1;
+
+    /* ADC will begin measuring sources after the first DMA descriptor is 
+    // moved to DMA_SEQ_DATA.
+    // After that, autostart will take care of the rest
+    */
+    adc_state_g.last_sweep_time = millis();
 
 }else{
-  //enable interrupt that tells us when results are ready to be ready
-  ADCx->INTENSET.bit.RESRDY = 1;
+    //enable interrupt that tells us when results are ready to be read
+    ADCx->INTENSET.bit.RESRDY = 1;
 
-  //enable interrupt in NVIC
-//  NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
-//  NVIC_EnableIRQ(ADC_IRQn);
+    //enable interrupt in NVIC
+    //NVIC_SetPriority(ADC_IRQn, ADC_IRQ_PRIORITY);
+    //NVIC_EnableIRQ(ADC_IRQn);
 }
 
     //enable the ADC
@@ -446,13 +559,8 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
     while (ADCx->SYNCBUSY.bit.ENABLE == 0x1);
 
     return 0;
-}
 
-//dma_start_buffer_to_static_word
-//more like dma_configure
-
-static inline void adc_start_scan(void){
-
+    
 }
 
 
@@ -571,7 +679,7 @@ uint16_t adc_get_value (uint8_t channel){
     channel &= ~(1 << 7);
 
   //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
-  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val || channel < 0)
+  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val)
         return 0;
 
   //user is attempting to access value from input pins
@@ -581,6 +689,8 @@ uint16_t adc_get_value (uint8_t channel){
   //user is attemping to access value from internal measurement sources
   else if(channel > ADC_INPUTCTRL_MUXPOS_AIN15)
     return adc_state_g.adc_input_buffer[adcSel][channel - 8];
+
+    return 0;
 }
 
 uint16_t adc_get_value_millivolts (uint8_t channel){

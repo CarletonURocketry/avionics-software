@@ -12,6 +12,8 @@
 
 #include "gpio.h"
 
+#define BOARD_STRING "SAMD21 Xplained Pro"
+
 //
 //
 //  General Flags
@@ -126,7 +128,7 @@ extern struct sercom_spi_desc_t spi0_g;
 /* SERCOM instance to be used for I2C, I2C is disabled if not defined */
 #define I2C0_SERCOM_INST SERCOM5
 /* DMA Channel used for I2C, DMA not used if not defined or defined as -1 */
-//#define I2C0_DMA_CHAN 6
+#define I2C0_DMA_CHAN 6
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c0_g;
 
@@ -195,7 +197,7 @@ extern struct sercom_uart_desc_t uart3_g;
 /* ADC enabled if defined */
 #define ENABLE_ADC
 /* Period between ADC sweeps in milliseconds */
-#define ADC_PERIOD ADC_PERIOD(2000)
+#define ADC_PERIOD MS_TO_MILLIS(2000)
 /* DMA Channel used for ADC results, DMA not used if not defined or defined
  as -1 */
 #define ADC_DMA_CHAN 11

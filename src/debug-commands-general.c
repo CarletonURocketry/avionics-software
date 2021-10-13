@@ -156,26 +156,46 @@ void debug_rcause (uint8_t argc, char **argv, struct console_desc_t *console)
 
 void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
 {
+    struct sercom_i2c_desc_t *i2c = &i2c0_g;
+
+#ifdef I2C1_SERCOM_INST
+    if (argc == 2) {
+        char *end;
+        // Try to parse first argument as bus number
+        uint8_t bus_num = (uint8_t)strtoul(argv[1], &end, 0);
+        if ((*end != '\0') || (bus_num > 1)) {
+            console_send_str(console, "Invalid I2C bus.\n");
+            return;
+        }
+        if (bus_num == 0) {
+            i2c = &i2c0_g;
+        } else if (bus_num == 1) {
+            i2c = &i2c1_g;
+        }
+    }
+#endif
+
+
     // Start a scan of the I2C bus
     uint8_t i2c_t_id;
-    sercom_i2c_start_scan(&i2c0_g, &i2c_t_id);
+    sercom_i2c_start_scan(i2c, &i2c_t_id);
 
     // Wait for scan to complete
-    while (!sercom_i2c_transaction_done(&i2c0_g, i2c_t_id)) wdt_pat();
+    while (!sercom_i2c_transaction_done(i2c, i2c_t_id)) wdt_pat();
 
     // Check if scan completed successfully
-    switch (sercom_i2c_transaction_state(&i2c0_g, i2c_t_id)) {
+    switch (sercom_i2c_transaction_state(i2c, i2c_t_id)) {
         case I2C_STATE_BUS_ERROR:
             console_send_str(console, "Scan failed: Bus Error\n");
-            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
+            sercom_i2c_clear_transaction(i2c, i2c_t_id);
             return;
         case I2C_STATE_ARBITRATION_LOST:
             console_send_str(console, "Scan failed: Arbitration Lost\n");
-            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
+            sercom_i2c_clear_transaction(i2c, i2c_t_id);
             return;
         case I2C_STATE_SLAVE_NACK:
             console_send_str(console, "Scan failed: Slave NACK\n");
-            sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
+            sercom_i2c_clear_transaction(i2c, i2c_t_id);
             return;
         default:
             // Success!
@@ -187,7 +207,7 @@ void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
 
     console_send_str(console, "Available Devices:\n");
     for (int i = 0; i < 128; i++) {
-        if (sercom_i2c_device_available(&i2c0_g, i2c_t_id, i)) {
+        if (sercom_i2c_device_available(i2c, i2c_t_id, i)) {
             console_send_str(console, "0b");
             utoa(i, str, 2);
             for (int j = strlen(str); j < 7; j++) {
@@ -206,7 +226,7 @@ void debug_i2c_scan (uint8_t argc, char **argv, struct console_desc_t *console)
     }
 
     // Clear transaction
-    sercom_i2c_clear_transaction(&i2c0_g, i2c_t_id);
+    sercom_i2c_clear_transaction(i2c, i2c_t_id);
 }
 
 // MARK: IO Expander Regs
@@ -387,6 +407,11 @@ void debug_gpio (uint8_t argc, char **argv, struct console_desc_t *console)
 #ifdef STAT_B_LED_PIN
     else if (!strcmp(argv[2], "STAT_B")) {
         pin = STAT_B_LED_PIN;
+    }
+#endif
+#ifdef SD_ACTIVE_LED_PIN
+    else if (!strcmp(argv[2], "SD_ACTIVE")) {
+        pin = SD_ACTIVE_LED_PIN;
     }
 #endif
 

@@ -12,8 +12,8 @@
 #define DMA_IRQ_PRIORITY    2
 
 
-static DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
-static DmacDescriptor dmacWriteBack_g[DMAC_CH_NUM];
+static DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM] __attribute__((aligned(16)));
+static DmacDescriptor dmacWriteBack_g[DMAC_CH_NUM] __attribute__((aligned(16)));
 
 
 struct dma_callback_t dma_callbacks[DMAC_CH_NUM];
@@ -113,35 +113,48 @@ static inline void dma_enable_channel(uint8_t chan)
 #endif
 }
 
+void dma_config_desc(DmacDescriptor *desc, enum dma_width beatsize,
+                     const volatile void *source, int increment_source,
+                     volatile void *destination, int increment_destination,
+                     uint16_t length, DmacDescriptor *next)
+{
+    /* Configure transfer descriptor */
+    // Set beatsize, mark descriptor as valid and enable interrupt after block
+    desc->BTCTRL.reg = (DMAC_BTCTRL_BEATSIZE(beatsize) |
+                        DMAC_BTCTRL_VALID |
+                        ((next == NULL) ? DMAC_BTCTRL_BLOCKACT_INT :
+                                          DMAC_BTCTRL_BLOCKACT_NOACT));
+    // Configure source and destination address incrementing
+    desc->BTCTRL.bit.SRCINC = !!increment_source;
+    desc->BTCTRL.bit.DSTINC = !!increment_destination;
+
+    // Set source and destination addresses
+    uint32_t const inc = length * (beatsize + 1);
+    uint32_t const source_inc = increment_source ? inc : 0;
+    desc->SRCADDR.reg = (uint32_t)source + source_inc;
+    uint32_t const dest_inc = increment_destination ? inc : 0;
+    desc->DSTADDR.reg = (uint32_t)destination + dest_inc;
+
+    // Select block transfer count
+    desc->BTCNT.reg = length;
+
+    // Set next descriptor address
+    desc->DESCADDR.reg = (uint32_t)next;
+}
+
 void dma_config_transfer(uint8_t chan, enum dma_width beatsize,
                          const volatile void *source, int increment_source,
-                         volatile void *destintaion, int increment_destination,
-                         uint16_t length, uint8_t trigger, uint8_t priority)
+                         volatile void *destination, int increment_destination,
+                         uint16_t length, uint8_t trigger, uint8_t priority,
+                         DmacDescriptor *next)
 {
     /* Configure DMA channel */
     dma_config_channel(chan, trigger, priority);
 
     /* Configure transfer descriptor */
-    // Set beatsize, mark descriptor as valid and enable interrupt after block
-    dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_BEATSIZE(beatsize) |
-                                          DMAC_BTCTRL_VALID |
-                                          DMAC_BTCTRL_BLOCKACT_INT);
-    // Configure source and destination address incrementing
-    dmacDescriptors_g[chan].BTCTRL.bit.SRCINC = !!increment_source;
-    dmacDescriptors_g[chan].BTCTRL.bit.DSTINC = !!increment_destination;
-
-    // Set source and destination addresses
-    uint32_t const inc = length * (beatsize + 1);
-    uint32_t const source_inc = increment_source ? inc : 0;
-    dmacDescriptors_g[chan].SRCADDR.reg = (uint32_t)source + source_inc;
-    uint32_t const dest_inc = increment_destination ? inc : 0;
-    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)destintaion + dest_inc;
-
-    // Select block transfer count
-    dmacDescriptors_g[chan].BTCNT.reg = length;
-
-    // Set next descriptor address
-    dmacDescriptors_g[chan].DESCADDR.reg = 0x0;
+    dma_config_desc(&dmacDescriptors_g[chan], beatsize, source,
+                    increment_source, destination, increment_destination,
+                    length, next);
 
     /* Enable channel */
     dma_enable_channel(chan);
@@ -240,59 +253,6 @@ int8_t dma_config_circular_buffer_to_static(struct dma_circ_transfer_t *tran,
     return 0;
 }
 
-void dma_config_double_buffer_to_static(uint8_t chan,
-                                        const uint8_t *buffer1,
-                                        uint16_t length1,
-                                        const uint8_t *buffer2,
-                                        uint16_t length2,
-                                        DmacDescriptor *descriptor,
-                                        volatile uint8_t *dest,
-                                        uint8_t trigger,
-                                        uint8_t priority)
-{
-    /* Configure DMA channel */
-    dma_config_channel(chan, trigger, priority);
-
-    /* Configure first transfer descriptor */
-    // Ensure that the step size setting does not apply to source address,
-    // enable incrementing of source address, set beatsize to one byte and mark
-    // descriptor as valid
-    dmacDescriptors_g[chan].BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_DST |
-                                          DMAC_BTCTRL_SRCINC |
-                                          DMAC_BTCTRL_BEATSIZE_BYTE |
-                                          DMAC_BTCTRL_VALID);
-
-    // Set source and destination addresses
-    dmacDescriptors_g[chan].SRCADDR.reg = (uint32_t)buffer1 + length1;
-    dmacDescriptors_g[chan].DSTADDR.reg = (uint32_t)dest;
-
-    // Select block transfer count
-    dmacDescriptors_g[chan].BTCNT.reg = length1;
-
-    // Set next descriptor address
-    dmacDescriptors_g[chan].DESCADDR.reg = (uint32_t)descriptor;
-
-    /* Configure second transfer descriptor */
-    // Ensure that the step size setting does not apply to source address,
-    // enable incrementing of source address, set beatsize to one byte and mark
-    // descriptor as valid
-    descriptor->BTCTRL.reg = (DMAC_BTCTRL_STEPSEL_DST | DMAC_BTCTRL_SRCINC |
-                              DMAC_BTCTRL_BEATSIZE_BYTE | DMAC_BTCTRL_VALID |
-                              DMAC_BTCTRL_BLOCKACT_INT);
-
-    // Set source and destination addresses
-    descriptor->SRCADDR.reg = (uint32_t)buffer2 + length2;
-    descriptor->DSTADDR.reg = (uint32_t)dest;
-
-    // Select block transfer count
-    descriptor->BTCNT.reg = length2;
-
-    // Set next descriptor address
-    descriptor->DESCADDR.reg = 0;
-
-    /* Enable channel */
-    dma_enable_channel(chan);
-}
 
 void dma_abort_transfer(uint8_t chan)
 {
@@ -333,7 +293,8 @@ void DMAC_4_Handler (void)
         }
 
         if (DMAC->CHINTFLAG.bit.TCMPL) {
-            if (dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid) {
+            if ((dmaCircBufferTransfers[DMAC->CHID.bit.ID] != NULL) &&
+                    dmaCircBufferTransfers[DMAC->CHID.bit.ID]->valid) {
                 // A circular buffer DMA transfer has finished
                 // The head of the buffer must be moved
                 circular_buffer_move_head(
@@ -369,7 +330,8 @@ void DMAC_4_Handler (void)
         }
 
         if (DMAC->Channel[chan].CHINTFLAG.bit.TCMPL) {
-            if (dmaCircBufferTransfers[chan]->valid) {
+            if ((dmaCircBufferTransfers[chan] != NULL) &&
+                    dmaCircBufferTransfers[chan]->valid) {
                 // A circular buffer DMA transfer has finished
                 // The head of the buffer must be moved
                 circular_buffer_move_head(dmaCircBufferTransfers[chan]->buffer,
