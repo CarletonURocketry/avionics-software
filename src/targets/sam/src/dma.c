@@ -20,6 +20,21 @@ struct dma_callback_t dma_callbacks[DMAC_CH_NUM];
 static struct dma_circ_transfer_t *dmaCircBufferTransfers[DMAC_CH_NUM];
 
 
+static inline unsigned beatsize_to_bytes(enum dma_width const beatsize)
+{
+    switch (beatsize) {
+        case DMA_WIDTH_BYTE:
+            return 1;
+        case DMA_WIDTH_HALF_WORD:
+            return 2;
+        case DMA_WIDTH_WORD:
+            return 4;
+        default:
+            return 0;
+    }
+}
+
+
 void init_dmac(void)
 {
     /* Reset the DMAC */
@@ -129,7 +144,7 @@ void dma_config_desc(DmacDescriptor *desc, enum dma_width beatsize,
     desc->BTCTRL.bit.DSTINC = !!increment_destination;
 
     // Set source and destination addresses
-    uint32_t const inc = length * (beatsize + 1);
+    uint32_t const inc = length * beatsize_to_bytes(beatsize);
     uint32_t const source_inc = increment_source ? inc : 0;
     desc->SRCADDR.reg = (uint32_t)source + source_inc;
     uint32_t const dest_inc = increment_destination ? inc : 0;
