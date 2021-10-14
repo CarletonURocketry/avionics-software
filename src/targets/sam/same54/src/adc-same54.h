@@ -6,8 +6,6 @@
 
 #include "global.h"
 
-<<<<<<< HEAD
-=======
 
 /**
 * Checks enabled ADCs to see if they are done scanning through all the channels
@@ -17,7 +15,6 @@
 extern void adc_service(void);
 
 
->>>>>>> 385b9981be3d1b41cd1b87e39613eee315c47049
 /**
  *  Initilize and start automatic ADC sampling at a fixed period.
  *
@@ -29,23 +26,20 @@ extern void adc_service(void);
  *                      sweeps will happen as fast as possible
  *  @param max_source_impedance Maximum impedence of source, see figure 37-5
  *                              in SAMD21 datasheet
- *  @param dma_chan The DMA channel to be used, if negative DMA will not be used
- *                  and the ADC result will be read via an interrupt
+ *  @param DMA_res_to_buff_chan The DMA channel to be used for storing results,
+ *                              if negative DMA will not be used and the ADC
+ *                              result will be read via an interrupt
+ *  @param DMA_buff_to_DMASEQ_chan The DMA channel to be used for sequencing,
+ *                                 if negative DMA will not be used and the ADC
+ *                                 result will be read via an interrupt
  *  @param adcSel Which ADC should be initialized (0 or 1)
  *
  *  @return 0 if ADC initilized successfully
  */
-<<<<<<< HEAD
-extern int init_adc (uint32_t clock_mask, uint32_t clock_freq,
-                     uint32_t channel_mask, uint32_t sweep_period,
-                     uint32_t max_source_impedance, int8_t dma_chan,
-                     uint8_t adcSel);
-=======
  extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
                      uint32_t channel_mask, uint32_t sweep_period,
                      uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
                      int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel);
->>>>>>> 385b9981be3d1b41cd1b87e39613eee315c47049
 
 /**
  * Read internal temperature sensor, return value in degrees celcius.
@@ -74,13 +68,6 @@ extern int16_t adc_get_temp (uint8_t adcSel);
 */
 extern uint16_t adc_get_value (uint8_t channel);
 
-<<<<<<< HEAD
-
-extern int16_t adc_get_bat_vcc (void);
-
-extern int16_t adc_get_bandgap_vcc (void);
-
-=======
 /**
 * get the most recent ADC reading of the battery's voltage.
 */
@@ -94,7 +81,6 @@ extern int16_t adc_get_bandgap_vcc (void);
 /**
 * get the most recent ADC reading of the Digital to analog converter
 */
->>>>>>> 385b9981be3d1b41cd1b87e39613eee315c47049
 extern int16_t adc_get_DAC_val (void);
 
 #endif /* adc_same54_h */
