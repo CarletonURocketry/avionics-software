@@ -1,5 +1,7 @@
 //TODO: update document so that tab = 4 spaces (as per CUINSPACE coding guidelines)
 //TODO: update driver so that it doesn't need to scan through all channels (only the ones we're interested in!)
+//TODO: implement ability to have interrupt driven operation if no DMA channel
+//      is provided
 
 
 #include <stdint.h>
@@ -7,13 +9,14 @@
 #include "dma.h"
 
 #define NUMBER_OF_ADC_PIN_SOURCES            16
-#define NUMBER_OF_ADC_INTERNAL_SOURCES       7  
+#define NUMBER_OF_ADC_INTERNAL_SOURCES       7
+#define CHANNEL_RANGE (NUMBER_OF_ADC_PIN_SOURCES + NUMBER_OF_ADC_INTERNAL_SOURCES)
 
 #define ADC_IRQ_PRIORITY                     4
 #define ADC0_DMA_RES_TO_BUFFER_PRIORITY      1
-#define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 2
-#define ADC1_DMA_RES_TO_BUFFER_PRIORITY      3
-#define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 4
+#define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 0
+#define ADC1_DMA_RES_TO_BUFFER_PRIORITY      1
+#define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 0
 
 #define ADC_SWEEP_PERIOD                     500 // milliseconds
 
@@ -38,14 +41,6 @@ uint8_t ADCx_DMA_desc_buffer_to_DSEQ_DATA[2] = {-1, -1};
 //descriptor 1 is associated with channel 1, desc2 -> ch2 etc.
 extern DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
 
-//trigger sources: these start the DMA channels
-enum trigger_source{
-    DMA_trig_src_ADC0_RESRDY = 0x44,
-    DMA_trig_src_ADC0_DSEQ,
-    DMA_trig_src_ADC1_RESRDY,
-    DMA_trig_src_ADC1_DSEQ,
-};
-
 struct {
     //these will hold the latest readings from the input pins (internal and external)
     uint16_t adc_input_buffer[2][16 + 7]; //16 external pins, 7 internal measurement sources
@@ -61,36 +56,41 @@ struct pin_t {
 
 };
 
-uint32_t ADC_measurement_sources[NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES]=
- {
+struct adc_dseq_source {
+    ADC_INPUTCTRL_Type INPUTCTRL;
+    ADC_CTRLB_Type CTRLB;
+};
+
+const struct adc_dseq_source ADC_measurement_sources[] = {
    //external sources
-    ADC_INPUTCTRL_MUXPOS_AIN0,
-    ADC_INPUTCTRL_MUXPOS_AIN1,
-    ADC_INPUTCTRL_MUXPOS_AIN3,
-    ADC_INPUTCTRL_MUXPOS_AIN4,
-    ADC_INPUTCTRL_MUXPOS_AIN5,
-    ADC_INPUTCTRL_MUXPOS_AIN6,
-    ADC_INPUTCTRL_MUXPOS_AIN7,
-    ADC_INPUTCTRL_MUXPOS_AIN8,
-    ADC_INPUTCTRL_MUXPOS_AIN9,
-    ADC_INPUTCTRL_MUXPOS_AIN10,
-    ADC_INPUTCTRL_MUXPOS_AIN11,
-    ADC_INPUTCTRL_MUXPOS_AIN12,
-    ADC_INPUTCTRL_MUXPOS_AIN13,
-    ADC_INPUTCTRL_MUXPOS_AIN14,
-    ADC_INPUTCTRL_MUXPOS_AIN15,
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN0 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN1 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN2 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN3 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN4 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN5 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN6 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN7 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN8 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN9 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN10 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN11 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN12 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN13 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN14 },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN15 },
 
     //internal sources
-    ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC,
-    ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
-    ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
-    ADC_INPUTCTRL_MUXPOS_BANDGAP,
-    ADC_INPUTCTRL_MUXPOS_PTAT,  //temperature sensor (not reliable)
-    ADC_INPUTCTRL_MUXPOS_CTAT,  //another temperature sensor (not reliable)
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDVBAT },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_BANDGAP },
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_PTAT },  //temperature sensor (not reliable)
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_CTAT },  //another temperature sensor (not reliable)
 
     //final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using the
     //DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from
-    ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos)
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos) }
 
  };
 
@@ -175,7 +175,7 @@ void adc_service(void){
     //channels again.
  
     //check to see if it is time to read the ADC value. If not, then return.
-    if(millis() <  (adc_state_g.last_sweep_time + adc_state_g.sweep_period){
+    if(millis <  (adc_state_g.last_sweep_time + adc_state_g.sweep_period)) {
         return;
       }
 
@@ -200,11 +200,8 @@ void adc_service(void){
                                                             ADC0_DMA_RES_TO_BUFFER_PRIORITY;
 
         //matching DMA transfer descriptor with trigger source
-        enum trigger_source = (adcSel == 1) ? DMA_trig_src_ADC1_RESRDY:
-                                              DMA_trig_src_ADC0_RESRDY;
-sdfaf
-
-
+        uint8_t trig = (adcSel == 1) ? ADC1_DMAC_ID_RESRDY :
+                                       ADC0_DMAC_ID_RESRDY;
 
         dma_config_transfer(ADCx_DMA_desc_results_to_buffer[adcSel],
                             //channel to be configured                                  
@@ -220,7 +217,7 @@ sdfaf
                             //should the destination be incremented? 1 = yes
                             NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,
                             //number of beats to send
-                            DMA_trig_src_ADC1_RESRDY, 
+                            trig,
                             //trigger_source
                             results_to_buffer_priority, 
                             //priority
@@ -234,8 +231,7 @@ sdfaf
                                             ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
 
         //matching DMA channel with its trigger source
-        trigger_source = (adcSel) ? DMA_trig_src_ADC0_DSEQ :
-                                    DMA_trig_src_ADC1_DSEQ;
+        trig = (adcSel) ? ADC1_DMAC_ID_SEQ : ADC0_DMAC_ID_SEQ;
 
         dma_config_transfer(ADCx_DMA_desc_buffer_to_DSEQ_DATA[adcSel],
                             //channel to be configured
@@ -243,7 +239,7 @@ sdfaf
                             //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
                             &(ADC_measurement_sources),                               
                             //source to read from
-                            0,                                                        
+                            1,
                             //should the source be incremented? 1 = yes
                             &(ADCx->DSEQDATA.reg),                                    
                             //destination to write data
@@ -251,7 +247,7 @@ sdfaf
                             //should the destination be incremented? 0 = No
                             NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
                             //number of beats to send per transaction
-                            trigger_source,                                           
+                            trig,
                             //trigger source
                             priority,                                                 
                             //priority
@@ -260,7 +256,7 @@ sdfaf
 
 
         //set the new time at which the sweep began.
-        adc_state_g.last_sweep_time = millis();
+        adc_state_g.last_sweep_time = millis;
 
         //stop the stop on DMA sequencing...meaning, start DMA sequencing!
         ADCx->INPUTCTRL.bit.DSEQSTOP = 0;
@@ -276,6 +272,7 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
              int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel){
 
+    adc_state_g.sweep_period = MS_TO_MILLIS(1000);
 
   if (!channel_mask){
     //give up if no channels are enabled
@@ -283,7 +280,7 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
   }
 
   //configure all enabled channels as analog inputs
-  for(int i = 0; i < CHANNEL_RANGE; i++){
+  for(int i = 0; i < NUMBER_OF_ADC_PIN_SOURCES + NUMBER_OF_ADC_INTERNAL_SOURCES;i++){
     if(channel_mask & (0x1<<i)){
       adcx_set_pmux(i, adcSel);
     }
@@ -470,8 +467,7 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                                                         ADC0_DMA_RES_TO_BUFFER_PRIORITY;
 
     //matching DMA transfer descriptor with trigger source
-    enum trigger_source trigger_source = (adcSel == 1)? DMA_trig_src_ADC1_RESRDY :
-                                                        DMA_trig_src_ADC0_RESRDY;
+    uint8_t trig = (adcSel == 1)? ADC1_DMAC_ID_RESRDY : ADC0_DMAC_ID_RESRDY;
 
 
     dma_config_transfer(DMA_res_to_buff_chan,                                     
@@ -488,7 +484,7 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                         //should the destination be incremented? 1 = yes
                         NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
                         //number of beats to send per transaction
-                        DMA_trig_src_ADC1_RESRDY,                                 
+                        trig,
                         //trigger_source
                         results_to_buffer_priority,                               
                         //priority
@@ -502,8 +498,7 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                                      ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY;
 
     //matching DMA channel with its trigger source
-    trigger_source = (adcSel)? DMA_trig_src_ADC0_DSEQ :
-                               DMA_trig_src_ADC1_DSEQ;
+    trig = (adcSel) ? ADC1_DMAC_ID_SEQ : ADC0_DMAC_ID_SEQ;
 
     dma_config_transfer(DMA_buff_to_DMASEQ_chan,                                  
                         //channel to be configured
@@ -511,7 +506,7 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                         //width of dma transcation (32 bits) <- DSEQ_DATA only accepts 32 bit access
                         &(ADC_measurement_sources),                               
                         //source to read from
-                        0,                                                        
+                        1,
                         //should the source be incremented? 1 = yes
                         &(ADCx->DSEQDATA.reg),                                    
                         //destination to write data
@@ -519,7 +514,7 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
                         //should the destination be incremented? 0 = No
                         NUMBER_OF_ADC_INTERNAL_SOURCES + NUMBER_OF_ADC_PIN_SOURCES,                                                        
                         //number of beats to send per transaction
-                        trigger_source,                                           
+                        trig,
                         //trigger source
                         priority,                                                 
                         //priority
@@ -537,11 +532,13 @@ if((DMA_res_to_buff_chan >=0) && (DMA_res_to_buff_chan < DMAC_CH_NUM)
     This also enables DMASequencing!*/
     ADCx->DSEQCTRL.bit.INPUTCTRL = 0x1;
 
+    ADCx->SWTRIG.reg = ADC_SWTRIG_START;
+
     /* ADC will begin measuring sources after the first DMA descriptor is 
     // moved to DMA_SEQ_DATA.
     // After that, autostart will take care of the rest
     */
-    adc_state_g.last_sweep_time = millis();
+    adc_state_g.last_sweep_time = millis;
 
 }else{
     //enable interrupt that tells us when results are ready to be read
@@ -673,22 +670,24 @@ int16_t adc_get_temp (uint8_t adcSel){
     return temperature;
 }
 
-uint16_t adc_get_value (uint8_t channel){
+uint16_t adc_get_value (uint8_t channel)
+{
   //get the latest value of the selected channels
   uint8_t  adcSel = !!(channel & (1 << 7));
     channel &= ~(1 << 7);
 
   //channel number must be between 0 and ADC_INPUTCTRL_MUXPOS_PTC_Val, adcSel must be 0 or 1
-  if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val)
+    if((adcSel > 1) || channel > ADC_INPUTCTRL_MUXPOS_PTC_Val) {
         return 0;
+    }
 
-  //user is attempting to access value from input pins
-  if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15)
-    return adc_state_g.adc_input_buffer[adcSel][channel];
-
-  //user is attemping to access value from internal measurement sources
-  else if(channel > ADC_INPUTCTRL_MUXPOS_AIN15)
-    return adc_state_g.adc_input_buffer[adcSel][channel - 8];
+    if(channel <= ADC_INPUTCTRL_MUXPOS_AIN15) {
+        //user is attempting to access value from input pins
+        return adc_state_g.adc_input_buffer[adcSel][channel];
+    } else if(channel > ADC_INPUTCTRL_MUXPOS_AIN15) {
+        //user is attemping to access value from internal measurement sources
+        return adc_state_g.adc_input_buffer[adcSel][channel - 8];
+    }
 
     return 0;
 }
