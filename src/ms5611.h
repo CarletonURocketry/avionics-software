@@ -39,7 +39,7 @@ struct ms5611_desc_t {
     
     /** Time of last reading from sensor */
     uint32_t last_reading_time;
-    /** Temperature compensated presure read from sensor */
+    /** Temperature compensated pressure read from sensor */
     int32_t pressure;
     /** Temperature read from sensor */
     int32_t temperature;
@@ -65,7 +65,7 @@ struct ms5611_desc_t {
     uint8_t address;
     /** I2C transaction id */
     uint8_t t_id;
-    /** Drive current state */
+    /** Current driver state */
     enum ms5611_state state:4;
     /** Currently waiting for an I2C transaction to complete */
     uint8_t i2c_in_progress:1;

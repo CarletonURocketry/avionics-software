@@ -122,6 +122,11 @@ ifdef OPENOCD_INTERFACE
 DEBUG_ARGS += --interface "$(OPENOCD_INTERFACE)"
 endif
 
+# If we are in WSL we need to let debug.py know becuase Windows is annoying
+ifdef WSL
+DEBUG_ARGS += --wsl
+endif
+
 # Pass debugging options from board.mk to debug script
 DEBUG_ARGS += --chip-name "$(DEBUG_CHIP_NAME)"
 DEBUG_ARGS += --chip-config "$(DEBUG_CHIP_CONFIG)"
@@ -224,6 +229,10 @@ $(OBJDIR)/.depend : $(SRC) | $(OBJDIR)
 	$(COMPILE.c) -MM $(SRC)  | \
 	sed -E 's#^(.*\.o: *)$(SRCDIR)/(.*/)?(.*\.(c|cpp|S))#$(OBJDIR)/\2\1$(SRCDIR)/\2\3#' > $@
 
+# Create an OpenOCD configuration
+openocd.cfg:
+	$(DEBUG_CMD) $(DEBUG_ARGS) --make-openocd-config=$@
+
 include $(OBJDIR)/.depend
 
 # Target: clean project.
@@ -232,4 +241,4 @@ clean :
 	$(REMOVE) -rf $(OBJDIR)/*
 
 # Listing of phony targets.
-.PHONY : all gccversion build elf hex clean program debug upload reset
+.PHONY : all gccversion build elf hex clean program debug upload reset openocd.cfg

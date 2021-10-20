@@ -70,8 +70,8 @@ void init_sercom_uart (struct sercom_uart_desc_t *descriptor, Sercom *sercom,
         .state = (void*)descriptor
     };
 
-    sercom_enable_interupts(instance_num, (SERCOM_USART_INTFLAG_DRE |
-                                           SERCOM_USART_INTFLAG_RXC));
+    sercom_enable_interrupts(instance_num, (SERCOM_USART_INTFLAG_DRE |
+                                            SERCOM_USART_INTFLAG_RXC));
 
     /* Setup Descriptor */
     descriptor->sercom = sercom;

@@ -188,7 +188,7 @@ static enum adc_scan_range adc_conf_scan (void)
         dma_config_transfer(adc_state_g.dma_chan, DMA_WIDTH_HALF_WORD,
                             ((volatile const uint16_t*)(&ADC->RESULT.reg)), 0,
                             buffer, 1, (1 + last - first), ADC_DMAC_ID_RESRDY,
-                            ADC_DMA_PRIORITY);
+                            ADC_DMA_PRIORITY, NULL);
     } else {
         adc_state_g.chan_num = first;
         adc_state_g.last_chan = last;

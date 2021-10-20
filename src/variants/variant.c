@@ -19,8 +19,10 @@
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 #include "rn2483.h"
+#include "kx134-1211.h"
 
 #include "radio-transport.h"
+#include "logging.h"
 
 #include "ground.h"
 #include "telemetry.h"
@@ -196,17 +198,73 @@ struct console_desc_t console_g;
 struct cli_desc_t cli_g;
 #endif
 
+#ifdef ENABLE_LOGGING
+struct logging_desc_t logging_g;
+#endif
+
+#ifdef ENABLE_TELEMETRY_SERVICE
+struct telemetry_service_desc_t telemetry_g;
+#endif
+
 void init_variant(void)
 {
+#ifdef ENABLE_TELEMETRY_SERVICE
+    struct logging_desc_t *telem_logging = NULL;
+    struct radio_transport_desc *telem_radio = NULL;
+#endif
+
+    // SD card logging service
+#if defined(ENABLE_SDHC0) || defined(ENABLE_SDSPI)
+#ifdef ENABLE_LOGGING
+#if defined(ENABLE_SDHC0)
+    init_logging(&logging_g, &sdhc0_g, sdhc_sd_funcs, 0);
+#elif defined(ENABLE_SDSPI)
+    init_logging(&logging_g, &sdspi_g, sdspi_sd_funcs, 0);
+#endif
+#ifdef ENABLE_TELEMETRY_SERVICE
+    telem_logging = &logging_g;
+#endif
+#ifdef LOGGING_START_PAUSED
+    logging_pause(&logging_g);
+#endif
+#endif
+#else
+#undef ENABLE_LOGGING
+#endif
+
+    // LoRa Radios
+#ifdef ENABLE_LORA
+    init_radio_transport(&radio_transport_g, radios_g, radio_uarts_g,
+                         radio_antennas_g, LORA_RADIO_SEARCH_ROLE,
+                         LORA_DEVICE_ADDRESS);
+#ifdef ENABLE_TELEMETRY_SERVICE
+    telem_radio = &radio_transport_g;
+#endif
+#endif
+
+    // Telemetry service
+#ifdef ENABLE_TELEMETRY_SERVICE
+    init_telemetry_service(&telemetry_g, telem_logging, telem_radio);
+#ifdef ENABLE_KX134_1211
+    kx134_1211_register_telem(&kx134_g, &telemetry_g);
+#endif
+#endif
+
     // Init Altimeter
 #ifdef ENABLE_ALTIMETER
     init_ms5611(&altimeter_g, &i2c0_g, ALTIMETER_CSB, ALTIMETER_PERIOD, 1);
+#ifdef ENABLE_TELEMETRY_SERVICE
+    telemetry_register_ms5611_alt(&telemetry_g, &altimeter_g);
+#endif
 #endif
 
     // Init GNSS
 #ifdef ENABLE_GNSS
     init_uart_console(&gnss_console_g, &GNSS_UART, '\0');
     init_gnss_xa1110(&gnss_console_g);
+#ifdef ENABLE_TELEMETRY_SERVICE
+    telemetry_register_gnss(&telemetry_g, &gnss_xa1110_descriptor);
+#endif
 #endif
 
     // Console
@@ -229,13 +287,6 @@ void init_variant(void)
     init_cli(&cli_g, &console_g, "> ", debug_commands_funcs);
 #endif
 
-    // LoRa Radios
-#ifdef ENABLE_LORA
-    init_radio_transport(&radio_transport_g, radios_g, radio_uarts_g,
-                         radio_antennas_g, LORA_RADIO_SEARCH_ROLE,
-                         LORA_DEVICE_ADDRESS);
-#endif
-
     // Ground station console
 #ifdef ENABLE_GROUND_SERVICE
 #ifdef GROUND_UART
@@ -250,11 +301,6 @@ void init_variant(void)
 #error Ground console is configured to use USB, but USB is not enabled.
 #endif
     init_ground_service(&ground_station_console_g, &rn2483_g);
-#endif
-
-    // Telemetry service
-#ifdef ENABLE_TELEMETRY_SERVICE
-    init_telemetry_service(&rn2483_g, &altimeter_g, TELEMETRY_RATE);
 #endif
 }
 
@@ -276,11 +322,15 @@ void variant_service(void)
     radio_transport_service(&radio_transport_g);
 #endif
 
+#ifdef ENABLE_LOGGING
+    logging_service(&logging_g);
+#endif
+
 #ifdef ENABLE_GROUND_SERVICE
     ground_service();
 #endif
 
 #ifdef ENABLE_TELEMETRY_SERVICE
-    telemetry_service();
+    telemetry_service(&telemetry_g);
 #endif
 }

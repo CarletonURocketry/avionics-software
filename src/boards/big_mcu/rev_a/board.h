@@ -157,7 +157,7 @@ extern struct sercom_spi_desc_t spi1_g;
 /* SERCOM instance to be used for I2C0, I2C0 is disabled if not defined */
 #define I2C0_SERCOM_INST SERCOM7
 /* DMA Channel used for I2C0, DMA not used if not defined or defined as -1 */
-//#define I2C0_DMA_CHAN 12
+#define I2C0_DMA_CHAN 12
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c0_g;
 
@@ -170,7 +170,7 @@ extern struct sercom_i2c_desc_t i2c0_g;
 /* SERCOM instance to be used for I2C1, I2C1 is disabled if not defined */
 #define I2C1_SERCOM_INST SERCOM2
 /* DMA Channel used for I2C1, DMA not used if not defined or defined as -1 */
-//#define I2C1_DMA_CHAN 13
+#define I2C1_DMA_CHAN 13
 /* I2C Instance */
 extern struct sercom_i2c_desc_t i2c1_g;
 
@@ -255,7 +255,11 @@ extern struct sercom_uart_desc_t uart3_g;
 //
 //
 
-//#define ENABLE_SDHC0
+#define ENABLE_SDHC0
+
+#ifdef ENABLE_SDHC0
+extern struct sdhc_desc_t sdhc0_g;
+#endif
 
 
 //
@@ -286,16 +290,26 @@ extern struct sercom_uart_desc_t uart3_g;
 //
 //
 
-//#define ENABLE_KX134_1211
+#define ENABLE_KX134_1211
 
 // Chip select pin
 #define KX134_1211_CS_PIN_GROUP 3
 #define KX134_1211_CS_PIN_MASK  PORT_PD21
 // Interrupt pins
-#define KX134_1211_INT1_PIN PIN_PC19
-#define KX134_1211_INT0_PIN PIN_PC18
+#define KX134_1211_INT1_PIN GPIO_PIN_FOR(PIN_PC19)
+#define KX134_1211_INT2_PIN GPIO_PIN_FOR(PIN_PC18)
 // Trigger pin
-#define KX134_1211_TRIG_PIN PIN_PD20
+#define KX134_1211_TRIG_PIN GPIO_PIN_FOR(PIN_PD20)
+
+// Settings
+#define KX134_1211_RANGE            KX134_1211_RANGE_32G
+#define KX134_1211_LOW_PASS_ROLLOFF KX134_1211_LOW_PASS_ROLLOFF_2
+#define KX134_1211_ODR              KX134_1211_ODR_6400000
+#define KX134_1211_RES              KX134_1211_RES_16_BIT
+
+#ifdef ENABLE_KX134_1211
+extern struct kx134_1211_desc_t kx134_g;
+#endif
 
 
 //

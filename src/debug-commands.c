@@ -97,6 +97,10 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_ALT_TARE_NEXT_HELP},
     {.func = debug_gnss, .name = DEBUG_GNSS_NAME,
         .help_string = DEBUG_GNSS_HELP},
+    {.func = debug_kx134_wai, .name = DEBUG_KX134_WAI_NAME,
+        .help_string = DEBUG_KX134_WAI_HELP},
+    {.func = debug_kx134_test, .name = DEBUG_KX134_TEST_NAME,
+        .help_string = DEBUG_KX134_TEST_HELP},
     // Radio
     {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME,
         .help_string = DEBUG_LORA_VERSION_HELP},
@@ -106,7 +110,15 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_RADIO_RX_HELP},
     {.func = debug_radio_tx, .name = DEBUG_RADIO_TX_NAME,
         .help_string = DEBUG_RADIO_TX_HELP},
+    // SD Card
     {.func = debug_sdspi, .name = DEBUG_SDSPI_NAME,
         .help_string = DEBUG_SDSPI_HELP},
+    {.func = debug_sdhc, .name = DEBUG_SDHC_NAME,
+        .help_string = DEBUG_SDHC_HELP},
+    {.func = debug_mbr, .name = DEBUG_MBR_NAME, .help_string = DEBUG_MBR_HELP},
+    {.func = debug_format, .name = DEBUG_FORMAT_NAME,
+        .help_string = DEBUG_FORMAT_HELP},
+    {.func = debug_logging, .name = DEBUG_LOGGING_NAME,
+        .help_string = DEBUG_LOGGING_HELP},
     {.func = NULL, .name = NULL, .help_string = NULL}
 };

@@ -15,7 +15,7 @@
 #include "transaction-queue.h"
 
 // The minimum length for a transaction to use DMA
-#define I2C_DMA_THREASHOLD  1
+#define I2C_DMA_THRESHOLD   3
 // The maximum length for an I2C DMA transaction
 #define I2C_DMA_MAX  255
 
@@ -143,9 +143,9 @@ void init_sercom_i2c(struct sercom_i2c_desc_t *descriptor, Sercom *sercom,
     };
     descriptor->sercom_instnum = instance_num;
 
-    sercom_enable_interupts(instance_num, (SERCOM_I2CM_INTFLAG_MB |
-                                           SERCOM_I2CM_INTFLAG_SB |
-                                           SERCOM_I2CM_INTFLAG_ERROR));
+    sercom_enable_interrupts(instance_num, (SERCOM_I2CM_INTFLAG_MB |
+                                            SERCOM_I2CM_INTFLAG_SB |
+                                            SERCOM_I2CM_INTFLAG_ERROR));
     
     /* Setup Descriptor */
     descriptor->sercom = sercom;
@@ -197,13 +197,13 @@ uint8_t sercom_i2c_start_generic(struct sercom_i2c_desc_t *i2c_inst,
     state->generic.out_buffer = out_buffer;
     state->generic.out_length = out_length;
     state->generic.bytes_out = 0;
-    state->dma_out = (i2c_inst->use_dma && (out_length >= I2C_DMA_THREASHOLD) &&
+    state->dma_out = (i2c_inst->use_dma && (out_length >= I2C_DMA_THRESHOLD) &&
                       (out_length <= I2C_DMA_MAX));
     
     state->generic.in_buffer = in_buffer;
     state->generic.in_length = in_length;
     state->generic.bytes_in = 0;
-    state->dma_in = (i2c_inst->use_dma && (in_length >= I2C_DMA_THREASHOLD) &&
+    state->dma_in = (i2c_inst->use_dma && (in_length >= I2C_DMA_THRESHOLD) &&
                       (in_length <= I2C_DMA_MAX));
     
     state->dev_address = dev_address << 1;
@@ -234,8 +234,8 @@ uint8_t sercom_i2c_start_reg_write(struct sercom_i2c_desc_t *i2c_inst,
     state->reg.data_length = length;
     state->reg.register_address = register_address;
     state->reg.position = 0;
-    state->dma_out = (i2c_inst->use_dma && (length >= I2C_DMA_THREASHOLD) &&
-                      (length < I2C_DMA_MAX));
+    state->dma_out = (i2c_inst->use_dma && (length >= I2C_DMA_THRESHOLD) &&
+                      (length <= I2C_DMA_MAX));
     state->dma_in = 0;
     
     state->dev_address = dev_address << 1;
@@ -267,7 +267,7 @@ uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
     state->reg.register_address = register_address;
     state->reg.position = 0;
     state->dma_out = 0;
-    state->dma_in = (i2c_inst->use_dma && (length >= I2C_DMA_THREASHOLD) &&
+    state->dma_in = (i2c_inst->use_dma && (length >= I2C_DMA_THRESHOLD) &&
                      (length <= I2C_DMA_MAX));
     
     state->dev_address = dev_address << 1;
@@ -295,7 +295,7 @@ uint8_t sercom_i2c_start_scan(struct sercom_i2c_desc_t *i2c_inst,
     state->scan.results[0] = 0;
     state->scan.results[1] = 0;
     
-    state->dev_address = 2; // Skip address 0 (general call address)
+    state->dev_address = 1; // Skip address 0 (general call address)
     state->type = I2C_TRANSACTION_SCAN;
     state->state = I2C_STATE_PENDING;
     state->dma_out = 0;
@@ -336,8 +336,9 @@ uint8_t sercom_i2c_device_available(struct sercom_i2c_desc_t *i2c_inst,
     struct sercom_i2c_transaction_t *state =
                                 (struct sercom_i2c_transaction_t*)t->state;
     
-    return (address < 64) ? !!(state->scan.results[0] & (1 << address)) :
-                            !!(state->scan.results[1] & (1 << (address - 64)));
+    return ((address < 64) ?
+            !!(state->scan.results[0] & ((uint64_t)1 << address)) :
+            !!(state->scan.results[1] & ((uint64_t)1 << (address - 64))));
 }
 
 
@@ -350,41 +351,46 @@ static inline void sercom_i2c_begin_generic (
                                         struct sercom_i2c_desc_t *i2c_inst,
                                         struct sercom_i2c_transaction_t *state)
 {
-    state->state = (state->generic.out_length) ? I2C_STATE_TX : I2C_STATE_RX;
-    
-    if ((state->generic.out_length && state->dma_out) ||
-        (!state->generic.out_length && state->dma_in)) {
+    int const in_only = state->generic.out_length == 0;
+    int const dma_out_only = (state->generic.in_length == 0) && state->dma_out;
+    int const dma_in_only = in_only && state->dma_in;
+    uint8_t const addr = state->dev_address | in_only;
+
+    state->state = in_only ? I2C_STATE_RX : I2C_STATE_TX;
+
+    if (dma_out_only || dma_in_only) {
         /* Start transaction with DMA */
-        
-        uint8_t len = (uint8_t)((state->generic.out_length) ?
-                                state->generic.out_length :
-                                state->generic.in_length);
+        uint8_t const len = (uint8_t)(in_only ? state->generic.in_length :
+                                                state->generic.out_length);
 
         uint8_t const dma_trig = sercom_get_dma_tx_trigger(
                                                     i2c_inst->sercom_instnum);
-        if (state->generic.out_length) {
-            dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
-                                state->generic.out_buffer, 1,
-                                &i2c_inst->sercom->I2CM.DATA.reg, 0, len,
-                                dma_trig, SERCOM_DMA_TX_PRIORITY);
-        } else {
+        if (in_only) {
             dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
                                 &i2c_inst->sercom->I2CM.DATA.reg, 0,
                                 state->generic.in_buffer, 1, len, dma_trig,
-                                SERCOM_DMA_RX_PRIORITY);
+                                SERCOM_DMA_RX_PRIORITY, NULL);
+            // Set up to ACK bytes as we receive them
+            i2c_inst->sercom->I2CM.CTRLB.bit.ACKACT = 0;
+        } else {
+            dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
+                                state->generic.out_buffer, 1,
+                                &i2c_inst->sercom->I2CM.DATA.reg, 0, len,
+                                dma_trig, SERCOM_DMA_TX_PRIORITY, NULL);
         }
+        // Enable error interrupt
+        i2c_inst->sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_ERROR;
         // Write ADDR to start I2C transaction
-        i2c_inst->sercom->I2CM.ADDR.reg = (
-                                    SERCOM_I2CM_ADDR_LEN(len) |
-                                    SERCOM_I2CM_ADDR_LENEN |
-                                    SERCOM_I2CM_ADDR_ADDR(state->dev_address)
-                                           );
+        i2c_inst->sercom->I2CM.ADDR.reg = (SERCOM_I2CM_ADDR_LEN(len) |
+                                           SERCOM_I2CM_ADDR_LENEN |
+                                           SERCOM_I2CM_ADDR_ADDR(addr));
     } else {
         /* Start transaction interrupt driven */
+        // Enable master on bus and slave on bus interrupts
         i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENSET_MB |
                                                SERCOM_I2CM_INTENSET_SB);
-        i2c_inst->sercom->I2CM.ADDR.bit.ADDR = state->dev_address |
-                                                !(state->generic.out_length);
+        // Write ADDR to start I2C transaction
+        i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
     }
 }
 
@@ -393,29 +399,38 @@ static inline void sercom_i2c_begin_register (
                                         struct sercom_i2c_transaction_t *state)
 {
     state->state = I2C_STATE_TX;
+    uint8_t const addr = state->dev_address | 0;
     
     if ((state->type == I2C_TRANSACTION_REG_WRITE) && state->dma_out) {
         /* Start transaction with DMA */
         uint8_t len = (uint8_t)(state->reg.data_length);
-        
-        dma_config_double_buffer_to_static(i2c_inst->dma_chan,
+
+        // Configure second DMA descriptor for transfer
+        // Second descriptor transfers data being written to register
+        dma_config_desc(&i2c_inst->dma_desc, DMA_WIDTH_BYTE, state->reg.buffer,
+                        1, (volatile uint8_t*)&i2c_inst->sercom->I2CM.DATA.reg,
+                        0, len, NULL);
+        // Configure first DMA descriptor and enable DMA channel
+        // First descriptor transfers register address
+        dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
                             &state->reg.register_address, 1,
-                            state->reg.buffer, len, &i2c_inst->dma_desc,
                             (volatile uint8_t*)&i2c_inst->sercom->I2CM.DATA.reg,
+                            0, 1,
                             sercom_get_dma_tx_trigger(i2c_inst->sercom_instnum),
-                            SERCOM_DMA_TX_PRIORITY);
-        
+                            SERCOM_DMA_TX_PRIORITY, &i2c_inst->dma_desc);
+        // Enable error interrupt
+        i2c_inst->sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_ERROR;
         // Write ADDR to start I2C transaction
-        i2c_inst->sercom->I2CM.ADDR.reg = (
-                                    SERCOM_I2CM_ADDR_LEN(len) |
-                                    SERCOM_I2CM_ADDR_LENEN |
-                                    SERCOM_I2CM_ADDR_ADDR(state->dev_address)
-                                           );
+        i2c_inst->sercom->I2CM.ADDR.reg = (SERCOM_I2CM_ADDR_LEN(len) |
+                                           SERCOM_I2CM_ADDR_LENEN |
+                                           SERCOM_I2CM_ADDR_ADDR(addr));
     } else {
         /* Start transaction interrupt driven */
-        i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENCLR_MB |
-                                               SERCOM_I2CM_INTENCLR_SB);
-        i2c_inst->sercom->I2CM.ADDR.bit.ADDR = state->dev_address | 0;
+        // Enable master on bus and slave on bus interrupts
+        i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENSET_MB |
+                                               SERCOM_I2CM_INTENSET_SB);
+        // Write ADDR to start I2C transaction
+        i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
     }
 }
 
@@ -440,23 +455,28 @@ static inline void sercom_i2c_begin_in_dma (
                                             struct sercom_i2c_transaction_t *state)
 {
     // Transaction must be generic or reg read
-    uint8_t r = (state->type == I2C_TRANSACTION_REG_READ);
-    uint8_t len = (uint8_t)(r ? state->reg.data_length :
-                            state->generic.in_length);
+    uint8_t const reg = (state->type == I2C_TRANSACTION_REG_READ);
+    uint8_t const len = (uint8_t)(reg ? state->reg.data_length :
+                                        state->generic.in_length);
+    uint8_t *const buffer = reg ? state->reg.buffer : state->generic.in_buffer;
     
     // Begin reading bytes with DMA
     dma_config_transfer(i2c_inst->dma_chan, DMA_WIDTH_BYTE,
-                        &i2c_inst->sercom->I2CM.DATA.reg, 0,
-                        (r ? state->reg.buffer : state->generic.in_buffer), 1,
-                        len,
+                        &i2c_inst->sercom->I2CM.DATA.reg, 0, buffer, 1, len,
                         sercom_get_dma_rx_trigger(i2c_inst->sercom_instnum),
-                        SERCOM_DMA_RX_PRIORITY);
+                        SERCOM_DMA_RX_PRIORITY, NULL);
+    // Disable MB and SM interrupts
+    i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |
+                                           SERCOM_I2CM_INTENCLR_SB);
+    // Enable error interrupt
+    i2c_inst->sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_ERROR;
+    // Set up to ACK bytes as we receive them
+    i2c_inst->sercom->I2CM.CTRLB.bit.ACKACT = 0;
     // Write ADDR to start I2C transaction
-    i2c_inst->sercom->I2CM.ADDR.reg = (
-                                       SERCOM_I2CM_ADDR_LEN(len) |
+    uint8_t const addr = state->dev_address | 1;
+    i2c_inst->sercom->I2CM.ADDR.reg = (SERCOM_I2CM_ADDR_LEN(len) |
                                        SERCOM_I2CM_ADDR_LENEN |
-                                       SERCOM_I2CM_ADDR_ADDR(state->dev_address)
-                                       );
+                                       SERCOM_I2CM_ADDR_ADDR(addr));
 }
 
 void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
@@ -480,19 +500,18 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
                 s->state == I2C_STATE_WAIT_FOR_RX) {
             // The I2C bus has returned to idle, we can let the CPU sleep again
             allow_sleep();
-            
+
             // Start reception
             if (s->dma_in) {
                 // Begin reading bytes with DMA
                 sercom_i2c_begin_in_dma(i2c_inst, s);
             } else {
                 // Begin reading bytes interrupt driven
-                i2c_inst->sercom->I2CM.INTENSET.reg = (
-                                                    SERCOM_I2CM_INTENSET_MB |
-                                                    SERCOM_I2CM_INTENSET_SB);
+                i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENSET_MB |
+                                                       SERCOM_I2CM_INTENSET_SB);
                 s->state = I2C_STATE_RX;
-                i2c_inst->sercom->I2CM.ADDR.bit.ADDR = (s->dev_address |
-                                                        1);
+                uint8_t const addr = s->dev_address | 1;
+                i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
             }
         } else if ((i2c_inst->sercom->I2CM.STATUS.bit.BUSSTATE == 0x1) &&
                     s->state == I2C_STATE_WAIT_FOR_DONE) {
@@ -552,11 +571,9 @@ void sercom_i2c_service (struct sercom_i2c_desc_t *i2c_inst)
                 break;
             case I2C_TRANSACTION_SCAN:
                 // Start by sending first address
-                i2c_inst->sercom->I2CM.INTENSET.reg =
-                                                (SERCOM_I2CM_INTENSET_MB |
-                                                 SERCOM_I2CM_INTENSET_SB);
-                i2c_inst->sercom->I2CM.ADDR.bit.ADDR = s->dev_address;
-                s->dev_address += 2;
+                i2c_inst->sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_MB;
+                uint8_t const addr = s->dev_address << 1;
+                i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
                 break;
             default:
                 break;
@@ -592,16 +609,17 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
     } else if (s->type == I2C_TRANSACTION_SCAN) {
         if (!i2c_inst->sercom->I2CM.STATUS.bit.RXNACK) {
             /* Slave did ACK address */
-            s->scan.results[s->dev_address > 63] |= (1 << (
+            s->scan.results[s->dev_address > 63] |= ((uint64_t)1 << (
                                                         (s->dev_address < 64) ?
                                                         (s->dev_address) :
                                                         (s->dev_address - 64)));
         }
 
-        s->dev_address += 2;
-        if (s->dev_address != 0) {
+        s->dev_address++;
+        if (s->dev_address < 128) {
             // Send next address
-            i2c_inst->sercom->I2CM.ADDR.bit.ADDR = s->dev_address;
+            uint8_t const addr = s->dev_address << 1;
+            i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
         } else {
             // Scan complete
             i2c_inst->sercom->I2CM.CTRLB.bit.CMD = 0x3;
@@ -612,7 +630,6 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
     } else if (i2c_inst->sercom->I2CM.STATUS.bit.RXNACK) {
         /* Slave did not ACK address or data */
         s->state = I2C_STATE_SLAVE_NACK;
-        sercom_i2c_end_transaction(i2c_inst, t);
         sercom_i2c_end_transaction(i2c_inst, t);
     } else if (s->type == I2C_TRANSACTION_GENERIC) {
         if (s->generic.bytes_out == s->generic.out_length) {
@@ -625,8 +642,8 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
                 } else {
                     // Begin reading bytes interrupt driven
                     s->state = I2C_STATE_RX;
-                    i2c_inst->sercom->I2CM.ADDR.bit.ADDR = (s->dev_address |
-                                                            1);
+                    uint8_t const ad = s->dev_address | 1;
+                    i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(ad);
                 }
             } else {
                 // There are no bytes to be received, send stop condition
@@ -637,8 +654,8 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
             }
         } else {
             // Send next byte
-            i2c_inst->sercom->I2CM.DATA.reg =
-            s->generic.out_buffer[s->generic.bytes_out++];
+            uint8_t const n = s->generic.out_buffer[s->generic.bytes_out++];
+            i2c_inst->sercom->I2CM.DATA.reg = n;
         }
     } else if (s->type == I2C_TRANSACTION_REG_WRITE) {
         if (s->state == I2C_STATE_TX) {
@@ -651,8 +668,8 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
                 sercom_i2c_end_transaction(i2c_inst, t);
             } else {
                 // Send next byte
-                i2c_inst->sercom->I2CM.DATA.reg =
-                s->generic.out_buffer[s->generic.bytes_out++];
+                uint8_t const n = s->generic.out_buffer[s->generic.bytes_out++];
+                i2c_inst->sercom->I2CM.DATA.reg = n;
             }
         } else {
             // Send register address
@@ -667,7 +684,8 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
                 sercom_i2c_begin_in_dma(i2c_inst, s);
             } else {
                 // Begin reading bytes interrupt driven
-                i2c_inst->sercom->I2CM.ADDR.bit.ADDR = s->dev_address | 1;
+                uint8_t const addr = s->dev_address | 1;
+                i2c_inst->sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
             }
         } else {
             // Send register address
@@ -697,17 +715,16 @@ void sercom_i2c_isr_sb (Sercom *sercom, uint8_t inst_num, void *state)
     if (generic_last || reg_last) {
         // The last byte has been received, send NACK next
         i2c_inst->sercom->I2CM.CTRLB.bit.ACKACT = 1;
-        while (i2c_inst->sercom->I2CM.SYNCBUSY.bit.SYSOP);
         // Send stop condition after byte read
         i2c_inst->sercom->I2CM.CTRLB.bit.CMD = 0x3;
         while (i2c_inst->sercom->I2CM.SYNCBUSY.bit.SYSOP);
 
         // Read last byte
+        uint8_t const in = i2c_inst->sercom->I2CM.DATA.reg;
         if (s->type == I2C_TRANSACTION_GENERIC) {
-            s->generic.in_buffer[s->generic.bytes_in] =
-                                                i2c_inst->sercom->I2CM.DATA.reg;
+            s->generic.in_buffer[s->generic.bytes_in] = in;
         } else if (s->type == I2C_TRANSACTION_REG_READ) {
-            s->reg.buffer[s->reg.position] = i2c_inst->sercom->I2CM.DATA.reg;
+            s->reg.buffer[s->reg.position] = in;
         }
 
         // Transaction done
@@ -716,14 +733,13 @@ void sercom_i2c_isr_sb (Sercom *sercom, uint8_t inst_num, void *state)
     } else {
         // A byte has been received, send ACK
         i2c_inst->sercom->I2CM.CTRLB.bit.ACKACT = 0;
-        while (i2c_inst->sercom->I2CM.SYNCBUSY.bit.SYSOP);
 
         // Read byte
+        uint8_t const in = i2c_inst->sercom->I2CM.DATA.reg;
         if (s->type == I2C_TRANSACTION_GENERIC) {
-            s->generic.in_buffer[s->generic.bytes_in++] =
-                                                i2c_inst->sercom->I2CM.DATA.reg;
+            s->generic.in_buffer[s->generic.bytes_in++] = in;
         } else if (s->type == I2C_TRANSACTION_REG_READ) {
-            s->reg.buffer[s->reg.position++] = i2c_inst->sercom->I2CM.DATA.reg;
+            s->reg.buffer[s->reg.position++] = in;
         }
 
         // Receive next byte

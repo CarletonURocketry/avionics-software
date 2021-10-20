@@ -21,6 +21,9 @@
 #include "usb.h"
 #include "usb-cdc.h"
 #include "wdt.h"
+#include "sdhc.h"
+
+#include "kx134-1211.h"
 
 // MARK: Hardware Resources from Config File
 #ifdef ENABLE_SPI0
@@ -47,6 +50,14 @@ struct sercom_uart_desc_t uart2_g;
 #endif
 #ifdef ENABLE_UART3
 struct sercom_uart_desc_t uart3_g;
+#endif
+
+#ifdef ENABLE_SDHC0
+struct sdhc_desc_t sdhc0_g;
+#endif
+
+#ifdef ENABLE_KX134_1211
+struct kx134_1211_desc_t kx134_g;
 #endif
 
 
@@ -161,6 +172,11 @@ static inline void init_io (void)
     PORT->Group[1].PINCFG[11].bit.PMUXEN = 0b1;
     PORT->Group[1].PMUX[6].bit.PMUXE = 0x8;      // PB12: SDCD
     PORT->Group[1].PINCFG[12].bit.PMUXEN = 0b1;
+#endif
+
+#ifdef KX134_1211_CS_PIN_MASK
+    PORT->Group[KX134_1211_CS_PIN_GROUP].DIRSET.reg = KX134_1211_CS_PIN_MASK;
+    PORT->Group[KX134_1211_CS_PIN_GROUP].OUTSET.reg = KX134_1211_CS_PIN_MASK;
 #endif
 }
 
@@ -296,6 +312,21 @@ void init_board(void)
 
     gpio_set_pin_mode(SD_ACTIVE_LED_PIN, GPIO_PIN_OUTPUT_STRONG);
 
+    // SDHC
+#ifdef ENABLE_SDHC0
+    init_sdhc(&sdhc0_g, SDHC0, 100000000UL, SAME54_CLK_MSK_100MHZ);
+#endif
+
+    // KX134-1211 Accelerometer
+#ifdef ENABLE_KX134_1211
+    init_kx134_1211(&kx134_g, &spi1_g, KX134_1211_CS_PIN_GROUP,
+                    KX134_1211_CS_PIN_MASK, KX134_1211_INT1_PIN,
+                    KX134_1211_INT2_PIN, KX134_1211_RANGE,
+                    KX134_1211_LOW_PASS_ROLLOFF, KX134_1211_ODR,
+                    KX134_1211_RES);
+#endif
+
+
     // WDT
 #ifdef ENABLE_WATCHDOG
     // 2 seconds, no early warning interrupt
@@ -353,5 +384,13 @@ void board_service(void)
 
 #ifdef ENABLE_ADC
     adc_service();
+#endif
+
+#ifdef ENABLE_SDHC0
+    sdhc_service(&sdhc0_g);
+#endif
+
+#ifdef ENABLE_KX134_1211
+    kx134_1211_service(&kx134_g);
 #endif
 }

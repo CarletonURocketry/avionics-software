@@ -26,16 +26,20 @@ extern void adc_service(void);
  *                      sweeps will happen as fast as possible
  *  @param max_source_impedance Maximum impedence of source, see figure 37-5
  *                              in SAMD21 datasheet
- *  @param dma_chan The DMA channel to be used, if negative DMA will not be used
- *                  and the ADC result will be read via an interrupt
+ *  @param DMA_res_to_buff_chan The DMA channel to be used for storing results,
+ *                              if negative DMA will not be used and the ADC
+ *                              result will be read via an interrupt
+ *  @param DMA_buff_to_DMASEQ_chan The DMA channel to be used for sequencing,
+ *                                 if negative DMA will not be used and the ADC
+ *                                 result will be read via an interrupt
  *  @param adcSel Which ADC should be initialized (0 or 1)
  *
  *  @return 0 if ADC initilized successfully
  */
- int init_adc(uint32_t clock_mask, uint32_t clock_freq,
-              uint32_t channel_mask, uint32_t sweep_period,
-              uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-              int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel)
+ extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
+                     uint32_t channel_mask, uint32_t sweep_period,
+                     uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+                     int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel);
 
 /**
  * Read internal temperature sensor, return value in degrees celcius.
