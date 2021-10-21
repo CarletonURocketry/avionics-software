@@ -6,6 +6,13 @@
 
 #include "global.h"
 
+#define ADC_CHAN(a, c)          (c + (a * 16))
+#define ADC0_CHAN(c)            ADC_CHAN(0, c)
+#define ADC1_CHAN(c)            ADC_CHAN(0, c)
+#define ADC_CHAN_GET_ADC(c)     (c >= 16)
+#define ADC_CHAN_GET_PMUX(c)    ((c <= 16) ? c : (c - 16))
+
+#define ADC_INTERNAL_MASK(a, c) (1 << ((c - 0x18) + 32 + (a * 16)))
 
 /**
 * Checks enabled ADCs to see if they are done scanning through all the channels
@@ -37,7 +44,7 @@ extern void adc_service(void);
  *  @return 0 if ADC initilized successfully
  */
  extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
-                     uint32_t channel_mask, uint32_t sweep_period,
+                     uint64_t channel_mask, uint32_t sweep_period,
                      uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
                      int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel);
 

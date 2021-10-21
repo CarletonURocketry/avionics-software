@@ -493,9 +493,9 @@ uint32_t adc_get_last_sweep_time (void)
     return adc_state_g.last_sweep_time;
 }
 
-uint32_t adc_get_channel_mask (void)
+uint64_t adc_get_channel_mask (void)
 {
-    return adc_state_g.channel_mask;
+    return (uint64_t)adc_state_g.channel_mask;
 }
 
 #ifdef ENABLE_ADC

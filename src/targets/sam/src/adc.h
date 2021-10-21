@@ -96,6 +96,6 @@ extern uint32_t adc_get_last_sweep_time (void);
  *
  *  @return The channel mask
  */
-extern uint32_t adc_get_channel_mask (void);
+extern uint64_t adc_get_channel_mask (void);
 
 #endif /* adc_h */
