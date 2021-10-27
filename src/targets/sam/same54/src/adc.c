@@ -8,15 +8,20 @@
 #include "adc.h"
 #include "dma.h"
 
-#define NUM_OF_ADC_PIN_SRS            16
-#define NUM_OF_ADC_INTERNAL_SRS       7
+#define NUM_OF_ADC_PIN_SRS                                                    16
+#define NUM_OF_ADC_INTERNAL_SRS                                                7
 #define CHANNEL_RANGE (NUM_OF_ADC_PIN_SRS + NUM_OF_ADC_INTERNAL_SRS)
 
-#define ADC_IRQ_PRIORITY                     4
-#define ADC0_DMA_RES_TO_BUFFER_PRIORITY      1
-#define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY 0
-#define ADC1_DMA_RES_TO_BUFFER_PRIORITY      1
-#define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY 0
+#define SAM_E5X_PORT_A                                                         0
+#define SAM_E5X_PORT_B                                                         1
+#define SAM_E5X_PORT_C                                                         2
+#define SAM_E5X_PORT_D                                                         3
+
+#define ADC_IRQ_PRIORITY                                                       4
+#define ADC0_DMA_RES_TO_BUFFER_PRIORITY                                        1
+#define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY                                   0
+#define ADC1_DMA_RES_TO_BUFFER_PRIORITY                                        1
+#define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY                                   0
 
 #define ADC_SWEEP_PERIOD                     500 // milliseconds
 
@@ -73,56 +78,76 @@ struct adc_dseq_source {
 const struct adc_dseq_source ADC_measurement_sources[] = {
     //external sources
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN0,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN1,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN2,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN3,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN4,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN5,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN6,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN7,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN8,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN9,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN10,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN11,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN12,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN13,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN14,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_AIN15,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
 
     //internal sources
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_BANDGAP,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_PTAT,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },  //temperature sensor (not reliable)
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_CTAT,
-        .AVRGCTRL.reg = AVGCTRL_SETTING },  //another temperature sensor (not reliable)
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
 
-    //final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using the
-    //DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDVBAT,
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC,
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_BANDGAP,
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_PTAT, //temp sensor (not reliable)
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_CTAT, //temp sensor (not reliable)
+      .AVRGCTRL.reg = AVGCTRL_SETTING },
+
+    /*final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using
+    the DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from */
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos),
-        .AVRGCTRL.reg = AVGCTRL_SETTING }
+      .AVRGCTRL.reg = AVGCTRL_SETTING }
 
  };
 
@@ -141,42 +166,42 @@ static const struct pin_t adc_pins[2][16] = {
 
     //this array contains information for each pin that the *ADC0* uses as inputs.
     {
-        {.port = 0, .num = 2}, // ADC0/AIN[0]
-        {.port = 0, .num = 3}, // ADC0/AIN[1]
-        {.port = 1, .num = 8}, // ADC0/AIN[2]
-        {.port = 1, .num = 9}, // ADC0/AIN[3]
-        {.port = 0, .num = 4}, // ADC0/AIN[4]
-        {.port = 0, .num = 5}, // ADC0/AIN[5]
-        {.port = 0, .num = 6}, // ADC0/AIN[6]
-        {.port = 0, .num = 7}, // ADC0/AIN[7]
-        {.port = 0, .num = 8}, // ADC0/AIN[8]
-        {.port = 0, .num = 9}, // ADC0/AIN[9]
-        {.port = 0, .num = 10},//ADC0/AIN[10]
-        {.port = 0, .num = 11},//ADC0/AIN[11]
-        {.port = 1, .num = 0}, //ADC0/AIN[12]
-        {.port = 1, .num = 1}, //ADC0/AIN[13]
-        {.port = 1, .num = 2}, //ADC0/AIN[14]
-        {.port = 2, .num = 3}, //ADC0/AIN[15]
+        {.port = SAM_E5X_PORT_A, .num = 2}, // ADC0/AIN[0]
+        {.port = SAM_E5X_PORT_A, .num = 3}, // ADC0/AIN[1]
+        {.port = SAM_E5X_PORT_B, .num = 8}, // ADC0/AIN[2]
+        {.port = SAM_E5X_PORT_B, .num = 9}, // ADC0/AIN[3]
+        {.port = SAM_E5X_PORT_A, .num = 4}, // ADC0/AIN[4]
+        {.port = SAM_E5X_PORT_A, .num = 5}, // ADC0/AIN[5]
+        {.port = SAM_E5X_PORT_A, .num = 6}, // ADC0/AIN[6]
+        {.port = SAM_E5X_PORT_A, .num = 7}, // ADC0/AIN[7]
+        {.port = SAM_E5X_PORT_A, .num = 8}, // ADC0/AIN[8]
+        {.port = SAM_E5X_PORT_A, .num = 9}, // ADC0/AIN[9]
+        {.port = SAM_E5X_PORT_A, .num = 10},//ADC0/AIN[10]
+        {.port = SAM_E5X_PORT_A, .num = 11},//ADC0/AIN[11]
+        {.port = SAM_E5X_PORT_B, .num = 0}, //ADC0/AIN[12]
+        {.port = SAM_E5X_PORT_B, .num = 1}, //ADC0/AIN[13]
+        {.port = SAM_E5X_PORT_B, .num = 2}, //ADC0/AIN[14]
+        {.port = SAM_E5X_PORT_B, .num = 3}, //ADC0/AIN[15]
     },
 
   //this array contains information for each pin that the *ADC1* can use as inputs
     {
-       {.port = 1, .num = 8}, // ADC1/AIN[0
-       {.port = 1, .num = 9}, // ADC1/AIN[1]
-       {.port = 0, .num = 8}, // ADC1/AIN[2]
-       {.port = 0, .num = 9}, // ADC1/AIN[3]
-       {.port = 2, .num = 2}, // ADC1/AIN[4]
-       {.port = 2, .num = 3}, // ADC1/AIN[5]
-       {.port = 1, .num = 4}, // ADC1/AIN[6]
-       {.port = 1, .num = 5}, // ADC1/AIN[7]
-       {.port = 1, .num = 6}, // ADC1/AIN[8]
-       {.port = 1, .num = 7}, // ADC1/AIN[9]
-       {.port = 2, .num = 0}, //ADC1/AIN[10]
-       {.port = 2, .num = 1}, //ADC1/AIN[11]
-       {.port = 2, .num = 30},//ADC1/AIN[12]
-       {.port = 2, .num = 31},//ADC1/AIN[13]
-       {.port = 3, .num = 0}, //ADC1/AIN[14]
-       {.port = 3, .num = 1}, //ADC1/AIN[15]
+       {.port = SAM_E5X_PORT_B, .num = 8}, // ADC1/AIN[0]
+       {.port = SAM_E5X_PORT_B, .num = 9}, // ADC1/AIN[1]
+       {.port = SAM_E5X_PORT_A, .num = 8}, // ADC1/AIN[2]
+       {.port = SAM_E5X_PORT_A, .num = 9}, // ADC1/AIN[3]
+       {.port = SAM_E5X_PORT_C, .num = 2}, // ADC1/AIN[4]
+       {.port = SAM_E5X_PORT_C, .num = 3}, // ADC1/AIN[5]
+       {.port = SAM_E5X_PORT_B, .num = 4}, // ADC1/AIN[6]
+       {.port = SAM_E5X_PORT_B, .num = 5}, // ADC1/AIN[7]
+       {.port = SAM_E5X_PORT_B, .num = 6}, // ADC1/AIN[8]
+       {.port = SAM_E5X_PORT_B, .num = 7}, // ADC1/AIN[9]
+       {.port = SAM_E5X_PORT_C, .num = 0}, //ADC1/AIN[10]
+       {.port = SAM_E5X_PORT_C, .num = 1}, //ADC1/AIN[11]
+       {.port = SAM_E5X_PORT_C, .num = 30},//ADC1/AIN[12]
+       {.port = SAM_E5X_PORT_C, .num = 31},//ADC1/AIN[13]
+       {.port = SAM_E5X_PORT_D, .num = 0}, //ADC1/AIN[14]
+       {.port = SAM_E5X_PORT_D, .num = 1}, //ADC1/AIN[15] 
     }
 
 
