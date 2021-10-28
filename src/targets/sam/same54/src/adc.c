@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include "adc.h"
 #include "dma.h"
+#include "adc-same54.h"
 
 //---------------------------start of settings--------------------------------//
    //time between measurements of all targets (in milliseconds)
@@ -20,7 +21,7 @@
 
 #define NUM_OF_ADC_PIN_SRCS                                                   16
 #define NUM_OF_ADC_INTERNAL_SRCS                                               7
-#define ADCX_NUM_OF_CHANS        (NUM_OF_ADC_PIN_SRCS + NUM_OF_ADC_INTERNAL_SRS)
+#define ADCX_NUM_OF_CHANS       (NUM_OF_ADC_PIN_SRCS + NUM_OF_ADC_INTERNAL_SRCS)
 #define ADC_TOTAL_NUM_CHANS                               (2* ADCX_NUM_OF_CHANS)
 
 #define ADC0_EXTERNAL_ANALOG_MASK                                         0xffff
@@ -95,7 +96,7 @@ struct {
     /*these will hold the latest readings from
       the input pins (internal and external)
     */
-    uint16_t adc_input_buffer[ADC_TOTAL_NUM_CHANS];
+    uint16_t adc_input_buffer[ADCX_NUM_OF_CHANS];
 } adc_state_g;
 
 
@@ -114,7 +115,7 @@ struct adc_dseq_source {
     ADC_SAMPCTRL_Type  SAMPCTRL;
 };
 
-struct adc_dseq_source selected_measurement_srcs[2][ADCX_CHANNEL_RANGE];
+struct adc_dseq_source selected_measurement_srcs[2][ADC_TOTAL_NUM_CHANS];
 
 
 static const struct pin_t adc_pins[2][16] = {
@@ -242,7 +243,7 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
          adc_chan_get_storage_key[i] = 0;
      }
 
-     /external analog channels are added to the list first
+     //external analog channels are added to the list first
      uint64_t channel_mask_temp = adc_state_g.channel_mask;
 
      /*starting index in channel_mask to check for channels designated to
@@ -279,10 +280,10 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
       duty*/
     if(adcSel == ADC_INTERNAL_SRC_READER){
         i = 32 + (16 * ADC_INTERNAL_SRC_READER);
-        uint8_t start_point = i;
-        uint8_t stop_point  = i + 8;
+        uint8_t start_index = i;
+        uint8_t stop_index  = i + 8;
 
-        while((channel_mask_temp & INTERNAL_CHANNEL_MASK) && (i < stop) {
+        while((channel_mask_temp & INTERNAL_CHANNEL_MASK) && (i < stop_index {
             if(channel_mask & (1 <<i)){
 
                 //add the measurement source from our list of sources
@@ -291,7 +292,7 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
                 /*j is now the index where the results for this channel will be
                  * store adc_state_g.adc_input_buffer. We therefore store this
                  * index at adc_chan_get_storage_key [<channel number>] */
-               channel[i%(start) + 16].storage_index = j;
+               channel[i%(start_index) + 16].storage_index = j;
                channel_mask_temp!= ~(1<<i);
                j++;
                }
