@@ -279,20 +279,21 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
       measurement sources if it is the ADC that is designated with This
       duty*/
     if(adcSel == ADC_INTERNAL_SRC_READER){
+        channel_mask_temp = adc_state_g.channel_mask;
         i = 32 + (16 * ADC_INTERNAL_SRC_READER);
         uint8_t start_index = i;
         uint8_t stop_index  = i + 8;
 
-        while((channel_mask_temp & INTERNAL_CHANNEL_MASK) && (i < stop_index {
-            if(channel_mask & (1 <<i)){
+        while((channel_mask_temp & INTERNAL_CHANNEL_MASK) && (i < stop_index)){
+            if(channel_mask_temp & (1 <<i)){
 
                 //add the measurement source from our list of sources
-                selected_measurement_srcs[adcSel][j] = ADC_measurement_srcs[(i%(start) + 16];
+                selected_measurement_srcs[adcSel][j] = ADC_measurement_srcs[(i%(start_index)) + 16];
 
                 /*j is now the index where the results for this channel will be
                  * store adc_state_g.adc_input_buffer. We therefore store this
                  * index at adc_chan_get_storage_key [<channel number>] */
-               channel[i%(start_index) + 16].storage_index = j;
+               adc_chan_get_storage_key[(i%(start_index)) + 16] = j;
                channel_mask_temp!= ~(1<<i);
                j++;
                }
@@ -301,6 +302,9 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
        }
 
     }
+    /*add a stop command to the lst input source given to the ADC because after this input
+     *there are no more input targets for it to read from*/
+    selected_measurement_srcs[adcSel][j].INPUTCTRL.reg | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos);
 
 
     //matching DMA transfer descriptor with trigger source
@@ -493,7 +497,7 @@ void adc_service(void){
     }
 }
 
-static void configure_and_count_analog_inputs(uint64_t channel_mask){
+static uint8_t configure_and_count_analog_inputs(uint64_t channel_mask){
 
     static uint8_t already_configured = 0;
 
@@ -529,7 +533,7 @@ static void configure_and_count_analog_inputs(uint64_t channel_mask){
 
         /*zero out the channel that we just activated so we can move onto the
           next one*/
-        channel_mask_temp &= ~(1 << chan);
+        channel_mask &= ~(1 << chan);
 
         chan_count++;
 
@@ -557,24 +561,25 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
 
 //---determine which ADC module, ADC0 or ADC1 or both, should be turned on----//
 
-    if(channel_mask & ADC0_EXTERNAL_ANALOG_MASK ||
-        ((channel_mask & INTERNAL_CHANNEL_MASK &&) ADC_INTERNAL_SRC_READER = 0))
+    if((channel_mask & ADC0_EXTERNAL_ANALOG_MASK) || 
+      ((channel_mask & INTERNAL_CHANNEL_MASK) && (ADC_INTERNAL_SRC_READER = 0)))
         {
-            init_adc_helper(max_source_impedance,DMA_res_to_buff_chan,
-                            DMA_buff_to_DMASEQ_chan, 0 /*adcSel = ADC0*/)
+            init_adc_helper(clock_mask, clock_freq, max_source_impedance,
+                            DMA_res_to_buff_chan, DMA_buff_to_DMASEQ_chan, 0 /*adcSel = ADC0*/)
         }
 
-    if(channel_mask & ADC1_EXTERNAL_ANALOG_MASK ||
-        (channel_mask & INTERNAL_CHANNEL_MASK && ADC_INTERNAL_SRC_READER = 1))
+    if((channel_mask & ADC1_EXTERNAL_ANALOG_MASK) || 
+      ((channel_mask & INTERNAL_CHANNEL_MASK) && (ADC_INTERNAL_SRC_READER = 1)))
         {
-            init_adc_helper(max_source_impedance,DMA_res_to_buff_chan,
+            init_adc_helper(clock_mask, clock_freq, max_source_impedance,DMA_res_to_buff_chan,
                             DMA_buff_to_DMASEQ_chan, 1 /*adcSel = ADC0*/)
         }
 
 }
 
-int init_adc_helper(uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-             int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel){
+int init_adc_helper(uint32_t clock_mask, uint32_t clock_freq,
+                    uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+                    int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel){
 
 
     //----create a pointer to the ADC that we're configuring---//

@@ -202,9 +202,7 @@ const struct adc_dseq_source ADC_measurement_srcs[] = {
     { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_CTAT, //temp sensor (not reliable)
       .AVRGCTRL.reg = AVGCTRL_SETTING },
 
-    /*final write to ADC->INPUTCTRL needs to set DSEQSTOP so that we stop using
-    the DMA after ADC_INPUTCTRL_MUXPOS_DAC is read from */
-    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_DAC | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos),
+    { .INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_DAC,
       .AVRGCTRL.reg = AVGCTRL_SETTING }
 
  };
@@ -242,7 +240,12 @@ extern void adc_service(void);
  extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
                      uint64_t channel_mask, uint32_t sweep_period,
                      uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-                     int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel);
+                     int8_t DMA_buff_to_DMASEQ_chan);
+  
+
+extern int init_adc_helper(uint32_t clock_mask, uint32_t clock_freq,
+                    uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+                    int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel)
 
 /**
  * Read internal temperature sensor, return value in degrees celcius.
