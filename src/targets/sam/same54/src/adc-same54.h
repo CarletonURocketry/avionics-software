@@ -129,7 +129,6 @@
 #define ADC_INTERNAL_MASK(adc, chan) (1 << ((chan - 0x18) + 32 + (adc * 16)))
 
 
-
 #define AVGCTRL_SETTING (ADC_AVGCTRL_SAMPLENUM_1024 | ADC_AVGCTRL_ADJRES(0))
 
 

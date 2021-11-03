@@ -24,13 +24,6 @@
 #define ADCX_NUM_OF_CHANS       (NUM_OF_ADC_PIN_SRCS + NUM_OF_ADC_INTERNAL_SRCS)
 #define ADC_TOTAL_NUM_CHANS                               (2* ADCX_NUM_OF_CHANS)
 
-#define ADC0_EXTERNAL_ANALOG_MASK                                         0xffff
-
-#define ADC1_EXTERNAL_ANALOG_MASK                                   0xffff << 16
-
-//all external analog pins associated with ADC0 and ADC1 (32 in total)
-#define ADC_EXTERNAL_ANALOG_MASK                                      0xffffffff
-
 /*all internal sources that the adc designated with reading internal soures
  *must read*/
 #define INTERNAL_CHANNEL_MASK    0xffff << (32 + (16 * ADC_INTERNAL_SRC_READER))
@@ -75,7 +68,7 @@ extern DmacDescriptor dmacDescriptors_g[DMAC_CH_NUM];
   designated to be read then channel_results_storage[1] = 0 because
   adc_state_g.adc_input_buffer[0][0] is where the reading would be stored
  * */
-int8_t adc_chan_get_storage_key[ADC_TOTAL_NUM_CHANS]; //channels 0 -39
+int8_t adc_map_channel_to_storage_locaction[ADC_TOTAL_NUM_CHANS]; //chans 0 -39
 
 struct {
     //which channels to read from
@@ -172,14 +165,25 @@ static const struct pin_t adc_pins[2][16] = {
 
 };
 
-uint8_t adc_chan_get_adc(uint8_t channel){
+//TODO: this is broken
+uint8_t adc_ain_chan_get_adc(uint8_t channel){
+    /*note: this function only gives accurate results 
+     *after init_adc() has been called*/
+
     if(channel < 0 || channel > ADC_TOTAL_NUM_CHANS){
-        return 3; //some error
+        return 2; //error
     }
 
+    //trying to access internal channel
     if(channel > 31){
-        return ADC_INTERNAL_SRC_READER;
-    }
+        if(adc_state_g.channel_mask & (1 <<channel)){
+            return 0; //ADC0
+            }
+
+        if(adc_state_g.channel_mask & (1<<chanel + 16)){
+            return 1; //ADC1
+            }
+        return 3; //error: chan not activated
 
     if(channel > 16){
         return 1; //ADC1
@@ -188,8 +192,32 @@ uint8_t adc_chan_get_adc(uint8_t channel){
     return 0; //ADC0
 }
 
+uint8_t adc_chan_get_storage_key(uint8_t chan){
+    /*adc_state_g.adc_input_buffer[] is where we store all readings from
+     *the adc. This function returns the index within adc_input_buffer
+      that we've saved a particular channel's readings in*/
+    return adc_map_channel_to_storage_locaction[chan];
+}
+
+void adc_map_chan_to_storage_location(uint_t chan, uint8_t location){
+    /*adc_state_g.adc_input_buffer[] is where we store all readings from
+     *the adc. This function stores the index within adc_input_buffer
+      that we store the reading. Note this only works if the DMA is 
+      configured. See how this function is used in the DMA_init() 
+      function.
+      
+      ex.
+      adc_map_channel_to_storage_location[ chan = 1, location = 4];
+      
+      now we know that the readings from channel 1 are stored in 
+      index 4 of adc_state_g.adc_input_buffer[]
+      
+    */
+    adc_map_channel_to_storage_location[channel] = location;
+}
 
 static void adcx_set_pmux(struct pin_t pin){
+    
     //set the alternative function for the pin (in this case, input for ADC)
     if(pin.num % 2 == 0){
         PORT->Group[pin.port].PMUX[pin.num / 2].bit.PMUXE = 0x1 ;
@@ -200,6 +228,8 @@ static void adcx_set_pmux(struct pin_t pin){
     //enable the alternative function (input for the ADC)
     PORT->Group[pin.port].PINCFG[pin.num].bit.PMUXEN = 0x1;
 }
+
+
 
 static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
                           uint8_t DMA_buff_to_DMASEQ_chan,
@@ -235,17 +265,17 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
 //---words, we're creating a list of measurement targets for the ADC to-------//
 //---automatically read from -------------------------------------------------*/
 
-     //initialize all channel index sources to -1
-     //we can therefore test if the channel was written to with a value 
+     /* initialize: all channel's values are stored
+      * at index -1 within adc_state_g.input_buffer[] */
      for(int i = 0; i < ADC_TOTAL_NUM_CHANS; i++){
          adc_chan_get_storage_key[i] = -1;
-     }
+        }
 
-     //external analog channels are added to the list first
      uint64_t channel_mask_temp = adc_state_g.channel_mask;
 
-     /*starting index in channel_mask to check for channels designated to
-      *read by the ADC*/
+     /* calculating the value that needs to be written into the INPUTCTRL 
+      * register to signal that we want to read from AIN[0]. We start with 
+      * this input becuase all other inputs AIN[x] are signalled value x*/
      uint8_t i = 16 * adcSel;
 
      /*check 16 channels because each ADC module only has 16 analog inputs*/
@@ -256,35 +286,51 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
     
      /*the first 16 bits in the channel mask represent the analog inputs for
       *ADC0 and the next 16 represent the analog inputs for ADC1. Therefore,
-      *based on the ADC module we're setting up, we need to look at different
-       bits in the channel mask*/
+      *based on the ADC module we're setting up, we need to pay attention to
+      *a different group of 16 bits in the channel mask*/
      uint32_t adc_external_analog_mask = 0xffff << (adcSel * 16);
 
      while((channel_mask_temp & adc_external_analog_mask) && (i < stop_index)){
 
          if(channel_mask_temp & (1 <<i)){
 
-             //add the measurement source
-             //note i =  analog input i for ADC[adcSel]
-             //ex. i = 0, then we select AIN0 for either ADC0 or ADC1
-             selected_measurement_srcs[adcSel][j] = 1%16;
+             /*add the measurement source
+              *note i =  analog input i for ADC[adcSel]
+              *ex.  i = 0, then we select AIN0 for either ADC0 or ADC1*/
+             selected_measurement_srcs[adcSel][j].INPUTCTRL.reg = 1%16;
 
-             /*j is now the index where the results for this channel will be
-              * store adc_state_g.adc_input_buffer. We therefore store this
+             /*ACGCTRL must be specified because of errata*/
+             selected_measurement_srcs[adcSel][j].AVGCTRL.reg = AVGCTRL_SETTING;
+
+             /*j is the index where the results for this channel will be
+              * stored adc_state_g.adc_input_buffer. We therefore store this
               * index at adc_chan_get_storage_key [<channel number>] */
-             adc_chan_get_storage_key[i] = j;
+             adc_map_chan_to_storage_location(i) = j;
+
              channel_mask_temp!= ~(1<<i);
+
+             adc_state_g.chan_count[adcSel] ++;
+
              j++;
+
              }
 
         i++;
     }
 
-    /*now add internal channels */
-    channel_mask_temp = adc_state_g.channel_mask;
-
+    /*done adding external channels. Now add internal channels */
+    
+    /*adc external channels to turn on are specified by the following bits
+     *for adc0: bits 32 - 47
+     *for adc1: bits 48 - 63
+     *note: there are only 8 internal channels to read from, so the internal
+     *pin mask only uses bits 32 - 39 for ADC0 and bits 48 - 55 for ADC1
+      
+    *below we are calculating the first bit to inspect in the channel_mask
+    *for determining which internal channels to activate */
     i = 32 + (16 * adcSel);
 
+    //don't delete. This is necessary for the while loop below
     uint8_t start_index = i;
 
     //there are only 8 internal measurement sources to read from
@@ -293,7 +339,7 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
     /*bits 32 - 47 represent the internal inputs for ADC0 and bits 48 - 63 
      *represent the internal inputs for ADC1. Therefore, depending on the 
      *ADC module that we're setting up we need to look at different bits
-     *in the channel mask*/
+     *in the channel mask to find out which channels to read from*/
     uint64_t internal_channel_mask = oxffff << (32 + (adcSel * 16);
 
     while((channel_mask_temp & internal_channel_mask) && (i < stop_index)){
@@ -302,24 +348,48 @@ static void init_ADCx_DMA(uint8_t DMA_res_to_buff_chan,
 
             /*add the measurement source. Note that 0x18 specifies the first 
              *internal measurement source, which is the scaledCoreVcc value*/
-            selected_measurement_srcs[adcSel][j] = (i % start_index) + 0x18 ;
+            selected_measurement_srcs[adcSel][j].INPUTCTRL = (i % start_index) + 0x18;
 
-            /*j is now the index where the results for this channel will be
-             * store adc_state_g.adc_input_buffer. We therefore store this
-             * index at adc_chan_get_storage_key [<channel number>] */
-            adc_chan_get_storage_key[(i%(start_index)) + 16] = j;
+            //AVGCTRL must be specified becasue of errata
+            selected_measurement_srcs[adcSel][j].AVGCTRL.reg = AVGCTRL_SETTING;
+
+            /*j is the index where the results for this channel will be
+             * stored in adc_state_g.adc_input_buffer.*/
+
+            /*since internal channels are not specific to either ADC, they 
+             *they don't have their own channel number like external pins do
+             * for example ain[1] is channel 1 for ADC0 and channel 17 for 
+             * ADC1. CORE_VCC however, can be read by adc0 or adc1 (in the 
+             * former case, it would be specified by bit 32 in channel_mask
+             * in the later case, bit 48 in the channel mask. However, it's 
+             * still technically a single channel that either ADC can access
+             * therefore, we store the results in a common channel -chan 32
+             
+             * this makes the logic for retreiving the reading easier*/
+            uint8_t int_chan = i - (16 * adcSel);
+
+            adc_map_chan_to_storage_location(int_chan) = j;
+
             channel_mask_temp!= ~(1<<i);
+
             j++;
+
+            adc_state_g.chan_count[adcSel] ++;
+
             }
 
            i++;
        }
 
     }
+
     /*add a stop command to the lst input source given to the ADC because after this input
      *there are no more input targets for it to read from*/
-    selected_measurement_srcs[adcSel][j].INPUTCTRL.reg | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos);
+    selected_measurement_srcs[adcSel][j-1].INPUTCTRL.reg | (1 << ADC_INPUTCTRL_DSEQSTOP_Pos);
 
+
+//------------------------Done with specifying measurement sources------------------------///
+//----------------------------------------------------------------------------------------///
 
     //matching DMA transfer descriptor with trigger source
     uint8_t trig = (adcSel == 1)? ADC1_DMAC_ID_RESRDY : ADC0_DMAC_ID_RESRDY;
@@ -534,7 +604,7 @@ static void configure_and_count_analog_inputs(uint64_t channel_mask){
         int const chan = __builtin_ctzl(channel_mask);
 
         //based on the channel, which ADC do we need to activate?
-        int const adc_num = adc_chan_get_adc(chan);
+        int const adc_num = adc_ain_chan_get_adc(chan);
 
         /*based on the channel number, what ADC Positive mux value must be
           configured? */
@@ -596,6 +666,8 @@ int init_adc_helper(uint32_t clock_mask, uint32_t clock_freq,
 
     //----create a pointer to the ADC that we're configuring---//
     Adc* ADCx = (adcSel == 1)? ADC1: ADC0;
+
+    adc_state_g.chan_count[adcSel] = 0;
 
 #if 0
     //----setting up the core clock and the bus clock-----//
@@ -817,6 +889,7 @@ static float convert_to_dec(uint8_t val){
     //values for the temperature sensors. These decimal parts are all 4 bits
     //long, and so, there is no way that 'val' could be more than 15.
     val = (float)val;
+
     if(val <= 10){
         return val/10.0f;
     } else {
@@ -891,21 +964,15 @@ int16_t adc_get_temp (uint8_t adcSel){
     return temperature;
 }
 
-uint16_t adc_get_value (uint8_t channel)
-{
+uint16_t adc_get_value (uint8_t channel){
 
-  //channel number must be between 0 - total adc channels
+    //channel number must be between 0 and total adc channels
     if((channel < 0) || (channel > ADC_TOTAL_NUM_CHANS)){
-          return 0;
+        return 0;
     }
 
-  uint8_t channel = __builtin_clz(channel);
-  uint8_t adcSel  = adc_chan_get_adc(channel);
-
-  //which index is the value stored at?
-  uint8_t storage_index_key = adc_chan_get_storage_key[channel];
-
-  return adc_state_g.adc_input_buffer[storage_index_key];
+    uint8_t storage_index_key = adc_chan_get_storage_key(channel);
+    return adc_state_g.adc_input_buffer[storage_index_key];
 }
 
 uint16_t adc_get_value_millivolts (uint8_t channel){
