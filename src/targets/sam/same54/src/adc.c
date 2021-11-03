@@ -626,6 +626,36 @@ static void configure_and_count_analog_inputs(uint64_t channel_mask){
 }
 
 
+
+uint64_t get_balanced_channel_mask(uint64_t unbalanced_channel_mask){
+    
+    uint64_t balanced_channel_mask = unbalanced_channel_mask;
+
+    //find the difference in load between ADCs
+    uint8_t diff = adc_state_g.chan_count[0] - adc_state_g.chan_count[1];
+
+    uint8_t adc0_has_int_chans_to_donate = balanced_channel_mask & (0xffff << 32);
+
+    while(diff > 0 && adc0_has_int_chans_to_donate){
+        //find first available internal channel to move from adc0 to adc1
+        uint8_t int_chan_temp = __builtin_ctzl(balanced_channel_mask & 0xffff <<32);
+
+        //disable the channel for ADC0
+        balanced_channel_mask != ~(1<< int_chan_temp);
+
+        //enable the channel for ADC1
+        balanced_channel_mask |=  (1<< (int_chan_temp + 16));
+
+        //update
+        adc0_has_int_chans_to_donate = balanced_channel_mask & (0xffff << 32);
+
+        adc_state_g.chan_count[0]--;
+        adc_state_g.chan_count[1]++;
+
+    }
+}
+
+
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint64_t channel_mask, uint32_t sweep_period,
              uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
@@ -636,13 +666,28 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
         return 1;
     }
 
-
     adc_state_g.sweep_period = MS_TO_MILLIS(sweep_period);
-    adc_state_g.channel_mask = channel_mask;
-    adc_state_g.chan_count = configure_and_count_analog_inputs(channel_mask);
+    adc_state_g.chan_count[0] = 0;
+    adc_state_g.chan_count[1] = 0;
 
-//---determine which ADC module, ADC0 or ADC1 or both, should be turned on----//
+    //count num of channels 
+    for(int i =0 ; i < 64 < i++){
+        if(channel_mask & (1 << i)){
+            //note, all internal channels are assigned to ADC0 initially
+            if(i > 31 || i < 16){
+                adc_state_g.chan_count[0]++;
+            }
+            else{ 
+                adc_state_g.chan_count[1]++;
+            }
 
+        }
+    }
+
+    //balance the channel load on both ADCs
+    adc_state_g.channel_mask = get_balanced_channel_mask(channel_mask);
+
+    //determine which ADC module, ADC0 or ADC1 or both, should be turned on----//
     if((channel_mask & ADC0_EXTERNAL_ANALOG_MASK) || 
       ((channel_mask & INTERNAL_CHANNEL_MASK) && (ADC_INTERNAL_SRC_READER == 0)))
         {
