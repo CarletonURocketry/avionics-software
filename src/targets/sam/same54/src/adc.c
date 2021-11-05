@@ -511,14 +511,26 @@ void adc_service(void){
     }
 }
 
-static void configure_and_count_analog_inputs(uint64_t channel_mask){
 
-    static uint8_t already_configured = 0;
+int init_adc(uint32_t clock_mask, uint32_t clock_freq,
+             uint64_t channel_mask, uint32_t sweep_period,
+             uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
+             int8_t DMA_buff_to_DMASEQ_chan){
 
-    if(already_configured){
-        return;
+    if (!channel_mask){
+        //give up if no channels are enabled
+        return 1;
     }
 
+
+    adc_state_g.sweep_period = MS_TO_MILLIS(sweep_period);
+    adc_state_g.channel_mask = channel_mask;
+    adc_state_g.chan_count = configure_and_count_analog_inputs(channel_mask);
+
+    //used to balance the number of channels that both ADCs need to read from 
+    uint8_t channel_count[2] = {0,0}; 
+
+//---loop over the channel mask to activate all external analog inputs--------//
 
     while (channel_mask & ADC_EXTERNAL_ANALOG_MASK) {
 
@@ -548,28 +560,43 @@ static void configure_and_count_analog_inputs(uint64_t channel_mask){
           next one*/
         channel_mask &= ~(1 << chan);
 
+        //add the external analog channels to the channel count
+        channel_count[adc_num] +=1;
 
     }
 
-    already_configured = 1;
-    return chan_count;
-}
+//----------balance the channels that the ADCs need to read from--------------//
 
+    //refresh channel_mask
+    uint64_t channel_mask_temp = adc_state_g.channel_mask;
 
-int init_adc(uint32_t clock_mask, uint32_t clock_freq,
-             uint64_t channel_mask, uint32_t sweep_period,
-             uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-             int8_t DMA_buff_to_DMASEQ_chan){
+    //count how many internal channels need to be read
+    for(int i = 32; i < 3(2 + NUM_OF_ADC_INTERNAL_SRCS); i++){
+        if(channel_mask & (1<<i)){
 
-    if (!channel_mask){
-        //give up if no channels are enabled
-        return 1;
+            //all internal channels are initially assigned to ADC0
+            channel_count[ADC_INTERNAL_SRC_READER] +=1;
+        }
     }
 
+    //find out how unbalanced the workload is between the two ADCs
+    uint8_t workload_diff = channel_count[ADC0] - channel_count[ADC1];
 
-    adc_state_g.sweep_period = MS_TO_MILLIS(sweep_period);
-    adc_state_g.channel_mask = channel_mask;
-    adc_state_g.chan_count = configure_and_count_analog_inputs(channel_mask);
+    /*move extra work load (in the form of internal channels to ADC1).
+     *if the difference in workload is negative then we've already balanced
+     *the workload as much as possible */
+    for( workload_diff > 0; workload_diff--){
+        //find first internal channel that can be moved 
+        intern_chan_num = __builtin_CTLZ(channel_mask_temp & (0xffff << 32));
+
+        //offload this internal channel from ADC0
+        adc_state_g.channel_mask &= ~(1 << intern_chan_num);
+
+        //onload this internal channel onto ADC1
+        adc_state_g.channel_mask |= (1 << (intern_chan_num + 16));
+
+    }
+
 
 //---determine which ADC module, ADC0 or ADC1 or both, should be turned on----//
 
