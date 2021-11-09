@@ -75,32 +75,25 @@
 #define DAC_OUT1_CHANNEL    0
 #define DAC_OUT1_CHAN_MASK  (1 << DAC_OUT1_CHANNEL)
 
-// TODO: SAME54 Analog
 #if 0
-// ADC header pin channels
-#define ANALOG_A0   18
-#define ANALOG_A1   17
-#define ANALOG_A2   7
-#define ANALOG_A3   3
-#define ANALOG_A4   15
-#define ANALOG_A5   13
-#define ANALOG_A6   1
-#define ANALOG_A7   9
-#define ANALOG_A8   8
-#define ANALOG_A9   10
-#define ANALOG_A10  12
-#define ANALOG_A11  14
-#define ANALOG_A12  2
-#define ANALOG_A13  6
-#define ANALOG_A14  16
+// ADC analog header pin channels
+#define ANALOG_A0   19 //adc0 ain[4]
+#define ANALOG_A1   27 //adc1 ain[11]
+#define ANALOG_A2   14 //adc0 ain[14]
+#define ANALOG_A3   13 //adc0 ain[13]
+#define ANALOG_A4   12 //adc1 ain[12]
+#define ANALOG_A5   29 //adc1 ain[13]
+#define ANALOG_A6   28 //adc1 ain[12]
+#define ANALOG_A7   15 //adc0 ain[15]
 
-#define INTERNAL_SCALED_CORE_VCC	0x18
-#define INTERNAL_SCALED_VBAT 		0x19	
-#define INTERNAL_SCALED_IO_VCC		0x1A
-#define INTERNAL_BANDGAP_VCC		0x1B
-#define INTERNAL_TEMP_SENSOR_PTAT	0x1C
-#define INTERNAL_TEMP_SENSOR_CTAT	0x1D
-#define INTERNAL_DAC			    0x1E
+// ADC internal channels 
+#define INTERNAL_SCALED_CORE_VCC	32
+#define INTERNAL_SCALED_VBAT 		33	
+#define INTERNAL_SCALED_IO_VCC		34
+#define INTERNAL_BANDGAP_VCC		35
+#define INTERNAL_TEMP_SENSOR_PTAT	36
+#define INTERNAL_TEMP_SENSOR_CTAT	37
+#define INTERNAL_DAC			    38
 
 
 #define NUM_ANALOG_PINS 15
