@@ -28,7 +28,6 @@
 #define ADC0_CHAN(c)                                               ADC_CHAN(0, c)
 #define ADC1_CHAN(c)                                               ADC_CHAN(1, c)
 
-#define ADC_CHAN_GET_PMUX(c)                           ((c <= 16) ? c : (c - 16))
 #define ADC_INTERNAL_MASK(adc, chan)     (1 << ((chan - 0x18) + 32 + (adc * 16)))
 
 #define AVGCTRL_SETTING (ADC_AVGCTRL_SAMPLENUM_1024 | ADC_AVGCTRL_ADJRES(0))
@@ -41,24 +40,29 @@
 * start scanning those channels again.
 */
 extern void adc_service(void);
-
-
 /**
  *  Initilize and start automatic ADC sampling at a fixed period.
  *
  *  @param clock_mask Bitmask for the Generic Clock Generator to be used by the
  *                    ADC and, if applicable, the TC
+ * 
  *  @param clock_freq Frequency of the Generic Clock Generator
+ * 
  *  @param channel_mask Mask for desired ADC channels, must not be 0
+ * 
  *  @param sweep_period The time in milliseconds between sweeps, if 0 sweeps
  *                      sweeps will happen as fast as possible
- *  @param max_source_impedance Maximum impedence of source, see figure 37-5
- *                              in SAMD21 datasheet
- *  @param DMA_res_to_buff_chan The DMA channel to be used for storing results,
- *                              if negative DMA will not be used and the ADC
- *                              result will be read via an interrupt
- *  @param DMA_buff_to_DMASEQ_chan The DMA channel to be used for sequencing,
- *                                 if negative DMA will not be used and the ADC
+ * 
+ *  @param max_source_impedance Maximum impedence of source
+ * 
+ *  @param DMA_res_to_buff_chan A two member array specifying the DMA channels 
+ *                              to be used for storing results, if negative DMA
+ *                              will not be used and the ADC result will be read
+ *                              via an interrupt
+ * 
+ *  @param DMA_buff_to_DMASEQ_chan a two member array that specifies the The DMA
+ *                                 channels to be used for sequencing, if
+ *                                 negative DMA will not be used and the ADC
  *                                 result will be read via an interrupt
  *  @param adcSel Which ADC should be initialized (0 or 1)
  *
@@ -70,10 +74,36 @@ extern void adc_service(void);
                      ,int8_t* DMA_buff_to_DMASEQ_chan);
   
 
-extern int init_adc_helper(uint32_t clock_mask, uint32_t clock_freq,
-                    uint32_t max_source_impedance, int8_t DMA_res_to_buff_chan,
-                    int8_t DMA_buff_to_DMASEQ_chan, uint8_t adcSel)
 
+
+/**
+ * @brief initialize a submodule of the ADC. The options are ADC0 and ADC1
+ * 
+ * @param clock_mask Bitmask for the Generic Clock Generator to be used by the
+ *                   ADC and, if applicable, the TC
+ * 
+ * @param clock_freq Frequency of the Generic Clock Generator
+ * 
+ * @param max_source_impedance Maximum impedence of source
+ * 
+ * @param DMA_res_to_buff_chan  the DMA channel to be used transporting results
+ *                              from the 'RES' register to an internal memory
+ *                              location. Must be an int from 0 - 31.
+ * 
+ * @param DMA_buff_to_DMASEQ_chan the DMA channel used to transport DMASEQ  
+ *                                information into the DMASEQ register. Must be 
+ *                                an int from 0 - 31.
+ * 
+ * @param adcSel the ADC submodule that should be initialized and configured.
+ *               must be a positive int from 0 to 1.
+ * 
+ * @return (int) status of configuration upon completion. 0 = success. 
+ */
+extern int init_adc_submodule(uint32_t clock_mask, uint32_t clock_freq,
+                       uint32_t max_source_impedance,
+                       uint8_t DMA_res_to_buff_chan,
+                       uint8_t DMA_buff_to_DMASEQ_chan,
+                       uint8_t adcSel);
 /**
  * Read internal temperature sensor, return value in degrees celcius.
  *
@@ -81,25 +111,23 @@ extern int init_adc_helper(uint32_t clock_mask, uint32_t clock_freq,
  *
  * @return Temperature
  */
+
+
 extern int16_t adc_get_temp (uint8_t adcSel);
+
 
 /**
 * return the latest reading from a select ADC channel. (the ADC continually
 * cycles through its channels, reading values, and updating the internal
 * buffer that the values are stored in as it moves along)
 *
-* @param channel a 8 bit value that represents the channel that should be read.
-*                The notation is slightly unconventional because the 7th bit
-                 defines which ADC to read from. For example:
-                 if channel = 0b1000 0010
-                 that means, read from ADC 1, channel 2
-                 if channel = 0b1000 0100
-                 that means read from ADC 1, channel 4
-                 if channel = 0b0000 1000
-                 that means read from ADC 0, channel 8
-
+* @param channel the channel that should be read from. See board.h for a list 
+*                of channel that can be read from, starting from ANALOG_A0.
+*
+* @return reading from the specified channel  
 */
 extern uint16_t adc_get_value (uint8_t channel);
+
 
 /**
 * get the most recent ADC reading of the battery's voltage.

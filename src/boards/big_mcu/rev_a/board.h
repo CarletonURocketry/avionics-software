@@ -75,13 +75,12 @@
 #define DAC_OUT1_CHANNEL    0
 #define DAC_OUT1_CHAN_MASK  (1 << DAC_OUT1_CHANNEL)
 
-#if 0
 // ADC analog header pin channels
-#define ANALOG_A0   19 //adc0 ain[4]
+#define ANALOG_A0   20 //adc1 ain[4]
 #define ANALOG_A1   27 //adc1 ain[11]
 #define ANALOG_A2   14 //adc0 ain[14]
 #define ANALOG_A3   13 //adc0 ain[13]
-#define ANALOG_A4   12 //adc1 ain[12]
+#define ANALOG_A4   12 //adc0 ain[12]
 #define ANALOG_A5   29 //adc1 ain[13]
 #define ANALOG_A6   28 //adc1 ain[12]
 #define ANALOG_A7   15 //adc0 ain[15]
@@ -95,6 +94,7 @@
 #define INTERNAL_TEMP_SENSOR_CTAT	37
 #define INTERNAL_DAC			    38
 
+#if 0
 
 #define NUM_ANALOG_PINS 15
 
