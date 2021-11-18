@@ -52,7 +52,7 @@ CFLAGS += -Wbad-function-cast -Waggregate-return -Wstrict-prototypes -Wpacked
 CFLAGS += -Wno-aggressive-loop-optimizations -Wmissing-prototypes -Winit-self
 CFLAGS += -Wmissing-declarations -Wmissing-format-attribute -Wunreachable-code
 CFLAGS += -Wshift-overflow=2 -Wduplicated-cond -Wpointer-arith -Wwrite-strings
-CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls -Wlong-long
+CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls
 CFLAGS += -Werror=implicit-function-declaration -Wlogical-not-parentheses
 CFLAGS += -Wlogical-op -Wold-style-definition -Wcast-qual -Wdouble-promotion
 CFLAGS += -Wunsuffixed-float-constants -Wmissing-include-dirs -Wnormalized

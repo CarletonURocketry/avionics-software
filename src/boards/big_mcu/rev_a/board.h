@@ -11,6 +11,7 @@
 #define board_h
 
 #include "gpio.h"
+#include "adc.h"
 
 #define BOARD_STRING "Big MCU Rev. A"
 
@@ -75,45 +76,57 @@
 #define DAC_OUT1_CHANNEL    0
 #define DAC_OUT1_CHAN_MASK  (1 << DAC_OUT1_CHANNEL)
 
-// ADC analog header pin channels
-#define ANALOG_A0   20 //adc1 ain[4]
-#define ANALOG_A1   27 //adc1 ain[11]
-#define ANALOG_A2   14 //adc0 ain[14]
-#define ANALOG_A3   13 //adc0 ain[13]
-#define ANALOG_A4   12 //adc0 ain[12]
-#define ANALOG_A5   29 //adc1 ain[13]
-#define ANALOG_A6   28 //adc1 ain[12]
-#define ANALOG_A7   15 //adc0 ain[15]
+// TODO: SAME54 Analog
+#define ENABLE_ADC
 
-// ADC internal channels 
-#define INTERNAL_SCALED_CORE_VCC	32
-#define INTERNAL_SCALED_VBAT 		33	
-#define INTERNAL_SCALED_IO_VCC		34
-#define INTERNAL_BANDGAP_VCC		35
-#define INTERNAL_TEMP_SENSOR_PTAT	36
-#define INTERNAL_TEMP_SENSOR_CTAT	37
-#define INTERNAL_DAC			    38
+// ADC header pin channels
+#define ANALOG_A0       ADC_CHAN(1, 4)
+#define ANALOG_A1       ADC_CHAN(1, 11)
+#define ANALOG_A2       ADC_CHAN(0, 14)
+#define ANALOG_A3       ADC_CHAN(0, 13)
+#define ANALOG_A4       ADC_CHAN(0, 12)
+#define ANALOG_A5       ADC_CHAN(1, 13)
+#define ANALOG_A6       ADC_CHAN(1, 12)
+#define ANALOG_A7       ADC_CHAN(0, 15)
+#define ANALOG_A12      ADC_CHAN(1, 6)
+#define ANALOG_A13      ADC_CHAN(1, 7)
+#define ANALOG_DAC0     ADC_CHAN(0, 5)
+#define ANALOG_DAC1     ADC_CHAN(0, 0)
 
-#if 0
+#define ANALOG_GPIO8    ADC_CHAN(0, 7)
+#define ANALOG_GPIO9    ADC_CHAN(0, 6)
+#define ANALOG_GPIO10   ADC_CHAN(0, 4)
+#define ANALOG_GPIO11   ADC_CHAN(0, 3)
+#define ANALOG_GPIO12   ADC_CHAN(1, 0)
+#define ANALOG_GPIO13   ADC_CHAN(1, 9)
+#define ANALOG_GPIO14   ADC_CHAN(1, 8)
+#define ANALOG_GPIO15   ADC_CHAN(1, 15)
 
-#define NUM_ANALOG_PINS 15
+// ADC internal channels
+#define INTERNAL_SCALED_CORE_VCC    32
+#define INTERNAL_SCALED_VBAT        33
+#define INTERNAL_SCALED_IO_VCC      34
+#define INTERNAL_BANDGAP_VCC        35
+#define INTERNAL_TEMP_SENSOR_PTAT   36
+#define INTERNAL_TEMP_SENSOR_CTAT   37
+#define INTERNAL_DAC                38
+
+#define NUM_ANALOG_PINS 10
 
 #define HEADER_ANALOG_PINS {ANALOG_A0, ANALOG_A1, ANALOG_A2, ANALOG_A3, \
                             ANALOG_A4, ANALOG_A5, ANALOG_A6, ANALOG_A7, \
-                            ANALOG_A8, ANALOG_A9, ANALOG_A10, ANALOG_A11, \
-                            ANALOG_A12, ANALOG_A13, ANALOG_A14}
+                            ANALOG_A12, ANALOG_A13}
 
 #define EXTERNAL_ANALOG_MASK ((1 << ANALOG_A0) | (1 << ANALOG_A1) | \
                               (1 << ANALOG_A2) | (1 << ANALOG_A3) | \
                               (1 << ANALOG_A4) | (1 << ANALOG_A5) | \
                               (1 << ANALOG_A6) | (1 << ANALOG_A7) | \
-                              (1 << ANALOG_A8) | (1 << ANALOG_A9) | \
-                              (1 << ANALOG_A10) | (1 << ANALOG_A11) | \
-                              (1 << ANALOG_A12) | (1 << ANALOG_A13) | \
-                              (1 << ANALOG_A14))
-#endif
-
-
+                              (1 << ANALOG_A12) | (1 << ANALOG_A13))
+#define INTERNAL_ANALOG_MASK (ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val) | \
+                              ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDVBAT_Val) | \
+                              ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC_Val) | \
+                              ADC_INTERNAL_MASK(1, ADC_INPUTCTRL_MUXPOS_PTAT_Val) | \
+                              ADC_INTERNAL_MASK(1, ADC_INPUTCTRL_MUXPOS_CTAT_Val))
 
 //
 //
@@ -239,16 +252,18 @@ extern struct sercom_uart_desc_t uart3_g;
 //
 //
 
-// TODO: SAME54 Analog
-///* ADC enabled if defined */
-//#define ENABLE_ADC
-///* Period between ADC sweeps in milliseconds */
-//#define ADC_PERIOD 2000
-///* DMA Channel used for ADC results, DMA not used if not defined or defined
-// as -1 */
-//#define ADC_DMA_CHAN 11
-///* Maximum impedance of source in ohms, see figure 37-5 in SAMD21 datasheet */
-//#define ADC_SOURCE_IMPEDANCE 100000
+/* ADC enabled if defined */
+#define ENABLE_ADC
+/* Period between ADC sweeps in milliseconds */
+#define ADC_PERIOD MS_TO_MILLIS(500)
+/* DMA Channel used for ADC results, DMA not used if not defined or defined
+    as -1 */
+#define ADC_DMA_RESULT_CHAN 18
+/* DMA Channel used for ADC sequencing, DMA not used if not defined or defined
+    as -1 */
+#define ADC_DMA_SEQUENCE_CHAN 19
+/* Maximum impedance of source in ohms, see figure 54-4 in SAME54 datasheet */
+#define ADC_SOURCE_IMPEDANCE 100000
 
 
 //

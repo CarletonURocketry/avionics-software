@@ -282,7 +282,15 @@ void init_board(void)
 
     // Init ADC
 #ifdef ENABLE_ADC
-    // TODO: SAME54 ADC Driver
+#ifndef ADC_DMA_RESULT_CHAN
+#define ADC_DMA_RESULT_CHAN -1
+#endif
+#ifndef ADC_DMA_SEQUENCE_CHAN
+#define ADC_DMA_SEQUENCE_CHAN -1
+#endif
+    init_adc(SAME54_CLK_MSK_12MHZ, 12000000UL,
+             EXTERNAL_ANALOG_MASK | INTERNAL_ANALOG_MASK, ADC_PERIOD,
+             ADC_SOURCE_IMPEDANCE, ADC_DMA_RESULT_CHAN, ADC_DMA_SEQUENCE_CHAN);
 #endif
 
     // Init USB
@@ -383,7 +391,7 @@ void board_service(void)
 #endif
 
 #ifdef ENABLE_ADC
-    adc_service();
+    //adc_service();
 #endif
 
 #ifdef ENABLE_SDHC0
