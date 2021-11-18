@@ -51,4 +51,4 @@ include src/targets/sam/toolchain.mk
 
 ##### Debugging Options #####
 DEBUG_CHIP_NAME = atsame54p20a
-DEBUG_CHIP_CONFIG = target/atsame5X.cfg
+DEBUG_CHIP_CONFIG = target/atsame5x.cfg
