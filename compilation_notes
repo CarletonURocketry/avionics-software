@@ -1,0 +1,18 @@
+-j 8 - 2 times the number of cores 
+
+red jumper must be removed before flight 
+	-it connects main power to usb power 
+	-segger connector is used for programming 
+	
+make debug BOARD=big_mcu/rev_a VARIANT=test OPENOCD_INTERFACE = jlink
+
+
+PYTHONDONTWRITEBYTECODE=1 ./debug.py --host localhost --gdb-port 2331 --openocd-port 4444 --interface "jlink" --chip-name "atsame54p20a" --chip-config "target/atsame5X.cfg" obj/main.elf
+
+
+	-this script launches GDP 
+	-opens open OCD in the background - creates configuration file in background 
+
+
+
+make openocd.cfg BOARD=big_mcu/rev_a VARIANT=test OPENOCD_INTERFACE=jlink

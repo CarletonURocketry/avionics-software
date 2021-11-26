@@ -85,6 +85,7 @@
 #define ANALOG_A6   28 //adc1 ain[12]
 #define ANALOG_A7   15 //adc0 ain[15]
 
+
 // ADC internal channels 
 #define INTERNAL_SCALED_CORE_VCC	32
 #define INTERNAL_SCALED_VBAT 		33	

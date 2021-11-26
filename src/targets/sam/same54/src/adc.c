@@ -41,7 +41,13 @@
  * (adc0 analog input 1) is the only channel that is designated to be read then 
  * channel_results_storage[1] = 0 because adc_state_g.adc_input_buffer[0][0] is
  * where the reading would be stored **/
-int8_t adc_map_channel_to_storage_locaction[ADC_TOTAL_NUM_CHANS]; //chans 0 -39
+struct chan_storage_info {
+    int8_t storage_index;
+    uint8_t adc: 1;
+    
+};
+
+struct chan_storage_info chan_storage[ADC_TOTAL_NUM_CHANS];
 
 
 /*flips the corresponding bit when an adc module has been initilized*/
@@ -163,46 +169,26 @@ uint8_t adc_chan_get_pmux(uint8_t channel){
         return channel - 32 + 0x18;
     }
 
+    //AIN ADC1 
     if(channel >= 16){
-        return channel;
+        return channel - 16 ;
     }
 
+    //AIN ADC0
     return channel;
 }
 
-uint8_t adc_chan_get_adc(uint8_t channel){
+int adc_chan_get_adc(uint8_t chan){
 /*NOTE: this is only accurate for internal channels after init_adc() has been
  *enabled. This is because init_adc() sets the channel mask. This function is 
  *always accurate for external analog channels.*/
 
     //check for invalid inputs
-    if(channel < 0 || channel > ADC_TOTAL_NUM_CHANS){
-        return 9;
+    if(chan < 0 || chan > ADC_TOTAL_NUM_CHANS){
+        return -1;
     }
 
-    //trying to access internal channels
-    if(channel > 31){
-        if(!(adc_init_complete_mask & 0x3)){
-            return 9; //error. Must init adc first
-        }
-
-        if(adc_state_g.channel_mask & (1 << channel)){
-            return 0; //ADC0
-            }
-
-        if(adc_state_g.channel_mask & (1 << (channel + 16))){
-            return 1; //ADC1
-            }
-
-        return 8; //error: chan not assigned to an ADC (not activated)
-    }
-
-    //channel is not an internal channel. Is it an external analog channel?
-    if(channel >= 16){
-        return 1; //ADC1
-    } else {
-        return 0; //ADC0
-    }
+    return chan_storage[chan].adc;
 
     
 }
@@ -211,7 +197,7 @@ uint8_t chan_get_storage_key(uint8_t chan){
     /*adc_state_g.adc_input_buffer[] is where we store all readings from
      *the adc. This function returns the index within adc_input_buffer
       that we've saved a particular channel's readings in*/
-    return adc_map_channel_to_storage_locaction[chan];
+    return chan_storage[chan].storage_index;
 }
 
 void map_chan_to_storage_location(uint8_t adc, uint8_t chan, uint8_t location){
@@ -228,7 +214,8 @@ void map_chan_to_storage_location(uint8_t adc, uint8_t chan, uint8_t location){
       index 4 of adc_state_g.adc_input_buffer[]
       
     */
-    adc_map_channel_to_storage_locaction[chan] = location + adc * 16;
+     chan_storage[chan].storage_index = location;
+     chan_storage[chan].adc = adc;
 }
 
 static void adcx_set_pmux(struct pin_t pin){
@@ -1061,12 +1048,13 @@ int16_t adc_get_temp (uint8_t adcSel){
 uint16_t adc_get_value (uint8_t channel){
 
     //channel number must be between 0 and total adc channels
-    if((channel < 0) || (channel > ADC_TOTAL_NUM_CHANS)){
+    if( channel < 0 || channel > ADC_TOTAL_NUM_CHANS ){
         return 0;
     }
 
     uint8_t storage_index_key = adc_chan_get_storage_key(channel);
-    return adc_state_g.adc_input_buffer[storage_index_key];
+    uint8_t adcSel = adc_chan_get_adc(channel);
+    return adc_state_g.adc_input_buffer[adcSel][storage_index_key];
 }
 
 uint16_t adc_get_value_millivolts (uint8_t channel){
