@@ -256,12 +256,18 @@ extern struct sercom_uart_desc_t uart3_g;
 #define ENABLE_ADC
 /* Period between ADC sweeps in milliseconds */
 #define ADC_PERIOD MS_TO_MILLIS(500)
-/* DMA Channel used for ADC results, DMA not used if not defined or defined
+/* DMA Channel used for ADC0 results, DMA not used if not defined or defined
     as -1 */
-#define ADC_DMA_RESULT_CHAN 18
-/* DMA Channel used for ADC sequencing, DMA not used if not defined or defined
+#define ADC0_DMA_RESULT_CHAN 18
+/* DMA Channel used for ADC0 sequencing, DMA not used if not defined or defined
     as -1 */
-#define ADC_DMA_SEQUENCE_CHAN 19
+#define ADC0_DMA_SEQUENCE_CHAN 19
+/* DMA Channel used for ADC1 results, DMA not used if not defined or defined
+   as -1 */
+#define ADC1_DMA_RESULT_CHAN 20
+/* DMA Channel used for ADC1 sequencing, DMA not used if not defined or defined
+   as -1 */
+#define ADC1_DMA_SEQUENCE_CHAN 21
 /* Maximum impedance of source in ohms, see figure 54-4 in SAME54 datasheet */
 #define ADC_SOURCE_IMPEDANCE 100000
 

@@ -34,12 +34,7 @@
 
 
  
-/**
-* Checks enabled ADCs to see if they are done scanning through all the channels
-* that they have been assigned. If they are, then set the ADCs so that they
-* start scanning those channels again.
-*/
-extern void adc_service(void);
+
 /**
  *  Initilize and start automatic ADC sampling at a fixed period.
  *
@@ -71,8 +66,8 @@ extern void adc_service(void);
  extern int init_adc(uint32_t clock_mask, uint32_t clock_freq,
                      uint64_t channel_mask, uint32_t sweep_period,
                      uint32_t max_source_impedance,
-                     int8_t* DMA_res_to_buff_chan,
-                     int8_t* DMA_buff_to_DMASEQ_chan);
+                     const int8_t* DMA_res_to_buff_chan,
+                     const int8_t* DMA_buff_to_DMASEQ_chan);
   
 
 /**
@@ -85,19 +80,6 @@ extern void adc_service(void);
 
 
 extern int16_t adc_get_temp (uint8_t adcSel);
-
-
-/**
-* return the latest reading from a select ADC channel. (the ADC continually
-* cycles through its channels, reading values, and updating the internal
-* buffer that the values are stored in as it moves along)
-*
-* @param channel the channel that should be read from. See board.h for a list 
-*                of channel that can be read from, starting from ANALOG_A0.
-*
-* @return reading from the specified channel  
-*/
-extern uint16_t adc_get_value (uint8_t channel);
 
 
 /**

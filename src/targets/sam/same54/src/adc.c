@@ -191,13 +191,13 @@ static uint8_t adc_chan_get_pmux(uint8_t channel){
     return channel;
 }
 
-int adc_chan_get_adc(uint8_t chan){
+static int adc_chan_get_adc(uint8_t chan){
 /*NOTE: this is only accurate for internal channels after init_adc() has been
  *enabled. This is because init_adc() sets the channel mask. This function is 
  *always accurate for external analog channels.*/
 
     //check for invalid inputs
-    if(chan < 0 || chan > ADC_TOTAL_NUM_CHANS){
+    if (chan > ADC_TOTAL_NUM_CHANS) {
         return -1;
     }
 
@@ -206,7 +206,7 @@ int adc_chan_get_adc(uint8_t chan){
     
 }
 
-static uint8_t chan_get_storage_key(uint8_t chan){
+static uint8_t adc_chan_get_storage_key(uint8_t chan){
     /*adc_state_g.adc_input_buffer[] is where we store all readings from
      *the adc. This function returns the index within adc_input_buffer
       that we've saved a particular channel's readings in*/
@@ -327,8 +327,6 @@ static void init_adcx_dma(uint8_t DMA_RES_to_buff_chan,
               * stored in adc_state_g.adc_input_buffer. We  need to remember 
               * this index to retrieve the results later. */
              map_chan_to_storage_location(adcSel, i , j);
-            
-             channel_mask_temp!= ~(UINT64_C(1) << i);
 
              adc_state_g.chan_count[adcSel] ++;
 
@@ -377,8 +375,6 @@ static void init_adcx_dma(uint8_t DMA_RES_to_buff_chan,
             /* j is the index where the results for this channel will be
              * stored in adc_state_g.adc_input_buffer.*/
             map_chan_to_storage_location(adcSel, (i%start_index) + 32, j);
-
-            channel_mask_temp!= ~(UINT64_C(1) << i);
 
             j++;
 
@@ -483,6 +479,11 @@ static void init_adcx_dma(uint8_t DMA_RES_to_buff_chan,
 }
 
 
+/**
+ * Checks enabled ADCs to see if they are done scanning through all the channels
+ * that they have been assigned. If they are, then set the ADCs so that they
+ * start scanning those channels again.
+ */
 void adc_service(void){
     //check to see if if the ADCs are done scanning through all their channels,
     //and if so, then reset the configuration so that they scan through the
@@ -813,8 +814,9 @@ static int init_adc_submodule(uint32_t clock_mask, uint32_t clock_freq,
 
 int init_adc(uint32_t clock_mask, uint32_t clock_freq,
              uint64_t channel_mask, uint32_t sweep_period,
-             uint32_t max_source_impedance, int8_t* DMA_res_to_buff_chan,
-             int8_t* DMA_buff_to_DMASEQ_chan){
+             uint32_t max_source_impedance,
+             const int8_t *const DMA_res_to_buff_chan,
+             const int8_t *const DMA_buff_to_DMASEQ_chan){
 
     if (!channel_mask){
         //give up if no channels are enabled
@@ -1089,7 +1091,7 @@ int16_t adc_get_temp (uint8_t adcSel){
 uint16_t adc_get_value (uint8_t channel){
 
     //channel number must be between 0 and total adc channels
-    if( channel < 0 || channel > ADC_TOTAL_NUM_CHANS ){
+    if (channel > ADC_TOTAL_NUM_CHANS) {
         return 0;
     }
 

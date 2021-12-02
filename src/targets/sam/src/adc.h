@@ -26,7 +26,9 @@ extern void adc_service (void);
 /**
  *  Get the measured value for an ADC channel.
  *
- *  @param channel The channel number of which the value should be retrieved
+ *  @param channel The channel number of which the value should be retrieved,
+ *                 see board.h for a list of channel that can be read from,
+ *                 starting from ANALOG_A0.
  *
  *  @return The measured value of the channel, ranging from 0 to 65535
  */
