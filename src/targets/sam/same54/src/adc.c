@@ -33,6 +33,7 @@
 #define ADC0_DMA_BUFFER_TO_DSEQDATA_PRIORITY                                   0
 #define ADC1_DMA_RES_TO_BUFFER_PRIORITY                                        1
 #define ADC1_DMA_BUFFER_TO_DSEQDATA_PRIORITY                                   0
+#define NVM_CAL                                    ((NVM_cal_val *)(0x00800100))
 
 
 
@@ -170,6 +171,10 @@ struct adc_dseq_source {
     ADC_AVGCTRL_Type   AVRGCTRL;
     ADC_SAMPCTRL_Type  SAMPCTRL;
 };
+
+
+
+
 
 //the sources that the ADC should read from if DMA sequencing is enabled
 struct adc_dseq_source selected_measurement_srcs[2][ADC_TOTAL_NUM_CHANS];
@@ -1037,51 +1042,20 @@ int16_t adc_get_temp (uint8_t adcSel){
     // two temperature sensors can be found on the datasheet,
     // in section 45.6.3.1: Device Temperature Measurement
 
-    uint32_t TL_int;
+                                         
+    float TL = NVM_CAL->TLI + convert_to_dec(NVM_CAL->TLD);
 
-    //extracting TL Calibration value
-    TL_int = FUSES_ROOM_TEMP_VAL_INT_ADDR & FUSES_ROOM_TEMP_VAL_INT_Msk;
-    TL_int = TL_int >> FUSES_ROOM_TEMP_VAL_INT_Pos;
-    uint32_t TL_Dec;
-    TL_Dec =  FUSES_ROOM_TEMP_VAL_DEC_ADDR  & FUSES_ROOM_TEMP_VAL_DEC_Msk;
-    TL_Dec =  TL_Dec >> FUSES_ROOM_TEMP_VAL_DEC_Pos;
-                                                 
-    float  TL = TL_int + convert_to_dec(TL_Dec);
+    float TH = NVM_CAL->THI + convert_to_dec(NVM_CAL->THD);
 
-    //extracting the TH calbiration value
-    uint32_t TH_Int = FUSES_HOT_TEMP_VAL_INT_ADDR & FUSES_HOT_TEMP_VAL_INT_Msk;
-    TH_Int = TH_Int >> FUSES_HOT_TEMP_VAL_INT_Pos;
-    uint32_t TH_Dec = FUSES_HOT_TEMP_VAL_DEC_ADDR & FUSES_HOT_TEMP_VAL_DEC_Msk;
-    TH_Dec = TH_Dec >> FUSES_HOT_TEMP_VAL_DEC_Pos;
-    float TH = TH_Int + convert_to_dec(TH_Dec);
+    uint32_t temp_numerator = (TL * NVM_CAL->VPH * TC)
+                            - (NVM_CAL->VPL * TH * TC)
+                            - (TL * NVM_CAL->VCH * TP)
+                            + (TH * NVM_CAL->VCL * TP);
 
-
-    //extracting VPL
-    uint16_t VPL = FUSES_ROOM_ADC_VAL_PTAT_ADDR & FUSES_ROOM_ADC_VAL_PTAT_Msk;
-    VPL = VPL >> FUSES_ROOM_ADC_VAL_PTAT_Pos;
-
-    //extracting PVH
-    uint16_t VPH = FUSES_HOT_ADC_VAL_PTAT_ADDR & FUSES_HOT_ADC_VAL_PTAT_Msk;
-    VPH = VPH >> FUSES_HOT_ADC_VAL_PTAT_Pos;
-
-    //extracting VCL
-    uint16_t VCL = FUSES_ROOM_ADC_VAL_CTAT_ADDR & FUSES_ROOM_ADC_VAL_CTAT_Msk;
-    VCL = VCL  >> FUSES_ROOM_ADC_VAL_CTAT_Pos;
-
-    //extracting VCH
-    uint16_t VCH = FUSES_HOT_ADC_VAL_CTAT_ADDR & FUSES_HOT_ADC_VAL_CTAT_Msk;
-    VCH = VCH  >> FUSES_HOT_ADC_VAL_CTAT_Pos;
-
-
-    uint32_t temp_numerator = (TL * VPH * TC)
-                            - (VPL * TH * TC)
-                            - (TL * VCH * TP)
-                            + (TH * VCL * TP);
-
-    uint16_t temp_denominator = (VCL * TP)
-                              - (VCH * TP)
-                              - (VPL * TC)
-                              + (VPH * TC);
+    uint16_t temp_denominator = (NVM_CAL->VCL * TP)
+                              - (NVM_CAL->VCH * TP)
+                              - (NVM_CAL->VPL * TC)
+                              + (NVM_CAL->VPH * TC);
 
     uint16_t temperature = temp_numerator/temp_denominator;
 

@@ -32,7 +32,17 @@
 
 #define AVGCTRL_SETTING (ADC_AVGCTRL_SAMPLENUM_1024 | ADC_AVGCTRL_ADJRES(0))
 
-
+typedef struct {
+        uint32_t TLI: 8;
+        uint32_t TLD: 4;
+        uint32_t THI: 8;
+        uint32_t THD: 4;
+        uint32_t : 16; //reserved
+        uint32_t VPL: 12;
+        uint32_t VPH: 12;
+        uint32_t VCL: 12;
+        uint32_t VCH: 12;
+} NVM_cal_val;
  
 
 /**
