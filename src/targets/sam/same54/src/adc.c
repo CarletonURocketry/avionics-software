@@ -180,6 +180,8 @@ struct adc_dseq_source {
 struct adc_dseq_source selected_measurement_srcs[2][ADC_TOTAL_NUM_CHANS];
 
 
+
+
 static uint8_t adc_chan_get_pmux(uint8_t channel){
 
     //internal channel
@@ -835,7 +837,6 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
 
     adc_state_g.channel_mask = channel_mask;
 
-
     //used to balance the number of channels that both ADCs need to read from 
     uint8_t temp_channel_count[2] = {0,0}; 
 
@@ -926,14 +927,17 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
     }
 
     /*determine which ADC module, ADC0 or ADC1 or both, should be turned on*/
-    uint64_t ADC0_channel_mask = (UINT64_C(0xffff) ||
+    uint64_t ADC0_channel_mask =  (UINT64_C(0xffff) ||
                                   ((UINT64_C(0xffff) << 32)));
-    uint64_t ADC1_channel_mask = ((UINT64_C(0xffff) << 16) ||
+
+    uint64_t ADC1_channel_mask =  ((UINT64_C(0xffff) << 16) ||
                                   (UINT64_C(0xffff) << 48));
 
 
     //run specific configuration & initiliazation for ADC0?
     if(adc_state_g.channel_mask & ADC0_channel_mask){
+
+        adc_state_g.adc_in_use_mask |= 1 << 0;
 
         init_adc_submodule(clock_mask, 
                            clock_freq,
@@ -946,6 +950,8 @@ int init_adc(uint32_t clock_mask, uint32_t clock_freq,
     //run specific configuration and initialization for ADC1?
     if(adc_state_g.channel_mask & ADC1_channel_mask){
 
+        adc_state_g.adc_in_use_mask |= 1 << 1;
+        
         init_adc_submodule(clock_mask, 
                            clock_freq,
                            max_source_impedance,
