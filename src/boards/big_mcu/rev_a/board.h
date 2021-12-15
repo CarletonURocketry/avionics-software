@@ -122,11 +122,12 @@
                               (1 << ANALOG_A4) | (1 << ANALOG_A5) | \
                               (1 << ANALOG_A6) | (1 << ANALOG_A7) | \
                               (1 << ANALOG_A12) | (1 << ANALOG_A13))
-#define INTERNAL_ANALOG_MASK (ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val) | \
+
+#define INTERNAL_ANALOG_MASK  1<<50/*(ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDCOREVCC_Val) | \
                               ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDVBAT_Val) | \
                               ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_SCALEDIOVCC_Val) | \
-                              ADC_INTERNAL_MASK(1, ADC_INPUTCTRL_MUXPOS_PTAT_Val) | \
-                              ADC_INTERNAL_MASK(1, ADC_INPUTCTRL_MUXPOS_CTAT_Val))
+                              ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_PTAT_Val) | \
+                              ADC_INTERNAL_MASK(0, ADC_INPUTCTRL_MUXPOS_CTAT_Val))*/
 
 //
 //

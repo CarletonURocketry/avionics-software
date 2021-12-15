@@ -293,10 +293,11 @@ void init_board(void)
     const int8_t adc_dma_sequence_chans[2] = { ADC0_DMA_SEQUENCE_CHAN,
                                                ADC1_DMA_SEQUENCE_CHAN };
 
+
     init_adc(SAME54_CLK_MSK_12MHZ, 12000000UL,
-             EXTERNAL_ANALOG_MASK | INTERNAL_ANALOG_MASK, ADC_PERIOD,
+             EXTERNAL_ANALOG_MASK | INTERNAL_ANALOG_MASK ,  ADC_PERIOD,
              ADC_SOURCE_IMPEDANCE, adc_dma_result_chans,
-             adc_dma_sequence_chans);
+             adc_dma_sequence_chans); 
 #endif
 
     // Init USB

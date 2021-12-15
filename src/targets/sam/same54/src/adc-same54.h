@@ -9,7 +9,7 @@
 
 #define NUM_OF_ADC_PIN_SRCS                                                   16
 #define NUM_OF_ADC_INTERNAL_SRCS                                               8
-#define ADCX_NUM_OF_CHANS        (NUM_OF_ADC_PIN_SRCS + NUM_OF_ADC_INTERNAL_SRS)
+#define ADCX_NUM_OF_CHANS       (NUM_OF_ADC_PIN_SRCS + NUM_OF_ADC_INTERNAL_SRCS)
 #define TOTAL_NUM_CHANS                                   (2* ADCX_NUM_OF_CHANS)
 
 #define SAM_E5X_PORT_A                                                         0
