@@ -68,7 +68,7 @@ static int get_sdhc_instance_num(Sdhc *sdhc)
 //
 
 void init_sdhc(struct sdhc_desc_t *inst, Sdhc *sdhc, uint32_t clock_freq,
-               uint32_t clock_mask)
+               uint32_t clock_mask, int enable_high_speed, int enable_4_bit)
 {
     /* Find instance number for SDHC */
     const int inst_num = get_sdhc_instance_num(sdhc);
@@ -91,6 +91,8 @@ void init_sdhc(struct sdhc_desc_t *inst, Sdhc *sdhc, uint32_t clock_freq,
     inst->v1_card = 0;
     inst->block_addressed = 0;
     inst->cmd23_supported = 0;
+    inst->enable_high_speed = !!enable_high_speed;
+    inst->enable_4_bit = !!enable_4_bit;
     // Clear operation state
     inst->op_addr = 0;
     inst->callback = NULL;

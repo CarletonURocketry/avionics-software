@@ -261,6 +261,8 @@ extern struct sercom_uart_desc_t uart3_g;
 extern struct sdhc_desc_t sdhc0_g;
 #endif
 
+#define SDHC0_ENABLE_HIGH_SPEED 1
+#define SDHC0_ENABLE_4_BIT      1
 
 //
 //

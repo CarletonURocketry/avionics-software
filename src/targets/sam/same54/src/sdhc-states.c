@@ -860,7 +860,13 @@ static int sdhc_state_handler_select(struct sdhc_desc_t *inst)
 
             // Success! Ready to move on to next state.
             inst->init_retry_count = 0;
-            inst->state = SDHC_SET_HIGH_SPEED;
+            if (inst->enable_high_speed) {
+                inst->state = SDHC_SET_HIGH_SPEED;
+            } else if (inst->enable_4_bit) {
+                inst->state = SDHC_SET_4_BIT;
+            } else {
+                inst->state = SDHC_READ_SCR;
+            }
             return 1;
         case SDHC_SUBSTATE_RSP_LATER:
             return 0;
@@ -942,8 +948,11 @@ static int sdhc_state_handler_set_high_speed(struct sdhc_desc_t *inst)
             // Ready to move on to next state.
             inst->init_retry_count = 0;
             inst->state = SDHC_APP_CMD;
-            //inst->acmd_state = SDHC_SET_4_BIT;
-            inst->acmd_state = SDHC_READ_SCR;
+            if (inst->enable_4_bit) {
+                inst->acmd_state = SDHC_SET_4_BIT;
+            } else {
+                inst->acmd_state = SDHC_READ_SCR;
+            }
             return 1;
         case SDHC_SUBSTATE_RSP_LATER:
             return 0;

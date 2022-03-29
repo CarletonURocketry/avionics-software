@@ -174,6 +174,8 @@ struct sdhc_desc_t {
 
     uint8_t cmd23_supported:1;
 
+    uint8_t enable_high_speed:1;
+    uint8_t enable_4_bit:1;
 };
 
 
@@ -196,9 +198,14 @@ extern struct sd_funcs const sdhc_sd_funcs;
  *
  *  @param inst Pointer to driver instance structure to initialize
  *  @param sdhc SD Host Controller hardware instance
+ *  @param clock_freq Frequency of generic clock
+ *  @param clock_mask Mask to select generic clock
+ *  @param enable_high_speed Whether high speed mode should be used
+ *  @param enable_4_bit Whether 4 bit mode should be used
  */
 extern void init_sdhc(struct sdhc_desc_t *inst, Sdhc *sdhc, uint32_t clock_freq,
-                      uint32_t clock_mask);
+                      uint32_t clock_mask, int enable_high_speed,
+                      int enable_4_bit);
 
 /**
  *  Service to be run in each iteration of the main loop.

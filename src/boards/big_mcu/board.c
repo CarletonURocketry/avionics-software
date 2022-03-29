@@ -162,11 +162,11 @@ static inline void init_io (void)
     PORT->Group[0].PINCFG[8].bit.PMUXEN = 0b1;
     PORT->Group[0].PMUX[4].bit.PMUXO = 0x8;      // PA09: SDDAT0
     PORT->Group[0].PINCFG[9].bit.PMUXEN = 0b1;
-    PORT->Group[0].PMUX[5].bit.PMUXO = 0x8;      // PA10: SDDAT1
+    PORT->Group[0].PMUX[5].bit.PMUXE = 0x8;      // PA10: SDDAT1
     PORT->Group[0].PINCFG[10].bit.PMUXEN = 0b1;
     PORT->Group[0].PMUX[5].bit.PMUXO = 0x8;      // PA11: SDDAT2
     PORT->Group[0].PINCFG[11].bit.PMUXEN = 0b1;
-    PORT->Group[1].PMUX[5].bit.PMUXO = 0x8;      // PB10: SDDAT3
+    PORT->Group[1].PMUX[5].bit.PMUXE = 0x8;      // PB10: SDDAT3
     PORT->Group[1].PINCFG[10].bit.PMUXEN = 0b1;
     PORT->Group[1].PMUX[5].bit.PMUXO = 0x8;      // PB11: SDCK
     PORT->Group[1].PINCFG[11].bit.PMUXEN = 0b1;
@@ -314,7 +314,8 @@ void init_board(void)
 
     // SDHC
 #ifdef ENABLE_SDHC0
-    init_sdhc(&sdhc0_g, SDHC0, 100000000UL, SAME54_CLK_MSK_100MHZ);
+    init_sdhc(&sdhc0_g, SDHC0, 100000000UL, SAME54_CLK_MSK_100MHZ,
+              SDHC0_ENABLE_HIGH_SPEED, SDHC0_ENABLE_4_BIT);
 #endif
 
     // KX134-1211 Accelerometer
