@@ -18,6 +18,7 @@
 
 #include "gnss-xa1110.h"
 #include "ms5611.h"
+#include "mpu9250.h"
 #include "rn2483.h"
 #include "kx134-1211.h"
 
@@ -182,6 +183,10 @@ static const struct radio_antenna_info radio_antennas_g[] =
 struct ms5611_desc_t altimeter_g;
 #endif
 
+#ifdef ENABLE_IMU
+struct mpu9250_desc_t imu_g;
+#endif
+
 #ifdef ENABLE_GNSS
 struct console_desc_t gnss_console_g;
 #endif
@@ -258,6 +263,16 @@ void init_variant(void)
 #endif
 #endif
 
+    // Init IMU
+#ifdef ENABLE_IMU
+    init_mpu9250(&imu_g, &i2c0_g, IMU_ADDR, IMU_INT_PIN, IMU_GYRO_FSR,
+                 IMU_GYRO_BW, IMU_ACCEL_FSR, IMU_ACCEL_BW, IMU_AG_SAMPLE_RATE,
+                 IMU_MAG_SAMPLE_RATE, IMU_USE_FIFO);
+#ifdef ENABLE_TELEMETRY_SERVICE
+    mpu9250_register_telem(&imu_g, &telemetry_g);
+#endif
+#endif
+
     // Init GNSS
 #ifdef ENABLE_GNSS
     init_uart_console(&gnss_console_g, &GNSS_UART, '\0');
@@ -312,6 +327,10 @@ void variant_service(void)
 
 #ifdef ENABLE_ALTIMETER
     ms5611_service(&altimeter_g);
+#endif
+
+#ifdef ENABLE_IMU
+    mpu9250_service(&imu_g);
 #endif
 
 #ifdef ENABLE_GNSS

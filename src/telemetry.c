@@ -14,6 +14,7 @@
 
 #include "gnss-xa1110.h"
 #include "kx134-1211.h"
+#include "mpu9250.h"
 
 
 #define ALTITUDE_TRANSMIT_PERIOD    1000
@@ -401,7 +402,7 @@ uint8_t *telemetry_post_kx134_accel(struct telemetry_service_desc_t *inst,
     uint8_t *const pl = buffer + LOGGING_BLOCK_HEADER_LENGTH;
     struct telem_kx124_accel_pl_head *const pl_head =
             (struct telem_kx124_accel_pl_head*)__builtin_assume_aligned(pl, 4);
-    pl_head->measurment_time = time;
+    pl_head->measurement_time = time;
     pl_head->odr = odr;
     pl_head->range = range;
     pl_head->roll = roll;
@@ -417,6 +418,84 @@ uint8_t *telemetry_post_kx134_accel(struct telemetry_service_desc_t *inst,
 }
 
 int telemetry_finish_kx134_accel(struct telemetry_service_desc_t *inst,
+                                 uint8_t *buffer)
+{
+    if (inst->logging == NULL) {
+        return 1;
+    }
+
+    return log_checkin(inst->logging, buffer);
+}
+
+
+
+uint8_t *telemetry_post_mpu9250_imu(struct telemetry_service_desc_t *inst,
+                                    uint32_t time, uint8_t ag_sr_div,
+                                    enum ak8963_odr mag_odr,
+                                    enum mpu9250_accel_fsr accel_fsr,
+                                    enum mpu9250_gyro_fsr gyro_fsr,
+                                    enum mpu9250_accel_bw accel_bw,
+                                    enum mpu9250_gyro_bw gyro_bw,
+                                    uint16_t sensor_payload_length)
+{
+    if (inst->logging == NULL) {
+        return NULL;
+    }
+
+    // Calculate the number of bytes that we need
+    size_t const subhead_size = offsetof(struct telem_mpu9250_imu_pl_head,
+                                         data);
+    uint16_t payload_bytes;
+    uint16_t total_bytes;
+
+    int ret = __builtin_add_overflow(sensor_payload_length, subhead_size + 3,
+                                     &payload_bytes);
+    if (ret) {
+        return NULL;
+    }
+    // Make sure that payload_bytes is a multiple of 4 (note that we added an
+    // extra 3 bytes on above, that's part of rounding up to the nearest 4
+    // bytes)
+    payload_bytes &= ~0x3;
+
+    ret = __builtin_add_overflow(payload_bytes, LOGGING_BLOCK_HEADER_LENGTH,
+                                 &total_bytes);
+    if (ret) {
+        return NULL;
+    }
+
+    // Checkout a buffer
+    uint8_t *buffer;
+    ret = log_checkout(inst->logging, &buffer, total_bytes);
+    if (ret != 0) {
+        return NULL;
+    }
+
+    // Create the block header
+    logging_block_marshal_header(buffer, LOGGING_BLOCK_CLASS_TELEMETRY,
+                                 RADIO_DATA_BLOCK_MPU9250_IMU, total_bytes);
+
+    // Create payload header
+    uint8_t *const pl = buffer + LOGGING_BLOCK_HEADER_LENGTH;
+    struct telem_mpu9250_imu_pl_head *const pl_head =
+            (struct telem_mpu9250_imu_pl_head*)__builtin_assume_aligned(pl, 4);
+    pl_head->measurement_time = time;
+    pl_head->ag_sr_div = ag_sr_div;
+    pl_head->mag_odr = mag_odr;
+    pl_head->accel_fsr = accel_fsr;
+    pl_head->gyro_fsr = gyro_fsr;
+    pl_head->accel_bw = accel_bw;
+    pl_head->gyro_bw = gyro_bw;
+
+    // Zero out the last word of the buffer as it could contain some padding
+    uint32_t *const last_word_p =
+        (uint32_t*)__builtin_assume_aligned((buffer + (total_bytes - 4)), 4);
+    *last_word_p = 0;
+
+    return pl + subhead_size;
+}
+
+int telemetry_finish_mpu9250_imu(struct telemetry_service_desc_t *inst,
                                  uint8_t *buffer)
 {
     if (inst->logging == NULL) {

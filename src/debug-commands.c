@@ -101,6 +101,10 @@ const struct cli_func_desc_t debug_commands_funcs[] = {
         .help_string = DEBUG_KX134_WAI_HELP},
     {.func = debug_kx134_test, .name = DEBUG_KX134_TEST_NAME,
         .help_string = DEBUG_KX134_TEST_HELP},
+    {.func = debug_mpu9250_wai, .name = DEBUG_MPU9250_WAI_NAME,
+        .help_string = DEBUG_MPU9250_WAI_HELP},
+    {.func = debug_mpu9250_test, .name = DEBUG_MPU9250_TEST_NAME,
+        .help_string = DEBUG_MPU9250_TEST_HELP},
     // Radio
     {.func = debug_lora_version, .name = DEBUG_LORA_VERSION_NAME,
         .help_string = DEBUG_LORA_VERSION_HELP},

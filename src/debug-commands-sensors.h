@@ -71,4 +71,16 @@ extern void debug_kx134_wai (uint8_t argc, char **argv,
 extern void debug_kx134_test (uint8_t argc, char **argv,
                               struct console_desc_t *console);
 
+#define DEBUG_MPU9250_WAI_NAME  "mpu9250-wai"
+#define DEBUG_MPU9250_WAI_HELP  "Read MPU-9250 IMU Who Am I register."
+
+extern void debug_mpu9250_wai (uint8_t argc, char **argv,
+                               struct console_desc_t *console);
+
+#define DEBUG_MPU9250_TEST_NAME "mpu9250-test"
+#define DEBUG_MPU9250_TEST_HELP "Print information from MPU9250 driver."
+
+extern void debug_mpu9250_test (uint8_t argc, char **argv,
+                                struct console_desc_t *console);
+
 #endif /* debug_commands_sensors_h */

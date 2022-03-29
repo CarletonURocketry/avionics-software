@@ -14,6 +14,7 @@
 
 #include "sercom-spi.h"
 #include "gpio.h"
+#include "telemetry.h"
 
 #define KX134_1211_BAUDRATE                 10000000UL
 

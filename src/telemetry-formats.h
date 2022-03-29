@@ -26,6 +26,33 @@ struct telem_altitude {
 
 //
 //
+//  Acceleration
+//
+//
+struct telem_acceleration {
+    uint32_t measurement_time;
+    uint8_t fsr;
+    uint8_t RESERVED;
+    uint16_t x;
+    uint16_t y;
+    uint16_t z;
+};
+
+//
+//
+//  Angular Velocity
+//
+//
+struct telem_angular_velocity {
+    uint32_t measurement_time;
+    uint16_t fsr;
+    uint16_t x;
+    uint16_t y;
+    uint16_t z;
+};
+
+//
+//
 //  GNSS
 //
 //
@@ -66,11 +93,28 @@ struct telem_gnss_meta {
 
 //
 //
+//  MPU9250 IMU
+//
+//
+struct telem_mpu9250_imu_pl_head {
+    uint32_t measurement_time;
+    uint32_t ag_sr_div:8;
+    uint32_t mag_odr:1;
+    uint32_t accel_fsr:2;
+    uint32_t gyro_fsr:2;
+    uint32_t accel_bw:3;
+    uint32_t gyro_bw:3;
+    uint32_t RESERVED:13;
+    uint8_t data[] __attribute__((aligned(2)));
+};
+
+//
+//
 //  KX134-1211 Accelerometer
 //
 //
 struct telem_kx124_accel_pl_head {
-    uint32_t measurment_time;
+    uint32_t measurement_time;
     uint16_t odr:4;
     uint16_t range:2;
     uint16_t roll:1;

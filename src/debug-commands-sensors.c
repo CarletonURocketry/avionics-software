@@ -19,6 +19,7 @@
 #include "gnss-xa1110.h"
 #include "ms5611.h"
 #include "kx134-1211.h"
+#include "mpu9250.h"
 
 // MARK: Altimeter PROM
 
@@ -738,4 +739,213 @@ void debug_kx134_test (uint8_t argc, char **argv,
 #else
     console_send_str(console, "KX134 not enabled in board configuration.\n");
 #endif
+}
+
+// MARK: MPU-9250 Who Am I
+
+void debug_mpu9250_wai (uint8_t argc, char **argv,
+                        struct console_desc_t *console)
+{
+    uint8_t tid;
+    uint8_t out = 0x75;
+    uint8_t data[6] = { 0 };
+    char str[9];
+
+    if (argc == 1) {
+        // Who Am I
+        sercom_i2c_start_generic(&i2c0_g, &tid, 0b1101000, &out, 1, data, 1);
+        //sercom_i2c_start_reg_read(&i2c0_g, &tid, 0b1101000, 0x75, data, 1);
+        while (!sercom_i2c_transaction_done(&i2c0_g, tid)) {
+            sercom_i2c_service(&i2c0_g);
+            wdt_pat();
+        }
+
+        console_send_str(console, "Who Am I: 0x");
+        utoa(data[0], str, 16);
+        console_send_str(console, str);
+        console_send_str(console, "\n");
+        sercom_i2c_clear_transaction(&i2c0_g, tid);
+    } else if (!strcmp(argv[1], "st")) {
+        out = 0x0;
+        sercom_i2c_start_generic(&i2c0_g, &tid, 0b1101000, &out, 1, data, 6);
+        //sercom_i2c_start_reg_read(&i2c0_g, &tid, 0b1101000, 0x0, data, 6);
+        while (!sercom_i2c_transaction_done(&i2c0_g, tid)) {
+            sercom_i2c_service(&i2c0_g);
+            wdt_pat();
+        }
+
+        for (int i = 0; i < 6; i++) {
+            utoa(data[i], str, 16);
+            if (data[i] < 16) {
+                console_send_str(console, "0");
+            }
+            console_send_str(console, str);
+            console_send_str(console, " ");
+        }
+        console_send_str(console, "\n");
+        sercom_i2c_clear_transaction(&i2c0_g, tid);
+    }
+}
+
+// MARK: MPU-9250 Test
+
+void debug_mpu9250_test (uint8_t argc, char **argv,
+                         struct console_desc_t *console)
+{
+#ifdef ENABLE_IMU
+#endif
+    switch (imu_g.state) {
+        case MPU9250_RUNNING:
+        case MPU9250_FIFO_WAIT:
+        case MPU9250_FIFO_READ_COUNT:
+        case MPU9250_FIFO_READ:
+            break;
+        case MPU9250_FAILED:
+            console_send_str(console, "Failed\n");
+            return;
+        case MPU9250_FAILED_AG_WAI:
+            console_send_str(console, "Failed: Accel/Gyro WAI Invalid\n");
+            return;
+        case MPU9250_FAILED_MAG_WAI:
+            console_send_str(console, "Failed: Magnetomter WAI Invalid\n");
+            return;
+        case MPU9250_FAILED_AG_SELF_TEST:
+            console_send_str(console, "Failed: Accel/Gyro Self Test Failed\n");
+            return;
+        case MPU9250_FAILED_MAG_SELF_TEST:
+            console_send_str(console, "Failed: Magnetomter Self Test Failed\n");
+            return;
+        default:
+            console_send_str(console, "Initializing...\n");
+            return;
+    }
+
+    char str[16];
+
+    // Print time since last reading
+    uint32_t const last_reading_time = mpu9250_get_last_time(&imu_g);
+    console_send_str(console, "Last reading at ");
+    utoa(last_reading_time, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " (");
+    utoa(MILLIS_TO_MS(millis - last_reading_time), str, 10);
+    console_send_str(console, str);
+    console_send_str(console, "  milliseconds ago)\n");
+
+    //
+    //  Accelerometer
+    //
+    console_send_str(console, "Accelerometer:\n\tSensitivity: ");
+    // Sensitivity
+    uint16_t const accel_sensitivity = mpu9250_accel_sensitivity(&imu_g);
+    utoa(accel_sensitivity, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, " LSB/g\n\tX: ");
+    // X
+    int16_t const accel_x = mpu9250_get_accel_x(&imu_g);
+    int32_t const x_g = (accel_x * 10000) / (int32_t)accel_sensitivity;
+    debug_print_fixed_point(console, x_g, 4);
+    console_send_str(console, " g (");
+    itoa(accel_x, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tY: ");
+    // Y
+    int16_t const accel_y = mpu9250_get_accel_y(&imu_g);
+    int32_t const y_g = (accel_y * 10000) / (int32_t)accel_sensitivity;
+    debug_print_fixed_point(console, y_g, 4);
+    console_send_str(console, " g (");
+    itoa(accel_y, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tZ: ");
+    // Z
+    int16_t const accel_z = mpu9250_get_accel_z(&imu_g);
+    int32_t const z_g = (accel_z * 10000) / (int32_t)accel_sensitivity;
+    debug_print_fixed_point(console, z_g, 4);
+    console_send_str(console, " g (");
+    itoa(accel_z, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    //
+    //  Gyroscope
+    //
+    console_send_str(console, "Gyroscope:\n\tSensitivity: ");
+    // Sensitivity
+    uint32_t const gyro_sensitivity = mpu9250_gyro_sensitivity(&imu_g);
+    debug_print_fixed_point(console, gyro_sensitivity, 3);
+    console_send_str(console, " LSB/dps\n\tX: ");
+    // X
+    int16_t const gyro_x = mpu9250_get_gyro_x(&imu_g);
+    int32_t const x_dps = (int32_t)(((int64_t)gyro_x * INT64_C(10000000)) /
+                                    (int64_t)gyro_sensitivity);
+    debug_print_fixed_point(console, x_dps, 4);
+    console_send_str(console, " dps (");
+    itoa(gyro_x, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tY: ");
+    // Y
+    int16_t const gyro_y = mpu9250_get_gyro_y(&imu_g);
+    int32_t const y_dps = (int32_t)(((int64_t)gyro_y * INT64_C(10000000)) /
+                                    (int64_t)gyro_sensitivity);
+    debug_print_fixed_point(console, y_dps, 4);
+    console_send_str(console, " dps (");
+    itoa(gyro_y, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tZ: ");
+    // Z
+    int16_t const gyro_z = mpu9250_get_gyro_z(&imu_g);
+    int32_t const z_dps = (int32_t)(((int64_t)gyro_z * INT64_C(10000000)) /
+                                    (int64_t)gyro_sensitivity);
+    debug_print_fixed_point(console, z_dps, 4);
+    console_send_str(console, " dps (");
+    itoa(gyro_z, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    //
+    //  Magnetometer
+    //
+    console_send_str(console, "Magnetomter:\n\tSensitivity: ");
+    // Sensitivity
+    uint16_t const mag_sensitivity = mpu9250_mag_sensitivity(&imu_g);
+    debug_print_fixed_point(console, mag_sensitivity, 3);
+    console_send_str(console, " LSB/µT\n\tOverflow: ");
+    // Overflow
+    int const mag_of = mpu9250_get_mag_overflow(&imu_g);
+    console_send_str(console, mag_of ? "yes\n\tX:" : "no\n\tX: ");
+    // X
+    int16_t const mag_x = mpu9250_get_mag_x(&imu_g);
+    int32_t const x_t = (int32_t)(((int64_t)mag_x * INT64_C(10000000)) /
+                                  (int64_t)mag_sensitivity);
+    debug_print_fixed_point(console, x_t, 1);
+    console_send_str(console, " µT (");
+    itoa(mag_x, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tY: ");
+    // Y
+    int16_t const mag_y = mpu9250_get_mag_y(&imu_g);
+    int32_t const y_t = (int32_t)(((int64_t)mag_y * INT64_C(10000000)) /
+                                  (int64_t)mag_sensitivity);
+    debug_print_fixed_point(console, y_t, 1);
+    console_send_str(console, " µT (");
+    itoa(mag_y, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n\tZ: ");
+    // Z
+    int16_t const mag_z = mpu9250_get_mag_z(&imu_g);
+    int32_t const z_t = (int32_t)(((int64_t)mag_z * INT64_C(10000000)) /
+                                  (int64_t)mag_sensitivity);
+    debug_print_fixed_point(console, z_t, 1);
+    console_send_str(console, " µT (");
+    itoa(mag_z, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
+    //
+    //  Temperature
+    //
+    console_send_str(console, "Temperature:\n\t");
+    int32_t const temp = mpu9250_get_temperature(&imu_g);
+    debug_print_fixed_point(console, temp, 3);
+    console_send_str(console, "°C\n");
 }

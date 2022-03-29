@@ -10,7 +10,16 @@
 #ifndef variant_h
 #define variant_h
 
+#if !defined(telemetry_h) // don't want to include telemetry.h yet
+#define telemtry_h_skipped
+#define telemetry_h
+#endif
 #include "ms5611.h"
+#include "mpu9250.h"
+#ifdef telemtry_h_skipped
+#undef telemetry_h
+#undef telemtry_h_skipped
+#endif
 #include "rn2483.h"
 #include "radio-transport.h"
 #include "radio-antmgr.h"
@@ -213,6 +222,31 @@ extern struct radio_instance_desc *const radios_g[];
 /* Altimeter sample period in milliseconds */
 #define ALTIMETER_PERIOD MS_TO_MILLIS(100)
 extern struct ms5611_desc_t altimeter_g;
+
+//
+//
+//  IMU
+//
+//
+
+/* IMU enabled if defined */
+#define ENABLE_IMU
+/* I2C sddress for IMU */
+#define IMU_ADDR 0b1101000U
+/* IMU interrupt pin */
+#define IMU_INT_PIN GPIO_4
+
+#define IMU_GYRO_FSR            MPU9250_GYRO_FSR_2000DPS
+#define IMU_GYRO_BW             MPU9250_GYRO_BW_41HZ
+#define IMU_ACCEL_FSR           MPU9250_ACCEL_FSR_16G
+#define IMU_ACCEL_BW            MPU9250_ACCEL_BW_45HZ
+#define IMU_AG_SAMPLE_RATE      100
+#define IMU_MAG_SAMPLE_RATE     AK8963_ODR_100HZ
+#define IMU_USE_FIFO            1
+
+#ifdef ENABLE_IMU
+extern struct mpu9250_desc_t imu_g;
+#endif
 
 //
 //
