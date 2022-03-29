@@ -55,9 +55,9 @@ void init_kx134_1211 (struct kx134_1211_desc_t *inst,
     // Calculate sensitivity
     uint16_t max_counts;
     if (inst->resolution == KX134_1211_RES_8_BIT) {
-        max_counts = INT8_MAX + 1;
+        max_counts = INT8_MAX;
     } else {
-        max_counts = INT16_MAX + 1;
+        max_counts = INT16_MAX;
     }
 
     switch (inst->range) {
@@ -159,7 +159,7 @@ void kx134_1211_spi_callback(void *context)
         inst->last_z = samples[2];
     }
 
-    // Checkin telemetry buffer if we used one
+    // Check in telemetry buffer if we used one
     if (inst->telem_buffer_write) {
         telemetry_finish_kx134_accel(inst->telem, inst->telem_buffer);
         inst->telem_buffer_write = 0;

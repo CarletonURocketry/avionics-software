@@ -145,9 +145,7 @@ struct kx134_1211_desc_t {
     uint32_t cs_pin_mask;
 
     /** Buffer for commands and data from sensor */
-    union {
-        uint8_t buffer[480];
-    };
+    uint8_t buffer[480];
 
     uint8_t *telem_buffer;
 
@@ -194,7 +192,7 @@ struct kx134_1211_desc_t {
     /** Flag to indicate that the delay for the current state is complete */
     uint8_t delay_done:1;
     /** Flag to indicate that we the SPI command to be sent in the current state
-        has been marshaled*/
+        has been marshaled */
     uint8_t cmd_ready:1;
     /** Flag to indicate that we are waiting for an SPI transaction */
     uint8_t spi_in_progress:1;

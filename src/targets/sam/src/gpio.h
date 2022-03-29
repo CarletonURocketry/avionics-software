@@ -201,8 +201,9 @@ extern uint8_t gpio_toggle_output(union gpio_pin_t pin);
  *
  *  @param pin The pin for which the interrupt should be enabled
  *  @param trigger The trigger type for the interrupt
- *  @param filter Whether or not a filter should be
+ *  @param filter Whether or not a filter should be used
  *  @param callback The function to be called when the interrupt occurs
+ *  @param context Context pointer to be passed to the callback function
  *
  *  @return 0 if interrupt enabled successfully, 1 otherwise
  */

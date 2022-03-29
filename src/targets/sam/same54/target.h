@@ -24,8 +24,8 @@
  */
 #define millis (RTC->MODE0.COUNT.reg)
 
-#define MS_TO_MILLIS(x) ((((x) * 1024) + 500) / 1000)
-#define MILLIS_TO_MS(x) ((((x) * 1000) + 512) / 1024)
+#define MS_TO_MILLIS(x) ((((x) * UINT32_C(1024)) + UINT32_C(500)) / UINT32_C(1000))
+#define MILLIS_TO_MS(x) ((((x) * UINT32_C(1000)) + UINT32_C(512)) / UINT32_C(1024))
 
 /** Size of logging service buffers */
 #define LOGGING_BUFFER_SIZE 8192

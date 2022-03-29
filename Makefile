@@ -48,11 +48,11 @@ CFLAGS += --param max-inline-insns-single=500
 # Enable many usefull warnings
 # (see https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Warning-Options.html)
 CFLAGS += -Wall -Wextra -Wshadow -Wundef -Wformat=2 -Wtrampolines -Wfloat-equal
-CFLAGS += -Wbad-function-cast -Waggregate-return -Wstrict-prototypes -Wpacked
+CFLAGS += -Wbad-function-cast -Wstrict-prototypes -Wpacked
 CFLAGS += -Wno-aggressive-loop-optimizations -Wmissing-prototypes -Winit-self
 CFLAGS += -Wmissing-declarations -Wmissing-format-attribute -Wunreachable-code
 CFLAGS += -Wshift-overflow=2 -Wduplicated-cond -Wpointer-arith -Wwrite-strings
-CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls -Wlong-long
+CFLAGS += -Wnested-externs -Wcast-align -Wredundant-decls
 CFLAGS += -Werror=implicit-function-declaration -Wlogical-not-parentheses
 CFLAGS += -Wlogical-op -Wold-style-definition -Wcast-qual -Wdouble-promotion
 CFLAGS += -Wunsuffixed-float-constants -Wmissing-include-dirs -Wnormalized
@@ -63,12 +63,11 @@ CLFAGS += -Wdisabled-optimization -Wsuggest-attribute=const
 # -Wnull-dereference -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure
 # -Wstack-usage=256
 
-# Disable some anoying warnings
+# Disable some annoying warnings
 CFLAGS += -Wno-unused-parameter
 
 CFLAGS += -Wa,-adhlns=$(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.lst,$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.lst,$<))
 CFLAGS += $(patsubst %,-I%,$(INCLUDE_DIRS))
-CFLAGS += $(CSTANDARD)
 
 
 ##### Assembler Options #####

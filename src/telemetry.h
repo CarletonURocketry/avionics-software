@@ -110,8 +110,6 @@ extern int telemetry_post_msg(struct telemetry_service_desc_t *inst,
  *
  *  @param inst Telemetry service instance
  *  @param ms5611_alt The MS5611 altimeter driver instance
- *
- *  @return 0 if successful
  */
 static inline void telemetry_register_ms5611_alt(
                                         struct telemetry_service_desc_t *inst,
@@ -127,8 +125,6 @@ static inline void telemetry_register_ms5611_alt(
  *
  *  @param inst Telemetry service instance
  *  @param gnss The GNSS driver instance
- *
- *  @return 0 if successful
  */
 static inline void telemetry_register_gnss(struct telemetry_service_desc_t *inst,
                                            struct gnss *gnss)
