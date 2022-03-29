@@ -165,10 +165,15 @@ if openocd_path is not None or args.make_openocd_config is not None:
             args.interface.casefold() == "cmsis-dap"):
         openocd_cfg.write(b"# CMSIS-DAP Debugger\nadapter driver cmsis-dap\n")
         speed = 2000
+    elif args.interface.casefold() == "ftdi":
+        openocd_cfg.write(b"# Adafruit FT232H Breakout as SWD Interface\n")
+        openocd_cfg.write(b"source [find interface/ftdi/ft232h-module-swd.cfg]\n")
+        speed = None
     else:
         openocd_cfg.write(f"adapter driver {args.interface.casefold()}\n".encode("utf-8"))
     openocd_cfg.write(b"transport select swd\n\n")
-    openocd_cfg.write(f"# Adapter settings\nadapter speed {speed}\n\n".encode("utf-8"))
+    if speed is not None:
+        openocd_cfg.write(f"# Adapter settings\nadapter speed {speed}\n\n".encode("utf-8"))
     openocd_cfg.write(f"# Chip info\nset CHIPNAME {args.chip_name}\n".encode("utf-8"))
     openocd_cfg.write(b"set ENDIAN little\n")
     openocd_cfg.write(f"source [find {args.chip_config}]\n\n".encode("utf-8"))
