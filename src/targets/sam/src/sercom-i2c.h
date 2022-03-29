@@ -84,6 +84,9 @@ enum i2c_transaction_state {
     I2C_STATE_SLAVE_NACK
 };
 
+typedef void (*sercom_i2c_transaction_cb_t)(enum i2c_transaction_state, void*);
+
+
 /**
  *  State for an I2C transaction.
  */
@@ -112,6 +115,11 @@ struct sercom_i2c_transaction_t {
         struct {
             /** The buffer from/to which data is sent or received. */
             uint8_t *buffer;
+
+            /** Callback function */
+            sercom_i2c_transaction_cb_t callback;
+            /** Context pointer for callback function */
+            void *callback_context;
             
             /** The number of bytes to be sent or received. */
             uint16_t data_length;
@@ -120,8 +128,6 @@ struct sercom_i2c_transaction_t {
             
             /** The address of the device register to be written/read. */
             uint8_t register_address;
-            
-            uint8_t RESERVED[7];
         } reg;
         
         /** Data for a bus scan operation. */
@@ -256,6 +262,35 @@ extern uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
                                          uint8_t *trans_id, uint8_t dev_address,
                                          uint8_t register_address,
                                          uint8_t *data, uint16_t length);
+
+/**
+ *  Read a register on a peripheral on the I2C bus. After the transaction is
+ *  complete a callback function will be called.
+ *
+ *  @note As long as the callback is not NULL, sercom_i2c_clear_transaction()
+ *        must not be called for transactions started with this function. The
+ *        transaction will be automatically cleared before the callback function
+ *        is called.
+ *
+ *  @param i2c_inst The I2C instance to use.
+ *  @param trans_id The identifier for the created transaction will be
+ *                  placed here.
+ *  @param dev_address The address of the peripheral to communicate with.
+ *  @param register_address The address of the register to be read
+ *  @param data The buffer where received data will be placed.
+ *  @param length The number of bytes to be received.
+ *  @param callback Callback function to be called when transaction is complete
+ *  @param context Context pointer for callback function
+ *
+ *  @return 0 if transaction is successfully queued.
+ */
+extern uint8_t sercom_i2c_start_reg_read_with_cb(
+                                        struct sercom_i2c_desc_t *i2c_inst,
+                                        uint8_t *trans_id, uint8_t dev_address,
+                                        uint8_t register_address, uint8_t *data,
+                                        uint16_t length,
+                                        sercom_i2c_transaction_cb_t callback,
+                                        void *context);
 
 /**
  *  Scan to determine all of the attached addresses on the I2C bus.

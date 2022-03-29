@@ -241,6 +241,9 @@ uint8_t sercom_i2c_start_reg_write(struct sercom_i2c_desc_t *i2c_inst,
     state->dev_address = dev_address << 1;
     state->type = I2C_TRANSACTION_REG_WRITE;
     state->state = I2C_STATE_PENDING;
+
+    state->reg.callback = NULL;
+    state->reg.callback_context = NULL;
     
     transaction_queue_set_valid(t);
     
@@ -253,15 +256,28 @@ uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
                                   uint8_t register_address, uint8_t *data,
                                   uint16_t length)
 {
+    return sercom_i2c_start_reg_read_with_cb(i2c_inst, trans_id, dev_address,
+                                             register_address, data, length,
+                                             NULL, NULL);
+}
+
+uint8_t sercom_i2c_start_reg_read_with_cb(struct sercom_i2c_desc_t *i2c_inst,
+                                          uint8_t *trans_id,
+                                          uint8_t dev_address,
+                                          uint8_t register_address,
+                                          uint8_t *data, uint16_t length,
+                                          sercom_i2c_transaction_cb_t callback,
+                                          void *context)
+{
     struct transaction_t *t = transaction_queue_add(&i2c_inst->queue);
     if (t == NULL) {
         return 1;
     }
     *trans_id = t->transaction_id;
-    
+
     struct sercom_i2c_transaction_t *state =
-                                (struct sercom_i2c_transaction_t*)t->state;
-    
+    (struct sercom_i2c_transaction_t*)t->state;
+
     state->reg.buffer = data;
     state->reg.data_length = length;
     state->reg.register_address = register_address;
@@ -269,13 +285,16 @@ uint8_t sercom_i2c_start_reg_read(struct sercom_i2c_desc_t *i2c_inst,
     state->dma_out = 0;
     state->dma_in = (i2c_inst->use_dma && (length >= I2C_DMA_THRESHOLD) &&
                      (length <= I2C_DMA_MAX));
-    
+
     state->dev_address = dev_address << 1;
     state->type = I2C_TRANSACTION_REG_READ;
     state->state = I2C_STATE_PENDING;
-    
+
+    state->reg.callback = callback;
+    state->reg.callback_context = context;
+
     transaction_queue_set_valid(t);
-    
+
     sercom_i2c_service(i2c_inst);
     return 0;
 }
@@ -398,11 +417,11 @@ static inline void sercom_i2c_begin_register (
                                         struct sercom_i2c_desc_t *i2c_inst,
                                         struct sercom_i2c_transaction_t *state)
 {
-    state->state = I2C_STATE_TX;
     uint8_t const addr = state->dev_address | 0;
     
     if ((state->type == I2C_TRANSACTION_REG_WRITE) && state->dma_out) {
         /* Start transaction with DMA */
+        state->state = I2C_STATE_TX;
         uint8_t len = (uint8_t)(state->reg.data_length);
 
         // Configure second DMA descriptor for transfer
@@ -421,11 +440,12 @@ static inline void sercom_i2c_begin_register (
         // Enable error interrupt
         i2c_inst->sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_ERROR;
         // Write ADDR to start I2C transaction
-        i2c_inst->sercom->I2CM.ADDR.reg = (SERCOM_I2CM_ADDR_LEN(len) |
+        i2c_inst->sercom->I2CM.ADDR.reg = (SERCOM_I2CM_ADDR_LEN(len + 1) |
                                            SERCOM_I2CM_ADDR_LENEN |
                                            SERCOM_I2CM_ADDR_ADDR(addr));
     } else {
         /* Start transaction interrupt driven */
+        state->state = I2C_STATE_REG_ADDR;
         // Enable master on bus and slave on bus interrupts
         i2c_inst->sercom->I2CM.INTENSET.reg = (SERCOM_I2CM_INTENSET_MB |
                                                SERCOM_I2CM_INTENSET_SB);
@@ -435,9 +455,12 @@ static inline void sercom_i2c_begin_register (
 }
 
 static inline void sercom_i2c_end_transaction (
-                                               struct sercom_i2c_desc_t *i2c_inst,
-                                               struct transaction_t *t)
+                                            struct sercom_i2c_desc_t *i2c_inst,
+                                            struct transaction_t *t)
 {
+    struct sercom_i2c_transaction_t *s =
+                                    (struct sercom_i2c_transaction_t*)t->state;
+
     // Mark transaction as done and not active
     transaction_queue_set_done(t);
     
@@ -445,14 +468,24 @@ static inline void sercom_i2c_end_transaction (
     i2c_inst->sercom->I2CM.INTENCLR.reg = (SERCOM_I2CM_INTENCLR_MB |
                                            SERCOM_I2CM_INTENCLR_SB |
                                            SERCOM_I2CM_INTENCLR_ERROR);
+
+    // Run callback if there is one
+    if (((s->type == I2C_TRANSACTION_REG_READ) ||
+         (s->type == I2C_TRANSACTION_REG_WRITE)) &&
+        (s->reg.callback != NULL)) {
+        enum i2c_transaction_state const state = s->state;
+        void *const context = s->reg.callback_context;
+        transaction_queue_invalidate(t);
+        s->reg.callback(state, context);
+    }
     
     // Run the I2C service to start the next transaction if there is one
     sercom_i2c_service(i2c_inst);
 }
 
 static inline void sercom_i2c_begin_in_dma (
-                                            struct sercom_i2c_desc_t *i2c_inst,
-                                            struct sercom_i2c_transaction_t *state)
+                                        struct sercom_i2c_desc_t *i2c_inst,
+                                        struct sercom_i2c_transaction_t *state)
 {
     // Transaction must be generic or reg read
     uint8_t const reg = (state->type == I2C_TRANSACTION_REG_READ);
@@ -668,7 +701,7 @@ void sercom_i2c_isr_mb (Sercom *sercom, uint8_t inst_num, void *state)
                 sercom_i2c_end_transaction(i2c_inst, t);
             } else {
                 // Send next byte
-                uint8_t const n = s->generic.out_buffer[s->generic.bytes_out++];
+                uint8_t const n = s->generic.out_buffer[s->reg.position++];
                 i2c_inst->sercom->I2CM.DATA.reg = n;
             }
         } else {
