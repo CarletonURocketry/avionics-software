@@ -114,7 +114,7 @@ void mpu9250_service(struct mpu9250_desc_t *inst)
     } while (do_next_state);
 }
 
-int32_t mpu9250_get_temperature(struct mpu9250_desc_t *inst)
+int32_t mpu9250_get_temperature(const struct mpu9250_desc_t *inst)
 {
     int32_t const t_val = (int32_t)inst->last_temp - MPU9250_TEMP_ROOM_OFFSET;
     return ((1000 * t_val) / MPU9250_TEMP_SENSITIVITY) + 21000;

@@ -20,6 +20,7 @@
 #define ALTITUDE_TRANSMIT_PERIOD    1000
 #define GNSS_LOC_TRANSMIT_PERIOD    5000
 #define GNSS_META_TRANSMIT_PERIOD   30000
+#define IMU_TRANSMIT_PERIOD         2500
 
 
 
@@ -48,6 +49,26 @@ static void telemetry_marshal_gnss_loc(uint32_t *pl_buf, void *arg);
  *  @param arg Pointer to gnss driver instance
  */
 static void telemetry_marshal_gnss_metadata(uint32_t *pl_buf, void *arg);
+#endif
+
+#ifdef ENABLE_IMU
+/**
+ *  Marshal MPU9250 acceleration data into generic acceleration data payload.
+ *
+ *  @param pl_buf Buffer where payload should be marshaled
+ *  @param arg Pointer to IMU driver instance
+ */
+static void telemetry_marshal_mpu9250_acceleration(uint32_t *pl_buf, void *arg);
+
+/**
+ *  Marshal MPU9250 angular velocity data into generic angular velocity data
+ *  payload.
+ *
+ *  @param pl_buf Buffer where payload should be marshaled
+ *  @param arg Pointer to IMU driver instance
+ */
+static void telemetry_marshal_mpu9250_angular_velocity(uint32_t *pl_buf,
+                                                       void *arg);
 #endif
 
 
@@ -157,15 +178,19 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
         // Post acceleration
         uint32_t const alt_time = ms5611_get_last_reading_time(
                                                             inst->ms5611_alt);
-        uint8_t const log_alt = alt_time != inst->last_ms5611_alt_time;
-        uint8_t const send_alt = ((alt_time - inst->last_ms5611_alt_time) >
+        uint8_t const log_alt = alt_time != inst->last_ms5611_alt_log_time;
+        uint8_t const send_alt = ((alt_time -
+                                   inst->last_ms5611_alt_radio_time) >
                                   ALTITUDE_TRANSMIT_PERIOD);
         telemetry_post_internal(inst, log_alt, send_alt,
                                 ALTITUDE_TRANSMIT_PERIOD,
                                 sizeof(struct telem_altitude),
                                 telemetry_marshal_ms5611_altitude,
                                 inst->ms5611_alt, RADIO_DATA_BLOCK_ALTITUDE);
-        inst->last_ms5611_alt_time = alt_time;
+        inst->last_ms5611_alt_log_time = alt_time;
+        if (send_alt) {
+            inst->last_ms5611_alt_radio_time = alt_time;
+        }
     }
 #endif
 
@@ -174,20 +199,24 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
     if (inst->gnss != NULL) {
         // Location
         uint32_t const fix_time = inst->gnss->last_fix;
-        uint8_t const log_loc = fix_time != inst->last_gnss_loc_time;
-        uint8_t const send_loc = ((fix_time - inst->last_gnss_loc_time) >
+        uint8_t const log_loc = fix_time != inst->last_gnss_loc_log_time;
+        uint8_t const send_loc = ((fix_time - inst->last_gnss_loc_radio_time) >
                                   GNSS_LOC_TRANSMIT_PERIOD);
         telemetry_post_internal(inst, log_loc, send_loc,
                                 GNSS_LOC_TRANSMIT_PERIOD,
                                 sizeof(struct telem_gnss_loc),
                                 telemetry_marshal_gnss_loc,
                                 inst->gnss, RADIO_DATA_BLOCK_GNSS);
-        inst->last_gnss_loc_time = fix_time;
+        inst->last_gnss_loc_log_time = fix_time;
+        if (send_loc) {
+            inst->last_gnss_loc_radio_time = fix_time;
+        }
 
         // Metadata
         uint32_t const meta_time = inst->gnss->last_gsv;
-        uint8_t const log_meta = meta_time != inst->last_gnss_meta_time;
-        uint8_t const send_meta = ((meta_time - inst->last_gnss_meta_time) >
+        uint8_t const log_meta = meta_time != inst->last_ms5611_alt_log_time;
+        uint8_t const send_meta = ((meta_time -
+                                    inst->last_gnss_meta_radio_time) >
                                    GNSS_META_TRANSMIT_PERIOD);
 
         uint8_t const num_sats = (inst->gnss->num_gps_sats_in_view +
@@ -200,12 +229,37 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
                                 sizeof(struct telem_gnss_meta) + sat_length,
                                 telemetry_marshal_gnss_metadata,
                                 inst->gnss, RADIO_DATA_BLOCK_GNSS_META);
-        inst->last_gnss_meta_time = meta_time;
+        inst->last_ms5611_alt_log_time = meta_time;
+        if (send_meta) {
+            inst->last_gnss_meta_radio_time = meta_time;
+        }
 
         // If we have a fix, set the flight's timestamp
         if ((inst->gnss->fix_type == GNSS_FIX_2D) ||
             (inst->gnss->fix_type == GNSS_FIX_3D)) {
             logging_set_timestamp(inst->logging, inst->gnss->utc_time);
+        }
+    }
+#endif
+
+#ifdef ENABLE_IMU
+    if (inst->mpu9250_imu != NULL) {
+        // Post acceleration
+        uint32_t const imu_time = mpu9250_get_last_time(inst->mpu9250_imu);
+        uint8_t const send_imu = ((imu_time - inst->last_mpu9250_radio_time) >
+                                  IMU_TRANSMIT_PERIOD);
+        telemetry_post_internal(inst, 0, send_imu, IMU_TRANSMIT_PERIOD,
+                                sizeof(struct telem_acceleration),
+                                telemetry_marshal_mpu9250_acceleration,
+                                inst->mpu9250_imu,
+                                RADIO_DATA_BLOCK_ACCELERATION);
+        telemetry_post_internal(inst, 0, send_imu, IMU_TRANSMIT_PERIOD,
+                                sizeof(struct telem_angular_velocity),
+                                telemetry_marshal_mpu9250_angular_velocity,
+                                inst->mpu9250_imu,
+                                RADIO_DATA_BLOCK_ANGULAR_VELOCITY);
+        if (send_imu) {
+            inst->last_mpu9250_radio_time = imu_time;
         }
     }
 #endif
@@ -351,6 +405,33 @@ static void telemetry_marshal_gnss_metadata(uint32_t *pl_buf, void *arg)
 }
 #endif
 
+#ifdef ENABLE_IMU
+static void telemetry_marshal_mpu9250_acceleration(uint32_t *pl_buf, void *arg)
+{
+    const struct mpu9250_desc_t *const imu = (const struct mpu9250_desc_t*)arg;
+    struct telem_acceleration *const pl = (struct telem_acceleration*)pl_buf;
+
+    pl->measurement_time = mpu9250_get_last_time(imu);
+    pl->fsr = mpu9250_get_accel_fsr(imu);
+    pl->x = mpu9250_get_accel_x(imu);
+    pl->y = mpu9250_get_accel_y(imu);
+    pl->z = mpu9250_get_accel_z(imu);
+}
+
+static void telemetry_marshal_mpu9250_angular_velocity(uint32_t *pl_buf,
+                                                       void *arg)
+{
+    const struct mpu9250_desc_t *const imu = (const struct mpu9250_desc_t*)arg;
+    struct telem_angular_velocity *const pl =
+                                        (struct telem_angular_velocity*)pl_buf;
+
+    pl->measurement_time = mpu9250_get_last_time(imu);
+    pl->fsr = mpu9250_get_gyro_fsr(imu);
+    pl->x = mpu9250_get_gyro_x(imu);
+    pl->y = mpu9250_get_gyro_y(imu);
+    pl->z = mpu9250_get_gyro_z(imu);
+}
+#endif
 
 
 uint8_t *telemetry_post_kx134_accel(struct telemetry_service_desc_t *inst,

@@ -381,7 +381,7 @@ extern void mpu9250_service(struct mpu9250_desc_t *inst);
  *
  *  @return Gyroscope sensitivity in LSB/1000 dps
  */
-static inline uint32_t mpu9250_gyro_sensitivity(struct mpu9250_desc_t *inst)
+static inline uint32_t mpu9250_gyro_sensitivity(const struct mpu9250_desc_t *inst)
 {
     switch (inst->gyro_fsr) {
         case MPU9250_GYRO_FSR_250DPS:
@@ -406,7 +406,7 @@ static inline uint32_t mpu9250_gyro_sensitivity(struct mpu9250_desc_t *inst)
  *
  *  @return Accelerometer sensitivity in LSB/g
  */
-static inline uint16_t mpu9250_accel_sensitivity(struct mpu9250_desc_t *inst)
+static inline uint16_t mpu9250_accel_sensitivity(const struct mpu9250_desc_t *inst)
 {
     switch (inst->accel_fsr) {
         case MPU9250_ACCEL_FSR_2G:
@@ -431,7 +431,7 @@ static inline uint16_t mpu9250_accel_sensitivity(struct mpu9250_desc_t *inst)
  *
  *  @return Magnetometer sensitivity in LSB per mT
  */
-static inline uint16_t mpu9250_mag_sensitivity(struct mpu9250_desc_t *inst)
+static inline uint16_t mpu9250_mag_sensitivity(const struct mpu9250_desc_t *inst)
 {
     // Sensitivity in 16 bit mode is 0.15 microT/LSB -> 6 and 2/3 LSB/microT
     return 6666;
@@ -444,11 +444,48 @@ static inline uint16_t mpu9250_mag_sensitivity(struct mpu9250_desc_t *inst)
  *
  *  @return Accelerometer and gyroscope ODR in Hz
  */
-static inline uint16_t mpu9250_get_ag_odr(struct mpu9250_desc_t *inst)
+static inline uint16_t mpu9250_get_ag_odr(const struct mpu9250_desc_t *inst)
 {
     return (uint16_t)1000 / ((uint16_t)(inst->odr) + 1);
 }
 
+/**
+ *  Get the full scale range for the accelerometer.
+ *
+ *  @param inst The MPU9250 driver instance
+ *
+ *  @return The full scale range in g.
+ */
+static inline uint8_t mpu9250_get_accel_fsr(const struct mpu9250_desc_t *inst)
+{
+    switch (inst->accel_fsr) {
+        case MPU9250_ACCEL_FSR_2G:
+            return 2;
+        case MPU9250_ACCEL_FSR_4G:
+            return 4;
+        case MPU9250_ACCEL_FSR_8G:
+            return 8;
+        case MPU9250_ACCEL_FSR_16G:
+            return 16;
+    }
+}
+
+/**
+ *
+ */
+static inline uint16_t mpu9250_get_gyro_fsr(const struct mpu9250_desc_t *inst)
+{
+    switch (inst->gyro_fsr) {
+        case MPU9250_GYRO_FSR_250DPS:
+            return 250;
+        case MPU9250_GYRO_FSR_500DPS:
+            return 500;
+        case MPU9250_GYRO_FSR_1000DPS:
+            return 1000;
+        case MPU9250_GYRO_FSR_2000DPS:
+            return 2000;
+    }
+}
 
 
 
@@ -459,7 +496,7 @@ static inline uint16_t mpu9250_get_ag_odr(struct mpu9250_desc_t *inst)
  *
  *  @return The value of millis for the most recent measurement
  */
-static inline uint32_t mpu9250_get_last_time (struct mpu9250_desc_t *inst)
+static inline uint32_t mpu9250_get_last_time (const struct mpu9250_desc_t *inst)
 {
     return inst->last_sample_time;
 }
@@ -471,7 +508,7 @@ static inline uint32_t mpu9250_get_last_time (struct mpu9250_desc_t *inst)
  *
  *  @return The most recent x axis acceleration measurement
  */
-static inline int16_t mpu9250_get_accel_x(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_accel_x(const struct mpu9250_desc_t *inst)
 {
     return inst->last_accel_x;
 }
@@ -483,7 +520,7 @@ static inline int16_t mpu9250_get_accel_x(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent y axis acceleration measurement
  */
-static inline int16_t mpu9250_get_accel_y(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_accel_y(const struct mpu9250_desc_t *inst)
 {
     return inst->last_accel_y;
 }
@@ -495,7 +532,7 @@ static inline int16_t mpu9250_get_accel_y(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent z axis acceleration measurement
  */
-static inline int16_t mpu9250_get_accel_z(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_accel_z(const struct mpu9250_desc_t *inst)
 {
     return inst->last_accel_z;
 }
@@ -507,7 +544,7 @@ static inline int16_t mpu9250_get_accel_z(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent temperature measurement in millidegrees celsius
  */
-extern int32_t mpu9250_get_temperature(struct mpu9250_desc_t *inst);
+extern int32_t mpu9250_get_temperature(const struct mpu9250_desc_t *inst);
 
 /**
  *  Get the most recent x axis angular velocity measurement.
@@ -516,7 +553,7 @@ extern int32_t mpu9250_get_temperature(struct mpu9250_desc_t *inst);
  *
  *  @return The most recent x axis angular velocity measurement
  */
-static inline int16_t mpu9250_get_gyro_x(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_gyro_x(const struct mpu9250_desc_t *inst)
 {
     return inst->last_gyro_x;
 }
@@ -528,7 +565,7 @@ static inline int16_t mpu9250_get_gyro_x(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent y axis angular velocity measurement
  */
-static inline int16_t mpu9250_get_gyro_y(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_gyro_y(const struct mpu9250_desc_t *inst)
 {
     return inst->last_gyro_y;
 }
@@ -540,7 +577,7 @@ static inline int16_t mpu9250_get_gyro_y(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent z axis angular velocity measurement
  */
-static inline int16_t mpu9250_get_gyro_z(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_gyro_z(const struct mpu9250_desc_t *inst)
 {
     return inst->last_gyro_z;
 }
@@ -552,7 +589,7 @@ static inline int16_t mpu9250_get_gyro_z(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent x axis magnetic flux density measurement
  */
-static inline int16_t mpu9250_get_mag_x(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_mag_x(const struct mpu9250_desc_t *inst)
 {
     return inst->last_mag_x;
 }
@@ -564,7 +601,7 @@ static inline int16_t mpu9250_get_mag_x(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent y axis magnetic flux density measurement
  */
-static inline int16_t mpu9250_get_mag_y(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_mag_y(const struct mpu9250_desc_t *inst)
 {
     return inst->last_mag_y;
 }
@@ -576,7 +613,7 @@ static inline int16_t mpu9250_get_mag_y(struct mpu9250_desc_t *inst)
  *
  *  @return The most recent z axis magnetic flux density measurement
  */
-static inline int16_t mpu9250_get_mag_z(struct mpu9250_desc_t *inst)
+static inline int16_t mpu9250_get_mag_z(const struct mpu9250_desc_t *inst)
 {
     return inst->last_mag_z;
 }
@@ -589,7 +626,7 @@ static inline int16_t mpu9250_get_mag_z(struct mpu9250_desc_t *inst)
  *  @return Whether the magnetometer overflowed during the most recent
  *          measurement
  */
-static inline int mpu9250_get_mag_overflow(struct mpu9250_desc_t *inst)
+static inline int mpu9250_get_mag_overflow(const struct mpu9250_desc_t *inst)
 {
     return inst->last_mag_overflow;
 }

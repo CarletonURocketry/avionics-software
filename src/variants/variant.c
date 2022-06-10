@@ -270,6 +270,7 @@ void init_variant(void)
                  IMU_MAG_SAMPLE_RATE, IMU_USE_FIFO);
 #ifdef ENABLE_TELEMETRY_SERVICE
     mpu9250_register_telem(&imu_g, &telemetry_g);
+    telemetry_register_imu(&telemetry_g, &imu_g);
 #endif
 #endif
 

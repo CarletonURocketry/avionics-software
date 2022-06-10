@@ -20,6 +20,7 @@
 #include "adc.h"
 #include "ms5611.h"
 #include "gnss-xa1110.h"
+#include "mpu9250.h"
 
 
 struct telemetry_service_desc_t {
@@ -33,17 +34,32 @@ struct telemetry_service_desc_t {
 #ifdef ENABLE_ALTIMETER
     /** MS5611 altimeter driver instance descriptor */
     struct ms5611_desc_t *ms5611_alt;
-    /** The timestamp for the last altimeter data point that was posted */
-    uint32_t last_ms5611_alt_time;
+    /** The timestamp for the last altimeter data point that was logged */
+    uint32_t last_ms5611_alt_log_time;
+    /** The timestamp for the last altimeter data point that was transmitted */
+    uint32_t last_ms5611_alt_radio_time;
 #endif
 
 #ifdef ENABLE_GNSS
     /** GNSS driver instance descriptor */
     struct gnss *gnss;
-    /** The timestamp for the last GNSS location data point that was posted */
-    uint32_t last_gnss_loc_time;
-    /** The timestamp for the last GNSS metadata data point that was posted */
-    uint32_t last_gnss_meta_time;
+    /** The timestamp for the last GNSS location data point that was logged */
+    uint32_t last_gnss_loc_log_time;
+    /** The timestamp for the last GNSS location data point that was
+        transmitted */
+    uint32_t last_gnss_loc_radio_time;
+    /** The timestamp for the last GNSS metadata data point that was logged */
+    uint32_t last_gnss_meta_log_time;
+    /** The timestamp for the last GNSS metadata data point that was
+        transmitted */
+    uint32_t last_gnss_meta_radio_time;
+#endif
+
+#ifdef ENABLE_IMU
+    /** IMU driver instance descriptor */
+    struct mpu9250_desc_t *mpu9250_imu;
+    /** The timestamp for the last IMU data that was transmitted */
+    uint32_t last_mpu9250_radio_time;
 #endif
 };
 
@@ -133,6 +149,13 @@ static inline void telemetry_register_gnss(struct telemetry_service_desc_t *inst
 }
 #endif
 
+#ifdef ENABLE_IMU
+static inline void telemetry_register_imu(struct telemetry_service_desc_t *inst,
+                                          struct mpu9250_desc_t *mpu9250_imu)
+{
+    inst->mpu9250_imu = mpu9250_imu;
+}
+#endif
 
 
 // Functions to post data from pushed sensors
