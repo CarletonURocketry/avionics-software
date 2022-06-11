@@ -27,6 +27,7 @@
 
 #include "ground.h"
 #include "telemetry.h"
+#include "deployment.h"
 
 
 #ifdef ENABLE_LORA
@@ -211,6 +212,10 @@ struct logging_desc_t logging_g;
 struct telemetry_service_desc_t telemetry_g;
 #endif
 
+#ifdef ENABLE_DEPLOYMENT_SERVICE
+struct deployment_service_desc_t deployment_g;
+#endif
+
 void init_variant(void)
 {
 #ifdef ENABLE_TELEMETRY_SERVICE
@@ -318,6 +323,17 @@ void init_variant(void)
 #endif
     init_ground_service(&ground_station_console_g, &rn2483_g);
 #endif
+
+    // Deployment service
+#ifdef ENABLE_DEPLOYMENT_SERVICE
+#ifndef ENABLE_ALTIMETER
+#error  Deployment service requires altimeter
+#endif
+#ifndef ENABLE_IMU
+#error  Deployment service requires IMU
+#endif
+    init_deployment(&deployment_g, &altimeter_g, &imu_g);
+#endif
 }
 
 void variant_service(void)
@@ -352,5 +368,9 @@ void variant_service(void)
 
 #ifdef ENABLE_TELEMETRY_SERVICE
     telemetry_service(&telemetry_g);
+#endif
+
+#ifdef ENABLE_DEPLOYMENT_SERVICE
+    deployment_service(&deployment_g);
 #endif
 }

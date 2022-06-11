@@ -11,6 +11,8 @@
 
 #include "debug-commands.h"
 
+#include <math.h>
+
 #include "variant.h"
 #include "board.h"
 #include "wdt.h"
@@ -736,6 +738,19 @@ void debug_kx134_test (uint8_t argc, char **argv,
     utoa(z, str, 10);
     console_send_str(console, str);
     console_send_str(console, ")\n");
+
+    // Abs
+    int64_t abs = ((int64_t)((int32_t)x * x) + (int64_t)((int32_t)y * y) +
+                   (int64_t)((int32_t)z * z));
+    abs = sqrt(abs);
+    int32_t const abs_g = (abs * 10000) / sensitivity;
+    console_send_str(console, "Absolute: ");
+    debug_print_fixed_point(console, abs_g, 4);
+    console_send_str(console, " g (");
+    utoa(abs, str, 10);
+    console_send_str(console, str);
+    console_send_str(console, ")\n");
+
 #else
     console_send_str(console, "KX134 not enabled in board configuration.\n");
 #endif
