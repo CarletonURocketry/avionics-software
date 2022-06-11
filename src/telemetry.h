@@ -61,6 +61,11 @@ struct telemetry_service_desc_t {
     /** The timestamp for the last IMU data that was transmitted */
     uint32_t last_mpu9250_radio_time;
 #endif
+
+    /** The last time software status data was logged */
+    uint32_t last_status_log_time;
+    /** The last time software status data was transmitted */
+    uint32_t last_status_radio_time;
 };
 
 

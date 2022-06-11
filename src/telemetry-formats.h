@@ -14,6 +14,31 @@
 
 //
 //
+//  Status
+//
+//
+enum telem_sensor_status {
+    TELEM_SENSOR_STATUS_NONE = 0x0,
+    TELEM_SENSOR_STATUS_INITIALIZING = 0x1,
+    TELEM_SENSOR_STATUS_RUNNING = 0x2,
+    TELEM_SENSOR_STATUS_SELF_TEST_FAILED = 0x3,
+    TELEM_SENSOR_STATUS_FAILED = 0x4
+};
+
+struct telem_status {
+    uint32_t time;
+    uint32_t RESERVED:16;
+    uint32_t kx134_state:3;
+    uint32_t altimeter_state:3;
+    uint32_t imu_state:3;
+    uint32_t sd_state:3;
+    uint32_t deployment_state:4;
+    uint32_t sd_blocks_recorded;
+    uint32_t sd_checkouts_missed;
+};
+
+//
+//
 //  Altitude
 //
 //

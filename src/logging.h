@@ -209,4 +209,41 @@ extern int log_checkout(struct logging_desc_t *inst, uint8_t **data,
  */
 extern int log_checkin(struct logging_desc_t *inst, uint8_t *data);
 
+/**
+ *  Get the number of blocks written as part of the current flight.
+ */
+static inline uint32_t log_get_curr_flight_blocks(
+                                    const struct logging_desc_t *const inst)
+{
+    return inst->sb.flights[inst->flight].num_blocks;
+}
+
+/**
+ *  Get the number of checkouts that have been dropped because of insufficent
+ *  buffer space.
+ */
+static inline uint32_t log_get_num_missed_checkouts(
+                                    const struct logging_desc_t *const inst)
+{
+    return inst->out_of_space_count;
+}
+
+/**
+ *  Get the SD card driver instance used by this logging instance.
+ */
+static inline sd_desc_ptr_t log_get_sd_desc(
+                                    const struct logging_desc_t *const inst)
+{
+    return inst->sd_desc;
+}
+
+/**
+ *  Get the SD card access functions used by this logging instance.
+ */
+static inline const struct sd_funcs *log_get_sd_funcs(
+                                    const struct logging_desc_t *const inst)
+{
+    return &inst->sd_funcs;
+}
+
 #endif /* logging_h */

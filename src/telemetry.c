@@ -12,11 +12,16 @@
 #include "telemetry-formats.h"
 #include "radio-packet-layout.h"
 
+#include "variant.h"
+#include "board.h"
 #include "gnss-xa1110.h"
 #include "kx134-1211.h"
 #include "mpu9250.h"
+#include "ms5611.h"
 
 
+#define STATUS_LOG_PERIOD           1000
+#define STATUS_TRANSMIT_PERIOD      5000
 #define ALTITUDE_TRANSMIT_PERIOD    1000
 #define GNSS_LOC_TRANSMIT_PERIOD    5000
 #define GNSS_META_TRANSMIT_PERIOD   30000
@@ -70,6 +75,15 @@ static void telemetry_marshal_mpu9250_acceleration(uint32_t *pl_buf, void *arg);
 static void telemetry_marshal_mpu9250_angular_velocity(uint32_t *pl_buf,
                                                        void *arg);
 #endif
+
+/**
+ *  Marshal software status payload.
+ *
+ *  @param pl_buf Buffer where payload should be marshaled
+ *  @param arg Not used
+ */
+static void telemetry_marshal_status(uint32_t *pl_buf, void *arg);
+
 
 
 
@@ -263,6 +277,22 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
         }
     }
 #endif
+
+    uint8_t const log_status = ((millis - inst->last_status_log_time) >
+                                STATUS_LOG_PERIOD);
+    uint8_t const send_status = ((millis - inst->last_status_radio_time) >
+                                 STATUS_TRANSMIT_PERIOD);
+    telemetry_post_internal(inst, log_status, send_status,
+                            STATUS_TRANSMIT_PERIOD, sizeof(struct telem_status),
+                            telemetry_marshal_status, NULL,
+                            RADIO_DATA_BLOCK_STATUS);
+    if (log_status) {
+        inst->last_status_log_time = millis;
+    }
+
+    if (send_status) {
+        inst->last_status_radio_time = millis;
+    }
 }
 
 
@@ -432,6 +462,58 @@ static void telemetry_marshal_mpu9250_angular_velocity(uint32_t *pl_buf,
     pl->z = mpu9250_get_gyro_z(imu);
 }
 #endif
+
+static void telemetry_marshal_status(uint32_t *pl_buf, void *arg)
+{
+    struct telem_status *const pl = (struct telem_status*)pl_buf;
+
+    // Set the entire payload to zero to make sure that any fields which are not
+    // populated will be zeroed
+    memset(pl, 0, sizeof(struct telem_status));
+
+    pl->time = millis;
+#ifdef ENABLE_DEPLOYMENT
+    pl->deployment_state = deployment_get_state(&deployment_g);
+#endif
+#ifdef ENABLE_LOGGING
+    pl->sd_blocks_recorded = log_get_curr_flight_blocks(&logging_g);
+    pl->sd_checkouts_missed = log_get_num_missed_checkouts(&logging_g);
+    pl->sd_state = log_get_sd_funcs(&logging_g)->get_status(
+                                                log_get_sd_desc(&logging_g));
+#endif
+#ifdef ENABLE_IMU
+    if (imu_g.state < MPU9250_RUNNING) {
+        pl->imu_state = TELEM_SENSOR_STATUS_INITIALIZING;
+    } else if (imu_g.state < MPU9250_FAILED) {
+        pl->imu_state = TELEM_SENSOR_STATUS_RUNNING;
+    } else if ((imu_g.state == MPU9250_FAILED_AG_SELF_TEST) ||
+               (imu_g.state == MPU9250_FAILED_MAG_SELF_TEST)) {
+        pl->imu_state = TELEM_SENSOR_STATUS_SELF_TEST_FAILED;
+    } else {
+        pl->imu_state = TELEM_SENSOR_STATUS_FAILED;
+    }
+#endif
+#ifdef ENABLE_ALTIMETER
+    if (altimeter_g.state < MS5611_IDLE) {
+        pl->altimeter_state = TELEM_SENSOR_STATUS_INITIALIZING;
+    } else if (altimeter_g.state < MS5611_FAILED) {
+        pl->altimeter_state = TELEM_SENSOR_STATUS_RUNNING;
+    } else {
+        pl->altimeter_state = TELEM_SENSOR_STATUS_FAILED;
+    }
+#endif
+#ifdef ENABLE_KX134_1211
+    if (kx134_g.state < KX134_1211_RUNNING) {
+        pl->kx134_state = TELEM_SENSOR_STATUS_INITIALIZING;
+    } else if (kx134_g.state < KX134_1211_FAILED) {
+        pl->kx134_state = TELEM_SENSOR_STATUS_RUNNING;
+    } else if (kx134_g.state == KX134_1211_FAILED_SELF_TEST) {
+        pl->kx134_state = TELEM_SENSOR_STATUS_SELF_TEST_FAILED;
+    } else {
+        pl->kx134_state = TELEM_SENSOR_STATUS_FAILED;
+    }
+#endif
+}
 
 
 uint8_t *telemetry_post_kx134_accel(struct telemetry_service_desc_t *inst,
