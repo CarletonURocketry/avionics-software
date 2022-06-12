@@ -52,7 +52,7 @@ static inline int test_abs_acceleration(
                    (int64_t)((int32_t)z * z));
     threashold *= mpu9250_accel_sensitivity(mpu9250_imu);
 
-    return abs > threashold;
+    return abs > (threashold * threashold);
 }
 
 static inline int is_decending(struct deployment_service_desc_t *const inst)
