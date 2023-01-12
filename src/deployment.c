@@ -3,8 +3,8 @@
  * @desc Service which handles deployment of parachute
  * @author Samuel Dewan
  * @date 2022-06-10
- * Last Author:
- * Last Edited On:
+ * Last Author: James Makhlouf
+ * Last Edited On: 2023-01-11
  */
 
 #include "deployment.h"
