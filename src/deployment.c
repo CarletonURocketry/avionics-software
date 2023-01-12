@@ -26,6 +26,7 @@ void init_deployment(struct deployment_service_desc_t *const inst,
     inst->max_altitude = 0.0f;
     inst->last_sample_time = 0;
     inst->decending_sample_count = 0;
+    inst->first_previous_altitude = 0.0f;
 }
 
 
@@ -57,6 +58,7 @@ static inline int test_abs_acceleration(
 
 static inline int is_decending(struct deployment_service_desc_t *const inst)
 {
+
 #ifdef ENABLE_DEPLOYMENT_SERVICE
     // Check if we have a new sample
     const uint32_t alt_time = ms5611_get_last_reading_time(inst->ms5611_alt);
@@ -64,47 +66,31 @@ static inline int is_decending(struct deployment_service_desc_t *const inst)
         return 0;
     }
     inst->last_sample_time = alt_time;
-
-    // Check if the new sample is the highest we have been
-    const float altitude = ms5611_get_altitude(inst->ms5611_alt);
-    if (altitude >= inst->max_altitude) {
-        inst->max_altitude = altitude;
-        inst->decending_sample_count = 0;
+  
+    //Compares the new recorded altitude to the previously recorded altitude 
+   const uint32_t alt_time = ms5611_get_last_reading_time(inst->ms5611_alt);
+    if (alt_time <= inst->last_sample_time) {
         return 0;
     }
+    inst->last_sample_time = alt_time;
 
-    // This sample is less than our highest
-    inst->decending_sample_count++;
+    const float altitude = ms5611_get_altitude(inst->ms5611_alt);
+    if (altitude >= inst->first_previous_altitude)  { 
+        
+        inst->descending_sample_count = 0;
+        //resets the descending sample count if the new altitude is greater than the previous altitude 
+        return 0;
+    else {
 
-    // Check if we have enough samples to be sure we are decending
+        inst->descending_sample_count++
+        //increments the descending sample count if the new altiude is less than the previous one
+    }
+    inst->first_previous_altitude = altitude; 
+    // the new altitude is reparamaterized as the old altitude 
     return (inst->decending_sample_count >
-            DEPLOYMENT_DESCENDING_SAMPLE_THREASHOLD);
-#else
-    return 0;
-#endif
-}
-
-static inline int is_landed(struct deployment_service_desc_t *const inst)
-{
-#ifdef ENABLE_DEPLOYMENT_SERVICE
-    // Check if we have a new sample
-    const uint32_t alt_time = ms5611_get_last_reading_time(inst->ms5611_alt);
-    if (alt_time <= inst->last_sample_time) {
-        return 0;
+        DEPLOYMENT_DESCENDING_SAMPLE_THREASHOLD);
+        //if the sequence of samples where the altitude is not greater than the previous altitude reaches a threshold, will return 1
     }
-    inst->last_sample_time = alt_time;
-
-    // Check if the new sample is close to the last sample we saw
-    const float altitude = ms5611_get_altitude(inst->ms5611_alt);
-    if (fabsf(inst->last_altitude - altitude) > DEPLOYMENT_LANDED_ALT_CHANGE) {
-        inst->landing_sample_count = 0;
-        return 0;
-    }
-
-    inst->landing_sample_count++;
-
-    // Check if we have enough samples to be sure we have landed
-    return inst->landing_sample_count > DEPLOYMENT_LANDED_SAMPLE_THREASHOLD;
 #else
     return 0;
 #endif
