@@ -27,6 +27,7 @@ struct deployment_service_desc_t {
     enum deployment_service_state state;
     struct ms5611_desc_t *ms5611_alt;
     struct mpu9250_desc_t *mpu9250_imu;
+    float first_previous_altitude;
     union {
         float max_altitude;
         float last_altitude;
