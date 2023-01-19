@@ -14,7 +14,6 @@
 #include "variant.h"
 #include "gpio.h"
 
-
 void init_deployment(struct deployment_service_desc_t *const inst,
                      struct ms5611_desc_t *const ms5611_alt,
                      struct mpu9250_desc_t *const mpu9250_imu)
@@ -110,7 +109,6 @@ static inline int is_landed(struct deployment_service_desc_t *const inst)
 #endif
 }
 
-
 void deployment_service(struct deployment_service_desc_t *const inst)
 {
 #ifdef ENABLE_DEPLOYMENT_SERVICE
@@ -143,22 +141,38 @@ void deployment_service(struct deployment_service_desc_t *const inst)
             }
             break;
         case DEPLOYMENT_STATE_COASTING_ASCENT:
-            if (is_decending(inst)) {
-                gpio_set_output(EMATCH_1_PIN, 1);
-                gpio_set_output(EMATCH_2_PIN, 1);
+            inst->last_altitude = ms5611_get_altitude(inst->ms5611_alt);
+            if (inst->last_altitude <= DROGUE_DEPLOY_ALTITUDE &&
+                                                        is_decending(inst)) {
+                gpio_set_output(DROGUE_EMATCH_PIN, 1);
                 inst->deployment_time = millis;
-                inst->state = DEPLOYMENT_STATE_DEPLOYING;
+                inst->state = DEPLOYMENT_STATE_DROGUE_DEPLOY;
+            }
+            break;
+        case DEPLOYMENT_STATE_DROGUE_DEPLOY:
+            if ((millis - inst->deployment_time) >
+                    DEPLOYMENT_EMATCH_FIRE_DURATION) {
+                gpio_set_output(DROGUE_EMATCH_PIN, 0);
+                inst->state = DEPLOYMENT_STATE_DROGUE_DESCENT;
+            }
+            break;
+        case DEPLOYMENT_STATE_DROGUE_DESCENT:
+            inst->last_altitude = ms5611_get_altitude(inst->ms5611_alt);
+            if (inst->last_altitude <= MAIN_DEPLOY_ALTITUDE &&
+                                                        is_decending(inst)) {
+                gpio_set_output(MAIN_EMATCH_PIN, 1);
+                inst->deployment_time = millis;
+                inst->state = DEPLOYMENT_STATE_MAIN_DEPLOY;
             }
             break;
         case DEPLOYMENT_STATE_MAIN_DEPLOY:
             if ((millis - inst->deployment_time) >
                     DEPLOYMENT_EMATCH_FIRE_DURATION) {
-                gpio_set_output(EMATCH_1_PIN, 0);
-                gpio_set_output(EMATCH_2_PIN, 0);
-                inst->state = DEPLOYMENT_STATE_DESCENT;
+                gpio_set_output(MAIN_EMATCH_PIN, 0);
+                inst->state = DEPLOYMENT_STATE_MAIN_DESCENT;
             }
             break;
-        case DEPLOYMENT_STATE_DESCENT:
+        case DEPLOYMENT_STATE_MAIN_DESCENT:
             if (is_landed(inst)) {
                 inst->state = DEPLOYMENT_STATE_RECOVERY;
             }

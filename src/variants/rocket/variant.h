@@ -40,9 +40,9 @@
 //
 //
 
-#define ARMED_SENSE_PIN     GPIO_15
-#define EMATCH_1_PIN        GPIO_22
-#define EMATCH_2_PIN        GPIO_23
+#define ARMED_SENSE_PIN         GPIO_15
+#define DROGUE_EMATCH_PIN       GPIO_22
+#define MAIN_EMATCH_PIN         GPIO_23
 
 
 //
@@ -79,7 +79,11 @@
 /* Length of time that current is applied to ematches in milliseconds */
 #define DEPLOYMENT_EMATCH_FIRE_DURATION             500
 
+/* The altitude at which the drogue parachute will be deployed*/
+#define DROGUE_DEPLOY_ALTITUDE                      1000
 
+/* The altitude at which the main parachute will be deployed*/
+#define MAIN_DEPLOY_ALTITUDE                        500
 //
 //
 //  I2C
