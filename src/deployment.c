@@ -150,7 +150,7 @@ void deployment_service(struct deployment_service_desc_t *const inst)
                 inst->state = DEPLOYMENT_STATE_DEPLOYING;
             }
             break;
-        case DEPLOYMENT_STATE_DEPLOYING:
+        case DEPLOYMENT_STATE_MAIN_DEPLOY:
             if ((millis - inst->deployment_time) >
                     DEPLOYMENT_EMATCH_FIRE_DURATION) {
                 gpio_set_output(EMATCH_1_PIN, 0);
