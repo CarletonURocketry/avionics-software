@@ -23,6 +23,12 @@ include $(VARIANTSDIR)/$(VARIANT)/variant.mk
 ##### Files #####
 # List of C source files. (C dependencies are automatically generated.)
 SRC = $(wildcard $(SRCDIR)/*.c) $(wildcard $(SRCDIR)/*.c)
+SRC += $(wildcard $(SRCDIR)/console/*.c) $(wildcard $(SRCDIR)/console/*.c)
+SRC += $(wildcard $(SRCDIR)/radio/*.c) $(wildcard $(SRCDIR)/radio/*.c)
+SRC += $(wildcard $(SRCDIR)/sd/*.c) $(wildcard $(SRCDIR)/sd/*.c)
+SRC += $(wildcard $(SRCDIR)/sensors/*.c) $(wildcard $(SRCDIR)/sensors/*.c)
+SRC += $(wildcard $(SRCDIR)/telemetry/*.c) $(wildcard $(SRCDIR)/telemetry/*.c)
+
 SRC += $(BOARD_SOURCES) $(TARGET_SOURCES) $(VARIANT_SOURCES)
 # List Assembler source files here (Make sure they always end in a capital .S.)
 ASRC = $(wildcard $(SRCDIR)/*.S) $(BOARD_ASRC) $(TARGET_ASRC)

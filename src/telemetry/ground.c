@@ -9,7 +9,7 @@
 
 #include "ground.h"
 
-#include "console.h"
+#include "src/console/console.h"
 
 
 static struct console_desc_t *ground_console_g;

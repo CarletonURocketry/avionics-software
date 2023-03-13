@@ -11,7 +11,7 @@
 #define logging_h
 
 #include "global.h"
-#include "sd.h"
+#include "src/sd/sd.h"
 
 #include "target.h" // For LOGGING_BUFFER_SIZE
 

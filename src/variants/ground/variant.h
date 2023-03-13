@@ -10,9 +10,9 @@
 #ifndef variant_h
 #define variant_h
 
-#include "rn2483.h"
-#include "radio-transport.h"
-#include "radio-antmgr.h"
+#include "radio/rn2483.h"
+#include "radio/radio-transport.h"
+#include "radio/radio-antmgr.h"
 
 /* String to identify this configuration */
 #define VARIANT_STRING "Ground Station"

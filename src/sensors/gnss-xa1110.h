@@ -10,7 +10,7 @@
 #define gnss_h
 
 #include "global.h"
-#include "console.h"
+#include "src/console/console.h"
 
 /* Define in order to parse store the satellite numbers of in use satellites */
 #define GNSS_STORE_IN_USE_SAT_SVS

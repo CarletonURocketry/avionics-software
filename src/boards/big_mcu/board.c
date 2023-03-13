@@ -23,7 +23,7 @@
 #include "wdt.h"
 #include "sdhc.h"
 
-#include "kx134-1211.h"
+#include "sensors/kx134-1211.h"
 
 // MARK: Hardware Resources from Config File
 #ifdef ENABLE_SPI0

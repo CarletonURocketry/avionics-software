@@ -11,7 +11,7 @@
 #define sky13414_h
 
 #include "global.h"
-#include "rn2483.h"
+#include "src/radio/rn2483.h"
 
 /**
  *  Possible states of SKY13414 switch.

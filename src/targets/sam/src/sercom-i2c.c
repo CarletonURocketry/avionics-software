@@ -12,7 +12,7 @@
 #include "sercom-tools.h"
 #include "dma.h"
 
-#include "transaction-queue.h"
+#include "src/sd/transaction-queue.h"
 
 // The minimum length for a transaction to use DMA
 #define I2C_DMA_THRESHOLD   3

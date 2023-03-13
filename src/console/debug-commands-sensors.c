@@ -17,11 +17,11 @@
 #include "board.h"
 #include "wdt.h"
 #include "sercom-i2c.h"
-#include "mcp23s17-registers.h"
-#include "gnss-xa1110.h"
-#include "ms5611.h"
-#include "kx134-1211.h"
-#include "mpu9250.h"
+#include "src/sensors/mcp23s17-registers.h"
+#include "src/sensors/gnss-xa1110.h"
+#include "src/sensors/ms5611.h"
+#include "src/sensors/kx134-1211.h"
+#include "src/sensors/mpu9250.h"
 
 // MARK: Altimeter PROM
 

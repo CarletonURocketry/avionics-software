@@ -14,15 +14,15 @@
 #define telemtry_h_skipped
 #define telemetry_h
 #endif
-#include "ms5611.h"
-#include "mpu9250.h"
+#include "src/sensors/ms5611.h"
+#include "src/sensors/mpu9250.h"
 #ifdef telemtry_h_skipped
 #undef telemetry_h
 #undef telemtry_h_skipped
 #endif
-#include "rn2483.h"
-#include "radio-transport.h"
-#include "radio-antmgr.h"
+#include "src/radio/rn2483.h"
+#include "src/radio/radio-transport.h"
+#include "src/radio/radio-antmgr.h"
 
 /* String to identify this configuration */
 #define VARIANT_STRING "Test"

@@ -12,21 +12,21 @@
 #include "global.h"
 #include "board.h"
 
-#include "console.h"
-#include "cli.h"
-#include "debug-commands.h"
+#include "src/console/console.h"
+#include "src/console/cli.h"
+#include "src/console/debug-commands.h"
 
-#include "gnss-xa1110.h"
-#include "ms5611.h"
-#include "mpu9250.h"
-#include "rn2483.h"
-#include "kx134-1211.h"
+#include "src/sensors/gnss-xa1110.h"
+#include "src/sensors/ms5611.h"
+#include "src/sensors/mpu9250.h"
+#include "src/radio/rn2483.h"
+#include "src/sensors/kx134-1211.h"
 
-#include "radio-transport.h"
-#include "logging.h"
+#include "src/radio/radio-transport.h"
+#include "src/sd/logging.h"
 
-#include "ground.h"
-#include "telemetry.h"
+#include "src/telemetry/ground.h"
+#include "src/telemetry/telemetry.h"
 #include "deployment.h"
 
 

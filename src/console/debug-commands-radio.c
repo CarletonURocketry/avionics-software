@@ -15,11 +15,11 @@
 #include "board.h"
 #include "wdt.h"
 #include "sercom-uart.h"
-#include "radio-transport.h"
-#include "radio-types.h"
-#include "radio-antmgr.h"
-#include "radio-packet-layout.h"
-#include "radio-control-block-layout.h"
+#include "src/radio/radio-transport.h"
+#include "src/radio/radio-types.h"
+#include "src/radio/radio-antmgr.h"
+#include "src/radio/radio-packet-layout.h"
+#include "src/radio/radio-control-block-layout.h"
 
 // MARK: LoRa Version
 

@@ -21,7 +21,7 @@
 #include "usb.h"
 #include "usb-cdc.h"
 #include "wdt.h"
-#include "sdspi.h"
+#include "src/sd/sdspi.h"
 
 // MARK: Hardware Resources from Config File
 #ifdef ENABLE_SPI0

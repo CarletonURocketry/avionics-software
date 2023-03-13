@@ -12,8 +12,8 @@
 
 #include "global.h"
 
-#include "console.h"
-#include "rn2483.h"
+#include "src/console/console.h"
+#include "src/radio/rn2483.h"
 
 extern void init_ground_service(struct console_desc_t *out_console,
                                 struct rn2483_desc_t *radio);

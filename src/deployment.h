@@ -10,8 +10,8 @@
 #ifndef deployment_h
 #define deployment_h
 
-#include "ms5611.h"
-#include "mpu9250.h"
+#include "src/sensors/ms5611.h"
+#include "src/sensors/mpu9250.h"
 
 enum deployment_service_state {
     DEPLOYMENT_STATE_IDLE = 0x0,

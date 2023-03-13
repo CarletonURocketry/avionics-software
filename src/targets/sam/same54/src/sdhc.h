@@ -11,7 +11,7 @@
 #define sdhc_h
 
 #include "global.h"
-#include "sd.h"
+#include "sd/sd.h"
 
 
 #define SDHC_ADMA2_DESC_ACT_NOP_Val     0b00

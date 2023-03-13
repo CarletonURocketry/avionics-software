@@ -10,14 +10,14 @@
 #include "telemetry.h"
 
 #include "telemetry-formats.h"
-#include "radio-packet-layout.h"
+#include "src/radio/radio-packet-layout.h"
 
 #include "variant.h"
 #include "board.h"
-#include "gnss-xa1110.h"
-#include "kx134-1211.h"
-#include "mpu9250.h"
-#include "ms5611.h"
+#include "src/sensors/gnss-xa1110.h"
+#include "src/sensors/kx134-1211.h"
+#include "src/sensors/mpu9250.h"
+#include "src/sensors/ms5611.h"
 
 
 #define STATUS_LOG_PERIOD           1000

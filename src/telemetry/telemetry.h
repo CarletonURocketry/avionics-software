@@ -14,13 +14,13 @@
 #include "variant.h"
 #include "board.h"
 
-#include "logging.h"
-#include "radio-transport.h"
+#include "src/sd/logging.h"
+#include "src/radio/radio-transport.h"
 
 #include "adc.h"
-#include "ms5611.h"
-#include "gnss-xa1110.h"
-#include "mpu9250.h"
+#include "src/sensors/ms5611.h"
+#include "src/sensors/gnss-xa1110.h"
+#include "src/sensors/mpu9250.h"
 
 
 struct telemetry_service_desc_t {

@@ -14,7 +14,7 @@
 
 #include "sercom-i2c.h"
 #include "gpio.h"
-#include "telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 
 #define MPU9250_BUFFER_LENGTH   128

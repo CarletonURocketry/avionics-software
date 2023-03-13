@@ -10,7 +10,7 @@
 #ifndef lora_config_h
 #define lora_config_h
 
-#include "rn2483.h"
+#include "src/radio/rn2483.h"
 
 //
 //

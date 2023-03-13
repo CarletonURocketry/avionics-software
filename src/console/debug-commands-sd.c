@@ -13,13 +13,13 @@
 
 #include "variant.h"
 #include "board.h"
-#include "sd.h"
-#include "sdspi.h"
+#include "src/sd/sd.h"
+#include "src/sd/sdspi.h"
 #include "wdt.h"
-#include "mbr.h"
+#include "src/sd/mbr.h"
 
-#include "logging.h"
-#include "logging-format.h"
+#include "src/sd/logging.h"
+#include "src/sd/logging-format.h"
 
 
 #if defined(ENABLE_SDSPI) || defined(ENABLE_SDHC0)

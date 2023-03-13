@@ -12,9 +12,9 @@
 
 #include "global.h"
 
-#include "mcp23s17.h"
-#include "rn2483.h"
-#include "radio-transport.h"
+#include "src/sensors/mcp23s17.h"
+#include "src/radio/rn2483.h"
+#include "src/radio/radio-transport.h"
 
 #define GPIO_MAX_EXTERNAL_IO_INTERRUPTS 8
 
