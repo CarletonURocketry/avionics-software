@@ -25,6 +25,7 @@
 #define ALTITUDE_TRANSMIT_PERIOD    1000
 #define GNSS_LOC_TRANSMIT_PERIOD    5000
 #define GNSS_META_TRANSMIT_PERIOD   30000
+#define GNSS_META_LOG_PERIOD        1000
 #define IMU_TRANSMIT_PERIOD         2500
 
 
@@ -228,7 +229,9 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
 
         // Metadata
         uint32_t const meta_time = inst->gnss->last_gsv;
-        uint8_t const log_meta = meta_time != inst->last_ms5611_alt_log_time;
+        uint8_t const log_meta = ((meta_time -
+                                    inst->last_gnss_meta_log_time) >
+                                   GNSS_META_LOG_PERIOD);
         uint8_t const send_meta = ((meta_time -
                                     inst->last_gnss_meta_radio_time) >
                                    GNSS_META_TRANSMIT_PERIOD);
@@ -243,7 +246,9 @@ void telemetry_service(struct telemetry_service_desc_t *inst)
                                 sizeof(struct telem_gnss_meta) + sat_length,
                                 telemetry_marshal_gnss_metadata,
                                 inst->gnss, RADIO_DATA_BLOCK_GNSS_META);
-        inst->last_ms5611_alt_log_time = meta_time;
+        if (log_meta) {
+            inst->last_gnss_meta_log_time = meta_time;
+        }
         if (send_meta) {
             inst->last_gnss_meta_radio_time = meta_time;
         }
