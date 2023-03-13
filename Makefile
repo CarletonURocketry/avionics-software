@@ -16,19 +16,18 @@ BOARD ?= mcu/rev_a
 include $(BOARDSDIR)/$(BOARD)/board.mk
 # Include target make file (TARGET should be defined by board makefile)
 include $(TARGETSDIR)/$(TARGET)/target.mk
-# Include varient makefile
+# Include variant makefile
 VARIANT ?= test
 include $(VARIANTSDIR)/$(VARIANT)/variant.mk
 
 ##### Files #####
 # List of C source files. (C dependencies are automatically generated.)
-SRC = $(wildcard $(SRCDIR)/*.c) $(wildcard $(SRCDIR)/*.c)
-SRC += $(wildcard $(SRCDIR)/console/*.c) $(wildcard $(SRCDIR)/console/*.c)
-SRC += $(wildcard $(SRCDIR)/radio/*.c) $(wildcard $(SRCDIR)/radio/*.c)
-SRC += $(wildcard $(SRCDIR)/sd/*.c) $(wildcard $(SRCDIR)/sd/*.c)
-SRC += $(wildcard $(SRCDIR)/sensors/*.c) $(wildcard $(SRCDIR)/sensors/*.c)
-SRC += $(wildcard $(SRCDIR)/telemetry/*.c) $(wildcard $(SRCDIR)/telemetry/*.c)
-
+SRC = $(wildcard $(SRCDIR)/*.c)
+SRC += $(wildcard $(SRCDIR)/console/*.c)
+SRC += $(wildcard $(SRCDIR)/radio/*.c)
+SRC += $(wildcard $(SRCDIR)/sd/*.c)
+SRC += $(wildcard $(SRCDIR)/sensors/*.c)
+SRC += $(wildcard $(SRCDIR)/telemetry/*.c)
 SRC += $(BOARD_SOURCES) $(TARGET_SOURCES) $(VARIANT_SOURCES)
 # List Assembler source files here (Make sure they always end in a capital .S.)
 ASRC = $(wildcard $(SRCDIR)/*.S) $(BOARD_ASRC) $(TARGET_ASRC)
@@ -36,7 +35,7 @@ ASRC = $(wildcard $(SRCDIR)/*.S) $(BOARD_ASRC) $(TARGET_ASRC)
 INCLUDE_DIRS = . $(SRCDIR) $(BOARD_INC_DIRS) $(TARGET_INC_DIRS) $(VARIANT_INC_DIRS)
 # Define all object files.
 OBJ = $(patsubst $(SRCDIR)/%.S,$(OBJDIR)/%.o,$(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRC))))
-# Define all dependancy files.
+# Define all dependency files.
 DEP = $(OBJ:%.o=%.d)
 # Define all list files.
 LST = $(OBJ:%.o=%.lst)
@@ -51,7 +50,7 @@ CFLAGS += -funsigned-char -funsigned-bitfields -fno-strict-aliasing
 CFLAGS += -ffunction-sections -fdata-sections -mlong-calls
 CFLAGS += --param max-inline-insns-single=500
 
-# Enable many usefull warnings
+# Enable many useful warnings
 # (see https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Warning-Options.html)
 CFLAGS += -Wall -Wextra -Wshadow -Wundef -Wformat=2 -Wtrampolines -Wfloat-equal
 CFLAGS += -Wbad-function-cast -Wstrict-prototypes -Wpacked
@@ -64,7 +63,7 @@ CFLAGS += -Wlogical-op -Wold-style-definition -Wcast-qual -Wdouble-promotion
 CFLAGS += -Wunsuffixed-float-constants -Wmissing-include-dirs -Wnormalized
 CLFAGS += -Wdisabled-optimization -Wsuggest-attribute=const
 
-# These warning may be usefull in some cases, but cause too many false positives
+# These warning may be useful in some cases, but cause too many false positives
 # to be enabled all of the time: -Winline -Wpadded -Wvla -Wpedantic -Wconversion
 # -Wnull-dereference -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure
 # -Wstack-usage=256
