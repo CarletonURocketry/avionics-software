@@ -25,7 +25,7 @@ void init_deployment(struct deployment_service_desc_t *const inst,
     inst->mpu9250_imu = mpu9250_imu;
     inst->max_altitude = 0.0f;
     inst->last_sample_time = 0;
-    inst->decending_sample_count = 0;
+    inst->descending_sample_count = 0;
 }
 
 
@@ -42,7 +42,7 @@ static inline int is_armed(void)
 
 static inline int test_abs_acceleration(
                                 const struct mpu9250_desc_t *const mpu9250_imu,
-                                uint32_t threashold)
+                                uint32_t threshold)
 {
     const uint16_t x = mpu9250_get_accel_x(mpu9250_imu);
     const uint16_t y = mpu9250_get_accel_y(mpu9250_imu);
@@ -50,12 +50,12 @@ static inline int test_abs_acceleration(
 
     int64_t abs = ((int64_t)((int32_t)x * x) + (int64_t)((int32_t)y * y) +
                    (int64_t)((int32_t)z * z));
-    threashold *= mpu9250_accel_sensitivity(mpu9250_imu);
+    threshold *= mpu9250_accel_sensitivity(mpu9250_imu);
 
-    return abs > (threashold * threashold);
+    return abs > (threshold * threshold);
 }
 
-static inline int is_decending(struct deployment_service_desc_t *const inst)
+static inline int is_descending(struct deployment_service_desc_t *const inst)
 {
 #ifdef ENABLE_DEPLOYMENT_SERVICE
     // Check if we have a new sample
@@ -69,16 +69,16 @@ static inline int is_decending(struct deployment_service_desc_t *const inst)
     const float altitude = ms5611_get_altitude(inst->ms5611_alt);
     if (altitude >= inst->max_altitude) {
         inst->max_altitude = altitude;
-        inst->decending_sample_count = 0;
+        inst->descending_sample_count = 0;
         return 0;
     }
 
     // This sample is less than our highest
-    inst->decending_sample_count++;
+    inst->descending_sample_count++;
 
-    // Check if we have enough samples to be sure we are decending
-    return (inst->decending_sample_count >
-            DEPLOYMENT_DESCENDING_SAMPLE_THREASHOLD);
+    // Check if we have enough samples to be sure we are descending
+    return (inst->descending_sample_count >
+            DEPLOYMENT_DESCENDING_SAMPLE_THRESHOLD);
 #else
     return 0;
 #endif
@@ -104,7 +104,7 @@ static inline int is_landed(struct deployment_service_desc_t *const inst)
     inst->landing_sample_count++;
 
     // Check if we have enough samples to be sure we have landed
-    return inst->landing_sample_count > DEPLOYMENT_LANDED_SAMPLE_THREASHOLD;
+    return inst->landing_sample_count > DEPLOYMENT_LANDED_SAMPLE_THRESHOLD;
 #else
     return 0;
 #endif
@@ -123,18 +123,18 @@ void deployment_service(struct deployment_service_desc_t *const inst)
         case DEPLOYMENT_STATE_ARMED:
             inst->last_altitude = ms5611_get_altitude(inst->ms5611_alt);
             if (test_abs_acceleration(inst->mpu9250_imu,
-                                DEPLOYMENT_POWERED_ASCENT_ACCEL_THREASHOLD) ||
+                                DEPLOYMENT_POWERED_ASCENT_ACCEL_THRESHOLD) ||
                 inst->last_altitude >
-                                DEPLOYMENT_POWERED_ASCENT_ALT_THREASHOLD) {
+                                DEPLOYMENT_POWERED_ASCENT_ALT_THRESHOLD) {
                 inst->state = DEPLOYMENT_STATE_POWERED_ASCENT;
             }
             break;
         case DEPLOYMENT_STATE_POWERED_ASCENT:
             inst->last_altitude = ms5611_get_altitude(inst->ms5611_alt);
             if (!test_abs_acceleration(inst->mpu9250_imu,
-                                DEPLOYMENT_COASTING_ASCENT_ACCEL_THREASHOLD) ||
+                                DEPLOYMENT_COASTING_ASCENT_ACCEL_THRESHOLD) ||
                 inst->last_altitude >
-                                DEPLOYMENT_COASTING_ASCENT_ALT_THREASHOLD) {
+                                DEPLOYMENT_COASTING_ASCENT_ALT_THRESHOLD) {
                 if (inst->last_altitude >
                     DEPLOYMENT_COASTING_ASCENT_ALT_MINIMUM) {
 
@@ -143,7 +143,7 @@ void deployment_service(struct deployment_service_desc_t *const inst)
             }
             break;
         case DEPLOYMENT_STATE_COASTING_ASCENT:
-            if (is_decending(inst)) {
+            if (is_descending(inst)) {
                 gpio_set_output(EMATCH_1_PIN, 1);
                 gpio_set_output(EMATCH_2_PIN, 1);
                 inst->deployment_time = millis;

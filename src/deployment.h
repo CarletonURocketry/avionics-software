@@ -36,7 +36,7 @@ struct deployment_service_desc_t {
         uint32_t deployment_time;
     };
     union {
-        uint8_t decending_sample_count;
+        uint8_t descending_sample_count;
         uint8_t landing_sample_count;
     };
 };

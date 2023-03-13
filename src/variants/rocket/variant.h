@@ -51,30 +51,30 @@
 //
 //
 
-/* Acceleration threashold to trigger transition into powered ascent state in
+/* Acceleration threshold to trigger transition into powered ascent state in
    g */
-#define DEPLOYMENT_POWERED_ASCENT_ACCEL_THREASHOLD  4
-/* Backup altitude threashold to trigger transition into powered ascent state in
+#define DEPLOYMENT_POWERED_ASCENT_ACCEL_THRESHOLD  4
+/* Backup altitude THRESHOLD to trigger transition into powered ascent state in
    meters */
-#define DEPLOYMENT_POWERED_ASCENT_ALT_THREASHOLD    100
-/* Acceleration threashold to trigger transition into coasting ascent state in
+#define DEPLOYMENT_POWERED_ASCENT_ALT_THRESHOLD    100
+/* Acceleration THRESHOLD to trigger transition into coasting ascent state in
    g */
-#define DEPLOYMENT_COASTING_ASCENT_ACCEL_THREASHOLD 1
-/* Backup altitude threashold to trigger transition into coasting ascent state
+#define DEPLOYMENT_COASTING_ASCENT_ACCEL_THRESHOLD 1
+/* Backup altitude THRESHOLD to trigger transition into coasting ascent state
    in meters */
-#define DEPLOYMENT_COASTING_ASCENT_ALT_THREASHOLD   2000
-/* Mininum altitude threashold for transition into coasting ascent state in
+#define DEPLOYMENT_COASTING_ASCENT_ALT_THRESHOLD   2000
+/* Mininum altitude THRESHOLD for transition into coasting ascent state in
    meters */
 #define DEPLOYMENT_COASTING_ASCENT_ALT_MINIMUM      500
 /* Number of consecutive samples below the maximum altitude we have seen
    required to deploy drogue chute */
-#define DEPLOYMENT_DESCENDING_SAMPLE_THREASHOLD     5
+#define DEPLOYMENT_DESCENDING_SAMPLE_THRESHOLD     5
 /* Amount of change in altitude required to indicate that we are still moving in
    meters */
 #define DEPLOYMENT_LANDED_ALT_CHANGE                0.5f
 /* Number of consecutive samples of staying still required before we can be
    sure that we have landed */
-#define DEPLOYMENT_LANDED_SAMPLE_THREASHOLD         100
+#define DEPLOYMENT_LANDED_SAMPLE_THRESHOLD         100
 
 /* Length of time that current is applied to ematches in milliseconds */
 #define DEPLOYMENT_EMATCH_FIRE_DURATION             500
