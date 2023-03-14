@@ -40,9 +40,9 @@
 //
 //
 
-#define ARMED_SENSE_PIN     GPIO_15
-#define EMATCH_1_PIN        GPIO_22
-#define EMATCH_2_PIN        GPIO_23
+#define ARMED_SENSE_PIN         GPIO_15
+#define DROGUE_EMATCH_PIN       GPIO_22
+#define MAIN_EMATCH_PIN         GPIO_23
 
 
 //
@@ -54,16 +54,16 @@
 /* Acceleration threshold to trigger transition into powered ascent state in
    g */
 #define DEPLOYMENT_POWERED_ASCENT_ACCEL_THRESHOLD  4
-/* Backup altitude THRESHOLD to trigger transition into powered ascent state in
+/* Backup altitude threshold to trigger transition into powered ascent state in
    meters */
 #define DEPLOYMENT_POWERED_ASCENT_ALT_THRESHOLD    100
-/* Acceleration THRESHOLD to trigger transition into coasting ascent state in
+/* Acceleration threshold to trigger transition into coasting ascent state in
    g */
 #define DEPLOYMENT_COASTING_ASCENT_ACCEL_THRESHOLD 1
-/* Backup altitude THRESHOLD to trigger transition into coasting ascent state
+/* Backup altitude threshold to trigger transition into coasting ascent state
    in meters */
 #define DEPLOYMENT_COASTING_ASCENT_ALT_THRESHOLD   2000
-/* Mininum altitude THRESHOLD for transition into coasting ascent state in
+/* Minimum altitude threshold for transition into coasting ascent state in
    meters */
 #define DEPLOYMENT_COASTING_ASCENT_ALT_MINIMUM      500
 /* Number of consecutive samples below the maximum altitude we have seen
@@ -79,7 +79,11 @@
 /* Length of time that current is applied to ematches in milliseconds */
 #define DEPLOYMENT_EMATCH_FIRE_DURATION             500
 
+/* The altitude at which the drogue parachute will be deployed*/
+#define DROGUE_DEPLOY_ALTITUDE                      1000
 
+/* The altitude at which the main parachute will be deployed*/
+#define MAIN_DEPLOY_ALTITUDE                        500
 //
 //
 //  I2C
