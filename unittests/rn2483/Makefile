@@ -1,4 +1,4 @@
-SOURCE=rn2483
+SOURCE=radio/rn2483
 
 TESTS =	init_rn2483 \
 		rn2483_service \

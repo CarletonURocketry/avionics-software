@@ -12,7 +12,7 @@
 
 #include "global.h"
 
-#include "src/sd/transaction-queue.h"
+#include "sd/transaction-queue.h"
 
 #define SERCOM_SPI_TRANSACTION_QUEUE_LENGTH 16
 
