@@ -360,7 +360,7 @@ void init_target(void)
 
     // Enable SysTick for an interrupt every 10 milliseconds, this is just to
     // make sure that we wake the main loop occasionally, not for time keeping
-    SysTick_Config(12000);
+    SysTick_Config(F_CPU / 100);
     // Give SysTick interrupt lowest priority
     NVIC_SetPriority(SysTick_IRQn, 7);
 }
